@@ -12,6 +12,8 @@ import (
 	"github.com/AMINOPY/pg-core/internal/engine"
 )
 
+const cleanupTimeout = 5 * time.Second
+
 var (
 	ErrAlreadyRunning = errors.New("engine is already running or starting")
 	ErrNotRunning     = errors.New("engine is not running")
@@ -50,6 +52,12 @@ func (m *Manager) setStatus(status engine.Status, report engine.HealthReport) {
 	}
 }
 
+func (m *Manager) cleanup() error {
+	ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
+	defer cancel()
+	return m.adapter.Stop(ctx)
+}
+
 func (m *Manager) Start(ctx context.Context, cfg []byte) error {
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
@@ -77,22 +85,26 @@ func (m *Manager) Start(ctx context.Context, cfg []byte) error {
 		return err
 	}
 	if err := m.adapter.Start(ctx, cfg); err != nil {
+		cleanupErr := m.cleanup()
 		m.setStatus(engine.StatusFailed, engine.HealthReport{
 			EngineID: m.adapter.ID(), Status: engine.StatusFailed,
 			CheckedAt: time.Now().UTC(), ErrorCode: "start_failed",
 		})
+		if cleanupErr != nil {
+			return fmt.Errorf("start engine: %v; cleanup failed: %w", err, cleanupErr)
+		}
 		return fmt.Errorf("start engine: %w", err)
 	}
 
 	report, err := m.adapter.Health(ctx)
 	if err != nil {
-		stopErr := m.adapter.Stop(context.Background())
+		cleanupErr := m.cleanup()
 		m.setStatus(engine.StatusFailed, engine.HealthReport{
 			EngineID: m.adapter.ID(), Status: engine.StatusFailed,
 			CheckedAt: time.Now().UTC(), ErrorCode: "health_check_failed",
 		})
-		if stopErr != nil {
-			return fmt.Errorf("health check failed: %v; cleanup failed: %w", err, stopErr)
+		if cleanupErr != nil {
+			return fmt.Errorf("health check failed: %v; cleanup failed: %w", err, cleanupErr)
 		}
 		return fmt.Errorf("health check failed: %w", err)
 	}
@@ -103,10 +115,10 @@ func (m *Manager) Start(ctx context.Context, cfg []byte) error {
 		report.CheckedAt = time.Now().UTC()
 	}
 	if report.Status != engine.StatusHealthy && report.Status != engine.StatusDegraded {
-		stopErr := m.adapter.Stop(context.Background())
+		cleanupErr := m.cleanup()
 		m.setStatus(engine.StatusFailed, report)
-		if stopErr != nil {
-			return fmt.Errorf("engine unhealthy after start (status %q); cleanup failed: %w", report.Status, stopErr)
+		if cleanupErr != nil {
+			return fmt.Errorf("engine unhealthy after start (status %q); cleanup failed: %w", report.Status, cleanupErr)
 		}
 		return fmt.Errorf("engine unhealthy after start (status %q)", report.Status)
 	}
@@ -140,6 +152,12 @@ func (m *Manager) RefreshHealth(ctx context.Context) (engine.HealthReport, error
 		if report.ErrorCode == "" {
 			report.ErrorCode = "health_unhealthy"
 		}
+		cleanupErr := m.cleanup()
+		m.setStatus(report.Status, report)
+		if cleanupErr != nil {
+			return report, fmt.Errorf("engine unhealthy; cleanup failed: %w", cleanupErr)
+		}
+		return report, nil
 	}
 	m.setStatus(report.Status, report)
 	return report, nil
