@@ -13,18 +13,18 @@ var ErrInvalidPolicy = errors.New("invalid reconnect policy")
 // Policy bounds reconnect delays and prevents aggressive retry loops on poor links.
 // JitterFraction is in [0, 1]; callers can apply jitter with their own random source.
 type Policy struct {
-	InitialDelay  time.Duration
-	MaxDelay      time.Duration
-	Multiplier    float64
+	InitialDelay   time.Duration
+	MaxDelay       time.Duration
+	Multiplier     float64
 	JitterFraction float64
 }
 
 // DefaultPolicy is conservative for metered and unstable mobile networks.
 func DefaultPolicy() Policy {
 	return Policy{
-		InitialDelay:  500 * time.Millisecond,
-		MaxDelay:      30 * time.Second,
-		Multiplier:    2,
+		InitialDelay:   500 * time.Millisecond,
+		MaxDelay:       30 * time.Second,
+		Multiplier:     2,
 		JitterFraction: 0.2,
 	}
 }
@@ -71,11 +71,19 @@ func (p Policy) ApplyJitter(delay time.Duration, unit float64) (time.Duration, e
 	if delay < 0 || math.IsNaN(unit) || math.IsInf(unit, 0) {
 		return 0, ErrInvalidPolicy
 	}
-	if unit < 0 { unit = 0 }
-	if unit > 1 { unit = 1 }
-	factor := 1 - p.JitterFraction + (2*p.JitterFraction*unit)
+	if unit < 0 {
+		unit = 0
+	}
+	if unit > 1 {
+		unit = 1
+	}
+	factor := 1 - p.JitterFraction + (2 * p.JitterFraction * unit)
 	jittered := time.Duration(float64(delay) * factor)
-	if jittered < 0 { jittered = 0 }
-	if jittered > p.MaxDelay { jittered = p.MaxDelay }
+	if jittered < 0 {
+		jittered = 0
+	}
+	if jittered > p.MaxDelay {
+		jittered = p.MaxDelay
+	}
 	return jittered, nil
 }
