@@ -1,18 +1,20 @@
 # Roadmap
 
-## Phase 0 — Repository foundation
+## Phase 0 — Repository foundation (implemented)
 - [x] Go module and CLI entry point
 - [x] Strict configuration parsing and validation
 - [x] Engine adapter and health-report contracts
 - [x] Unit tests for configuration validation
 - [x] CI workflow and security notes
+- [x] Serialized lifecycle coordinator with startup validation and cleanup
+- [x] Unit tests for coordinator startup, health, and stop behavior
 
-## Phase 1 — Coordinator core
-- [ ] Typed lifecycle states and transition tests
-- [ ] Adapter registry and capability negotiation
-- [ ] Bounded start/stop timeouts and cancellation
-- [ ] Redacted structured logging
-- [ ] Profile schema versioning
+## Phase 1 — Coordinator hardening
+- [ ] Add adapter registry and capability negotiation
+- [ ] Add profile schema versioning and migration
+- [ ] Add redacted structured logging
+- [ ] Add fuzz tests for config parsing
+- [ ] Improve cancellation and cleanup behavior for adapters that ignore context
 
 ## Phase 2 — First real engine integration
 - [ ] Select one platform and one engine as sole data-plane owner
