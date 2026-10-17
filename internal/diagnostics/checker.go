@@ -138,7 +138,7 @@ func (c Checker) CheckMany(ctx context.Context, domains []string) []Result {
 		return out
 	}
 	type job struct {
-		index int
+		index  int
 		domain string
 	}
 	jobs := make(chan job)
