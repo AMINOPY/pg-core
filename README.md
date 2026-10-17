@@ -2,7 +2,7 @@
 
 **Status: early scaffold / not production-ready.**
 
-Chimera Core is a proposed modular network-engine coordinator. The current Go code includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, unit tests, and CI. It does **not** yet embed Xray, sing-box, Mihomo, or Aether, and it is not a working VPN client.
+Chimera Core is a proposed modular network-engine coordinator. The current Go code includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. It does **not** yet embed Xray, sing-box, Mihomo, or Aether, and it is not a working VPN client.
 
 ## Current implementation
 
@@ -11,6 +11,7 @@ Chimera Core is a proposed modular network-engine coordinator. The current Go co
 - Common engine lifecycle/health interface
 - Start validation, health check, failure cleanup, and serialized stop/start operations
 - Deterministic selection: healthy candidates first, lowest measured latency next, degraded candidates only as fallback
+- Network diagnostics package: hostname validation, DNS lookup latency, HTTPS reachability/status, bounded concurrent batch checks, per-check timeouts
 - Go unit tests and GitHub Actions workflow
 
 ## Quick start
@@ -22,7 +23,16 @@ Requires Go 1.22 or newer.
     go run ./cmd/chimera
     go run ./cmd/chimera --config config.example.json
 
-The CLI validates configuration only. It does not start a network engine, configure TUN, modify system routes, or provide a tunnel.
+The CLI currently validates configuration only. It does not start a network engine, configure TUN, modify system routes, or provide a tunnel. The diagnostics package is a Go API, not yet exposed as a CLI or GUI.
+
+## Network diagnostics API
+
+See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). A minimal example:
+
+    checker := diagnostics.Checker{Timeout: 4 * time.Second, Workers: 4}
+    results := checker.CheckMany(ctx, []string{"example.com", "example.org"})
+
+Checks are limited to explicitly supplied hostnames and use the system DNS resolver plus certificate-verified HTTPS. They do not perform IP-range scanning or impersonate third-party services.
 
 ## Planned adapters
 
@@ -37,7 +47,7 @@ These projects overlap in routing, DNS, and tunnel ownership. They must not all 
 
 ## Architecture and security
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), and [SECURITY.md](SECURITY.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md), and [SECURITY.md](SECURITY.md).
 
 The project focuses on reliability, interoperability, secure configuration, and testability. No implementation can guarantee connectivity on every network or defeat every DPI system. TLS fingerprint rotation and imitation of named third-party apps are not implemented. Synthetic traffic may be used in controlled performance tests, not to impersonate real services.
 
