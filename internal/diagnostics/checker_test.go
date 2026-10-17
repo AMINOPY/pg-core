@@ -7,7 +7,11 @@ import (
 )
 
 func TestNormalizeDomain(t *testing.T) {
-	tests := []struct { input, want string; wantErr bool }{
+	tests := []struct {
+		input   string
+		want    string
+		wantErr bool
+	}{
 		{" Example.COM. ", "example.com", false},
 		{"127.0.0.1", "127.0.0.1", false},
 		{"", "", true},
@@ -18,17 +22,26 @@ func TestNormalizeDomain(t *testing.T) {
 	}
 	for _, tt := range tests {
 		got, err := NormalizeDomain(tt.input)
-		if (err != nil) != tt.wantErr { t.Errorf("NormalizeDomain(%q) err=%v", tt.input, err); continue }
-		if got != tt.want { t.Errorf("NormalizeDomain(%q)=%q, want %q", tt.input, got, tt.want) }
+		if (err != nil) != tt.wantErr {
+			t.Errorf("NormalizeDomain(%q) err=%v", tt.input, err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("NormalizeDomain(%q)=%q, want %q", tt.input, got, tt.want)
+		}
 	}
 }
 
 func TestCheckManyPreservesOrderAndValidationErrors(t *testing.T) {
 	c := Checker{Workers: 100, Timeout: time.Second}
 	got := c.CheckMany(context.Background(), []string{"bad domain", "https://invalid", "example.com:443"})
-	if len(got) != 3 { t.Fatalf("got %d results", len(got)) }
+	if len(got) != 3 {
+		t.Fatalf("got %d results", len(got))
+	}
 	for i, result := range got {
-		if result.Error == "" { t.Errorf("result %d should contain validation error", i) }
+		if result.Error == "" {
+			t.Errorf("result %d should contain validation error", i)
+		}
 	}
 }
 
