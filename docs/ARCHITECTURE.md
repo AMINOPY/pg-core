@@ -11,12 +11,11 @@
 
 ## Components
 
-- internal/config: strict JSON loading and structural validation.
+- internal/config: strict JSON loading, rejection of unknown fields, and structural validation.
 - internal/engine: adapter contract and common health model.
+- internal/orchestrator: serialized engine lifecycle, health refresh, and bounded cleanup after startup failures.
+- internal/policy: deterministic candidate selection that prefers healthy engines, then lower measured latency, and uses degraded engines only as fallback.
 - cmd/chimera: validation-only CLI in this scaffold.
-- Future internal/orchestrator: lifecycle manager, active-engine selection, bounded retries, and state transitions.
-- Future internal/policy: normalized policy with explicit precedence.
-- Future internal/telemetry: privacy-preserving metrics and redacted diagnostics.
 
 ## Engine roles
 
@@ -42,4 +41,4 @@ stopped -> starting -> healthy / degraded / failed -> stopping -> stopped
 
 ## Current status
 
-Only config loading/validation and the adapter contract are implemented. There is no TUN integration, DNS proxy, routing engine, VPN service, real health probe, or third-party engine adapter yet.
+Implemented: strict config loading/validation, engine adapter contract, lifecycle coordinator, deterministic candidate selection, unit tests, and CI workflow. Not implemented: TUN integration, DNS proxy, OS route management, VPN service, real health probes, or third-party engine adapters.
