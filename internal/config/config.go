@@ -19,11 +19,11 @@ const (
 )
 
 type Config struct {
-	Profile      string   `json:"profile"`
-	ActiveEngine EngineID `json:"active_engine"`
+	Profile      string     `json:"profile"`
+	ActiveEngine EngineID   `json:"active_engine"`
 	Enabled      []EngineID `json:"enabled_engines"`
-	TUNOwner     string   `json:"tun_owner,omitempty"`
-	DNSOwner     string   `json:"dns_owner,omitempty"`
+	TUNOwner     string     `json:"tun_owner,omitempty"`
+	DNSOwner     string     `json:"dns_owner,omitempty"`
 }
 
 func Load(path string) (Config, error) {
