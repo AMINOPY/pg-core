@@ -2,41 +2,44 @@
 
 **Status: early scaffold / not production-ready.**
 
-Chimera Core is a proposed modular network-engine coordinator. This repository provides the foundation: strict configuration validation, engine capability contracts, health-report types, documentation, and CI. It does **not** yet embed or merge Xray, sing-box, Mihomo, or Aether, and it is not a working VPN client.
+Chimera Core is a proposed modular network-engine coordinator. The current Go code includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, unit tests, and CI. It does **not** yet embed Xray, sing-box, Mihomo, or Aether, and it is not a working VPN client.
 
-## Goals
+## Current implementation
 
-- Keep engine integrations behind explicit adapters.
-- Give each profile one clearly designated owner for system TUN and DNS.
-- Validate configuration before starting an engine.
-- Expose health reports and predictable lifecycle operations.
-- Test routing policy and recovery logic independently.
-- Keep secrets out of logs and diagnostic output.
+- Strict JSON parsing with unknown-field and trailing-value rejection
+- Config validation for supported engine IDs and active-engine selection
+- Common engine lifecycle/health interface
+- Start validation, health check, failure cleanup, and serialized stop/start operations
+- Deterministic selection: healthy candidates first, lowest measured latency next, degraded candidates only as fallback
+- Go unit tests and GitHub Actions workflow
 
 ## Quick start
 
 Requires Go 1.22 or newer.
 
     go test ./...
+    go vet ./...
     go run ./cmd/chimera
     go run ./cmd/chimera --config config.example.json
 
-The CLI currently validates configuration and reports scaffold status. It does not start network tunnels.
+The CLI validates configuration only. It does not start a network engine, configure TUN, modify system routes, or provide a tunnel.
 
 ## Planned adapters
 
 | Engine | Intended role | Status |
 |---|---|---|
-| Xray-core | Protocol engine through a maintained integration boundary | Planned; not connected |
+| Xray-core | Protocol engine behind an adapter | Planned; not connected |
 | sing-box | Optional engine for profiles needing its TUN/DNS/routing capabilities | Planned; not connected |
 | Mihomo | Optional policy/group engine where its configuration model fits | Planned; not connected |
 | Aether | Evaluate client-side path-management behavior and licensing/API constraints | Research only |
 
 These projects overlap in routing, DNS, and tunnel ownership. They must not all control the same traffic path simultaneously without an explicit, tested design.
 
-## Scope and limitations
+## Architecture and security
 
-The project focuses on reliability, interoperability, secure configuration, and testability. No implementation can guarantee that a connection will work on every network or defeat every DPI system. TLS fingerprint rotation and imitation of named third-party apps are not implemented. Synthetic traffic may be used in controlled performance tests, not to impersonate real services.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), and [SECURITY.md](SECURITY.md).
+
+The project focuses on reliability, interoperability, secure configuration, and testability. No implementation can guarantee connectivity on every network or defeat every DPI system. TLS fingerprint rotation and imitation of named third-party apps are not implemented. Synthetic traffic may be used in controlled performance tests, not to impersonate real services.
 
 ## Development
 
