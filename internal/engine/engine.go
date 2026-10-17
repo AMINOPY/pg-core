@@ -11,26 +11,26 @@ import (
 type Status string
 
 const (
-	StatusStopped Status = "stopped"
+	StatusStopped  Status = "stopped"
 	StatusStarting Status = "starting"
-	StatusHealthy Status = "healthy"
+	StatusHealthy  Status = "healthy"
 	StatusDegraded Status = "degraded"
-	StatusFailed Status = "failed"
+	StatusFailed   Status = "failed"
 )
 
 type Capabilities struct {
-	TUN bool `json:"tun"`
-	DNS bool `json:"dns"`
-	Routing bool `json:"routing"`
+	TUN          bool `json:"tun"`
+	DNS          bool `json:"dns"`
+	Routing      bool `json:"routing"`
 	HealthChecks bool `json:"health_checks"`
 }
 
 type HealthReport struct {
-	EngineID string `json:"engine_id"`
-	Status Status `json:"status"`
-	Latency time.Duration `json:"latency_ns,omitempty"`
-	CheckedAt time.Time `json:"checked_at"`
-	ErrorCode string `json:"error_code,omitempty"`
+	EngineID  string        `json:"engine_id"`
+	Status    Status        `json:"status"`
+	Latency   time.Duration `json:"latency_ns,omitempty"`
+	CheckedAt time.Time     `json:"checked_at"`
+	ErrorCode string        `json:"error_code,omitempty"`
 }
 
 // Adapter implementations must honor cancellation and never log credentials
