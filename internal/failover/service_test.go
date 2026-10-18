@@ -21,11 +21,11 @@ func (f fakeSampler) Probe(context.Context, []health.Target) ([]health.ProbeResu
 }
 
 type fakeSwitcher struct {
-	switchErr  error
-	verifyErr  error
+	switchErr   error
+	verifyErr   error
 	rollbackErr error
-	switched   []string
-	rolledBack bool
+	switched    []string
+	rolledBack  bool
 }
 
 func (f *fakeSwitcher) Switch(_ context.Context, from, to string) error {
