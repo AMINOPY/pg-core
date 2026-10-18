@@ -34,7 +34,7 @@ func main() {
 		}
 		return
 	case *listEngines:
-		fmt.Println("Known engine IDs (adapters are not yet implemented/registered):")
+		fmt.Println("Known engine IDs (sing-box adapter package exists; CLI does not launch engines):")
 		fmt.Println("- sing-box")
 		fmt.Println("- xray")
 		fmt.Println("- mihomo")

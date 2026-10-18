@@ -9,33 +9,36 @@
 - [x] Serialized lifecycle coordinator with startup validation and cleanup
 - [x] Unit tests for coordinator startup, health, and stop behavior
 
-## Phase 1 — Coordinator hardening
-- [ ] Add adapter registry and capability negotiation
-- [ ] Add profile schema versioning and migration
-- [ ] Add redacted structured logging
-- [ ] Add fuzz tests for config parsing
-- [ ] Improve cancellation and cleanup behavior for adapters that ignore context
+## Phase A — Coordinator hardening (implemented)
+- [x] Adapter registry and capability negotiation
+- [x] Profile schema versioning and migration
+- [x] Redacted structured logging
+- [x] Bounded lifecycle event bus and CLI diagnostics/status
 
-## Phase 2 — First real engine integration
-- [ ] Select one platform and one engine as sole data-plane owner
-- [ ] Check upstream license, supported API, and version pinning
-- [ ] Implement startup, health, shutdown, and rollback
-- [ ] Add integration tests
+## Phase B — First engine adapter (initial implementation)
+- [x] Implement sing-box CLI adapter behind the common lifecycle contract
+- [x] Validate profiles using the upstream `sing-box check` command
+- [x] Add private temporary config handling and size limits
+- [x] Add process lifecycle and fake-binary unit tests
+- [x] Document process-level health semantics and limitations
+- [ ] Pin supported sing-box versions and verify against a real installed binary
+- [ ] Select and document one supported OS/privilege model
+- [ ] Add platform-specific integration tests for DNS/routes and rollback
 
-## Phase 3 — Network correctness
+## Phase C — Network correctness
 - [ ] Define DNS ownership and leak-test strategy
 - [ ] Define IPv4/IPv6 policy
 - [ ] Verify system routes are restored after crash/stop
 - [ ] Add controlled end-to-end health checks
+- [ ] Define fail-closed behavior and test it on supported platforms
 
-## Phase 4 — Additional engines
+## Phase D — Additional engines
 - [ ] Add Xray adapter behind the common contract
-- [ ] Add sing-box adapter or document it as the selected all-in-one engine
 - [ ] Add Mihomo adapter where its rules/groups add value
 - [ ] Evaluate Aether integration surface and license
 - [ ] Reject incompatible combinations during validation
 
-## Phase 5 — Quality
+## Phase E — Quality
 - [ ] Fuzz config parsing and policy normalization
 - [ ] Add benchmarks and long-running tests
 - [ ] Add dependency and license scanning
