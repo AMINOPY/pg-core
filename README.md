@@ -2,7 +2,7 @@
 
 **Status: early scaffold / not production-ready.**
 
-Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. A first sing-box subprocess adapter is now available, but Chimera is not yet a production-ready VPN client.
+Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. A first sing-box subprocess adapter is available, and an engine-agnostic auto-failover decision policy is under review; Chimera is not yet a production-ready VPN client.
 
 ## Current implementation
 
@@ -26,6 +26,14 @@ See [docs/SING_BOX_ADAPTER.md](docs/SING_BOX_ADAPTER.md). The adapter wraps an a
 
 The adapter does **not** install or pin sing-box, configure OS routes, install system DNS settings, create a system TUN device itself, or guarantee end-to-end connectivity. A live process is not proof that routing or DNS works. Platform-specific route/DNS ownership, rollback, privilege design, and real-engine integration tests remain before production use.
 
+## Smart auto-failover
+
+See [docs/AUTO_FAILOVER.md](docs/AUTO_FAILOVER.md). The policy evaluates health and latency samples, treats `-1` as unavailable, and can choose the best eligible candidate across subscriptions. A switch is only a proposal until the caller starts the replacement, verifies connectivity, and confirms it. Probe scheduling and real engine/platform switching are not yet wired.
+
+## Flutter integration
+
+See [docs/FLUTTER_V2RAY_INTEGRATION.md](docs/FLUTTER_V2RAY_INTEGRATION.md) for the integration boundary with [flutter_v2ray](https://github.com/blueboy-tm/flutter_v2ray). It is a Flutter plugin, not a Go library, and its VPN lifecycle must not compete with another TUN owner. Chimera does not yet include a Flutter app or a native Android `VpnService` module.
+
 ## Quick start
 
 Requires Go 1.22 or newer.
@@ -44,7 +52,7 @@ See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use syste
 | Engine | Status |
 |---|---|
 | sing-box | Initial subprocess adapter implemented; platform networking validation remains |
-| Xray-core | Planned |
+| Xray-core / flutter_v2ray | Not integrated; see Flutter integration boundary |
 | Mihomo | Planned |
 | Aether | Research only |
 
