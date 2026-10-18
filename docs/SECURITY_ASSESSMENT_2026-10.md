@@ -9,7 +9,7 @@ This is a source-code review of the `periodic-malware-scan` branch and its exist
 - Reject scanner file-size limits above 1 GiB so `maxFileBytes + 1` cannot overflow; non-positive limits continue to select the bounded default.
 - Check that the path still identifies the file originally opened before quarantine, verify the moved object identity after rename, and hash the quarantined content again before reporting success.
 - Add a regression test for invalid file-size limits.
-- Add `govulncheck` to Go CI and dependency review for pull requests.
+- Add `govulncheck` to Go CI and configure Dependabot updates.
 - Configure Dependabot for Go modules, Maven, Gradle, and GitHub Actions.
 
 ## Findings and status
@@ -28,7 +28,7 @@ This is a source-code review of the `periodic-malware-scan` branch and its exist
 
 ### Dependencies
 
-**Status: Automated checks added; results pending.** CI now runs Go vulnerability analysis and PR dependency review, and Dependabot is configured. No clean vulnerability result is claimed until these jobs complete. Review Java/Kotlin transitive dependency alerts as well as Go findings.
+**Status: Automated checks added; results pending.** CI now runs Go vulnerability analysis and Dependabot is configured. No clean vulnerability result is claimed until these jobs complete. Review Java/Kotlin dependency update alerts as well as Go findings.
 
 ## Validation required before release
 
