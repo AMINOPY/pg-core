@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -45,7 +46,7 @@ func main() {
 	}()
 
 	log.Printf("Chimera API listening on %s (manifest validation only)", addr)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, context.Canceled) && err.Error() != "http: Server closed" {
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("serve API: %v", err)
 	}
 }
