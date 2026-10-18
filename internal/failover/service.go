@@ -90,6 +90,7 @@ func (s *Service) RunOnce(ctx context.Context, currentID string, targets []healt
 	}
 	if err := s.controller.ConfirmSwitch(decision.Target.ID, s.now()); err != nil {
 		rollbackErr := s.rollback(decision.Target.ID, currentID)
+		s.controller.CancelSwitch()
 		if rollbackErr != nil {
 			return outcome, fmt.Errorf("confirm candidate switch: %v; rollback failed: %w", err, rollbackErr)
 		}
