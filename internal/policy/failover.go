@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	ErrInvalidFailoverConfig = errors.New("invalid failover policy configuration")
-	ErrNoPendingSwitch       = errors.New("no pending failover decision")
+	ErrInvalidFailoverConfig  = errors.New("invalid failover policy configuration")
+	ErrNoPendingSwitch        = errors.New("no pending failover decision")
 	ErrUnexpectedSwitchTarget = errors.New("confirmed target does not match pending failover decision")
 )
 
