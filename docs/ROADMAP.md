@@ -25,15 +25,23 @@
 - [ ] Select and document one supported OS/privilege model
 - [ ] Add platform-specific integration tests for DNS/routes and rollback
 
-## Phase C — Network correctness
+## Phase C — Network correctness and failover integration
+- [x] Add deterministic auto-failover decision policy across subscription candidates
+- [x] Treat negative latency values (including `-1`) as unavailable
+- [x] Require explicit confirmation after a successful switch before starting cooldown
+- [ ] Add recurring bounded health probes and latency sampling
+- [ ] Wire policy decisions to engine lifecycle with failed-switch rollback
 - [ ] Define DNS ownership and leak-test strategy
 - [ ] Define IPv4/IPv6 policy
 - [ ] Verify system routes are restored after crash/stop
 - [ ] Add controlled end-to-end health checks
 - [ ] Define fail-closed behavior and test it on supported platforms
 
-## Phase D — Additional engines
+## Phase D — Additional engines and Flutter app integration
 - [ ] Add Xray adapter behind the common contract
+- [ ] Decide whether Flutter app uses `flutter_v2ray` directly or a native core bridge
+- [ ] Add Flutter/Android application module and explicit `VpnService` ownership
+- [ ] Add Android emulator/device tests for permission, process death, DNS, routes, and rollback
 - [ ] Add Mihomo adapter where its rules/groups add value
 - [ ] Evaluate Aether integration surface and license
 - [ ] Reject incompatible combinations during validation
