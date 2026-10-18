@@ -81,7 +81,7 @@ func (s *Service) RunOnce(ctx context.Context, currentID string, targets []healt
 		return outcome, fmt.Errorf("switch to candidate %q: %w", decision.Target.ID, err)
 	}
 	if err := s.switcher.Verify(ctx, decision.Target.ID); err != nil {
-		rollbackErr := s.switcher.Rollback(ctx, decision.Target.ID, currentID)
+		rollbackErr := s.rollback(decision.Target.ID, currentID)
 		s.controller.CancelSwitch()
 		if rollbackErr != nil {
 			return outcome, fmt.Errorf("verify candidate %q: %v; rollback failed: %w", decision.Target.ID, err, rollbackErr)
@@ -89,7 +89,7 @@ func (s *Service) RunOnce(ctx context.Context, currentID string, targets []healt
 		return outcome, fmt.Errorf("verify candidate %q: %w (previous candidate restored)", decision.Target.ID, err)
 	}
 	if err := s.controller.ConfirmSwitch(decision.Target.ID, s.now()); err != nil {
-		rollbackErr := s.switcher.Rollback(ctx, decision.Target.ID, currentID)
+		rollbackErr := s.rollback(decision.Target.ID, currentID)
 		if rollbackErr != nil {
 			return outcome, fmt.Errorf("confirm candidate switch: %v; rollback failed: %w", err, rollbackErr)
 		}
@@ -97,4 +97,41 @@ func (s *Service) RunOnce(ctx context.Context, currentID string, targets []healt
 	}
 	outcome.Switched = true
 	return outcome, nil
+}
+
+func (s *Service) rollback(from, to string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return s.switcher.Rollback(ctx, from, to)
+}
+
+// Run periodically samples the current candidate and executes failover decisions.
+// The callbacks must return current state owned by the application; the service
+// does not infer connection state from process liveness alone.
+func (s *Service) Run(
+	ctx context.Context,
+	interval time.Duration,
+	currentID func() string,
+	targets func() []health.Target,
+	onResult func(Outcome, error),
+) error {
+	if interval <= 0 || currentID == nil || targets == nil {
+		return errors.New("positive interval and state callbacks are required")
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			outcome, err := s.RunOnce(ctx, currentID(), targets())
+			if onResult != nil {
+				onResult(outcome, err)
+			}
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+		}
+	}
 }
