@@ -81,3 +81,22 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP
     go test ./...
 
 Contributions should include tests and document supported platforms and engine versions.
+
+
+## Website / application integration API
+
+A small authenticated HTTP API is available for server-side integration. It currently validates connector manifests; it does not execute plugins, perform automatic code generation, start a VPN, or guarantee DPI circumvention.
+
+See [docs/INTEGRATE_API.md](docs/INTEGRATE_API.md) for local startup, curl, Node.js, and Python examples.
+
+Quick local run:
+
+    export CHIMERA_API_KEY="$(openssl rand -hex 32)"
+    go run ./cmd/chimera-api
+
+The API binds to `127.0.0.1:8080` by default and refuses to start without a key. Keep the key on the server; never embed it in browser JavaScript or a mobile application bundle. For public deployments, use HTTPS via a trusted reverse proxy and configure access controls, rate limiting, and exact CORS origins.
+
+- `GET /healthz` — public process-health check.
+- `POST /v1/manifests/validate` — bearer-authenticated, size-bounded manifest validation.
+
+This is the first integration surface, not yet the completed adaptive runtime. Connector discovery, permission-scoped execution, sandboxing, signed package distribution, device enrollment, and a tested DPI-resilient transport remain future implementation work.
