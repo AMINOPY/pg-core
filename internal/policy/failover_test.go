@@ -1,0 +1,168 @@
+package policy
+
+import (
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/AMINOPY/pg-core/internal/engine"
+)
+
+func failoverCandidates(currentStatus engine.Status, currentLatency time.Duration) []ServerCandidate {
+	return []ServerCandidate{
+		{ID: "current", SubscriptionID: "sub-a", Status: currentStatus, Latency: currentLatency},
+		{ID: "fast", SubscriptionID: "sub-b", Status: engine.StatusHealthy, Latency: 45 * time.Millisecond},
+		{ID: "slower", SubscriptionID: "sub-a", Status: engine.StatusHealthy, Latency: 90 * time.Millisecond},
+		{ID: "bad", SubscriptionID: "sub-c", Status: engine.StatusFailed, Latency: time.Millisecond},
+		{ID: "unknown-latency", SubscriptionID: "sub-c", Status: engine.StatusHealthy, Latency: -1},
+	}
+}
+
+func TestFailoverAfterConsecutiveFailuresAcrossSubscriptions(t *testing.T) {
+	controller, err := NewFailoverController(FailoverConfig{
+		FailureThreshold: 2, MaxLatency: 500 * time.Millisecond,
+		Cooldown: time.Second, MinImprovement: 20 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	candidates := failoverCandidates(engine.StatusFailed, -1)
+	first, err := controller.Evaluate("current", candidates, now)
+	if err != nil || first.Switch {
+		t.Fatalf("first sample should not switch: decision=%+v err=%v", first, err)
+	}
+	second, err := controller.Evaluate("current", candidates, now.Add(100*time.Millisecond))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !second.Switch || second.Target.ID != "fast" || second.Target.SubscriptionID != "sub-b" {
+		t.Fatalf("expected best cross-subscription candidate: %+v", second)
+	}
+	if err := controller.ConfirmSwitch("fast", now.Add(100*time.Millisecond)); err != nil {
+		t.Fatalf("confirm successful switch: %v", err)
+	}
+}
+
+func TestFailoverOnHighLatencyAndCooldown(t *testing.T) {
+	controller, err := NewFailoverController(FailoverConfig{
+		FailureThreshold: 1, MaxLatency: 100 * time.Millisecond,
+		Cooldown: time.Minute, MinImprovement: 20 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	decision, err := controller.Evaluate("current", failoverCandidates(engine.StatusHealthy, 400*time.Millisecond), now)
+	if err != nil || !decision.Switch {
+		t.Fatalf("expected latency failover: decision=%+v err=%v", decision, err)
+	}
+	if err := controller.ConfirmSwitch("fast", now); err != nil {
+		t.Fatalf("confirm successful switch: %v", err)
+	}
+	next := []ServerCandidate{
+		{ID: "fast", SubscriptionID: "sub-b", Status: engine.StatusFailed, Latency: -1},
+		{ID: "next", SubscriptionID: "sub-c", Status: engine.StatusHealthy, Latency: 50 * time.Millisecond},
+	}
+	decision, err = controller.Evaluate("fast", next, now.Add(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Switch || decision.Reason != "cooldown" {
+		t.Fatalf("expected cooldown to prevent flapping: %+v", decision)
+	}
+}
+
+func TestFailedSwitchDoesNotStartCooldown(t *testing.T) {
+	controller, err := NewFailoverController(FailoverConfig{
+		FailureThreshold: 1, MaxLatency: time.Second, Cooldown: time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	candidates := failoverCandidates(engine.StatusFailed, -1)
+	decision, err := controller.Evaluate("current", candidates, now)
+	if err != nil || !decision.Switch {
+		t.Fatalf("expected switch proposal: decision=%+v err=%v", decision, err)
+	}
+	if err := controller.ConfirmSwitch("wrong", now); !errors.Is(err, ErrUnexpectedSwitchTarget) {
+		t.Fatalf("expected target mismatch error, got %v", err)
+	}
+	controller.CancelSwitch()
+	decision, err = controller.Evaluate("current", candidates, now.Add(time.Second))
+	if err != nil || !decision.Switch {
+		t.Fatalf("failed switch should not start cooldown: decision=%+v err=%v", decision, err)
+	}
+	if err := controller.ConfirmSwitch("fast", now.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := controller.ConfirmSwitch("fast", now.Add(2*time.Second)); !errors.Is(err, ErrNoPendingSwitch) {
+		t.Fatalf("expected no-pending-switch error, got %v", err)
+	}
+}
+
+func TestFailoverRejectsNoAlternativesAndInvalidConfig(t *testing.T) {
+	if _, err := NewFailoverController(FailoverConfig{}); err == nil {
+		t.Fatal("expected invalid config error")
+	}
+	controller, err := NewFailoverController(FailoverConfig{
+		FailureThreshold: 1, MaxLatency: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, err := controller.Evaluate("current", []ServerCandidate{
+		{ID: "current", Status: engine.StatusFailed, Latency: -1},
+	}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Switch || decision.Reason != "no_healthy_alternative" {
+		t.Fatalf("expected no-alternative result: %+v", decision)
+	}
+}
+
+func TestFailoverDoesNotSwitchForSmallLatencyGain(t *testing.T) {
+	controller, err := NewFailoverController(FailoverConfig{
+		FailureThreshold: 1, MaxLatency: 100 * time.Millisecond,
+		MinImprovement: 100 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates := []ServerCandidate{
+		{ID: "current", Status: engine.StatusHealthy, Latency: 80 * time.Millisecond},
+		{ID: "other", SubscriptionID: "sub-z", Status: engine.StatusHealthy, Latency: 50 * time.Millisecond},
+	}
+	decision, err := controller.Evaluate("current", candidates, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Switch || decision.Reason != "current_healthy" {
+		t.Fatalf("should not switch healthy connection before threshold: %+v", decision)
+	}
+}
+
+func TestNewSampleInvalidatesStaleProposal(t *testing.T) {
+	controller, err := NewFailoverController(FailoverConfig{
+		FailureThreshold: 1, MaxLatency: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	decision, err := controller.Evaluate("current", failoverCandidates(engine.StatusFailed, -1), now)
+	if err != nil || !decision.Switch {
+		t.Fatalf("expected initial switch proposal: decision=%+v err=%v", decision, err)
+	}
+
+	recovered := failoverCandidates(engine.StatusHealthy, 20*time.Millisecond)
+	decision, err = controller.Evaluate("current", recovered, now.Add(time.Second))
+	if err != nil || decision.Switch {
+		t.Fatalf("recovered current server should cancel proposal: decision=%+v err=%v", decision, err)
+	}
+	if err := controller.ConfirmSwitch("fast", now.Add(time.Second)); !errors.Is(err, ErrNoPendingSwitch) {
+		t.Fatalf("stale proposal must not be confirmable, got %v", err)
+	}
+}
