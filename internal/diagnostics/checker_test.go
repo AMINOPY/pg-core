@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -49,4 +50,23 @@ func TestCheckManyEmptyInput(t *testing.T) {
 	if got := (Checker{}).CheckMany(context.Background(), nil); len(got) != 0 {
 		t.Fatalf("expected empty result, got %d", len(got))
 	}
+}
+
+func FuzzNormalizeDomainRejectsMalformedInput(f *testing.F) {
+	for _, seed := range []string{
+		"", "example.com", " Example.COM. ", "https://example.com",
+		"example.com:443", "127.0.0.1", "-bad.example", "bad..example",
+		"localhost/../../etc/passwd", "user@host", "[::1]", "\x00",
+	} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, raw string) {
+		host, err := NormalizeDomain(raw)
+		if err != nil {
+			return
+		}
+		if host == "" || len(host) > 253 || strings.ContainsAny(host, "/:@?# ") {
+			t.Fatalf("invalid normalized hostname returned: %q", host)
+		}
+	})
 }
