@@ -39,7 +39,7 @@ Requires Go 1.22 or newer.
     go run ./cmd/chimera
     go run ./cmd/chimera --config config.example.json
 
-The CLI currently validates configuration only. It does not start a network engine, configure TUN, modify system routes, or provide a tunnel. The diagnostics package is a Go API, not yet exposed as a CLI or GUI.
+The CLI can validate configuration and run bounded DNS/HTTPS diagnostics, but it does not start a network engine, configure TUN, modify system routes, or provide a tunnel. No GUI or background status daemon is included.
 
 ## Network diagnostics API
 
