@@ -13,10 +13,10 @@ type testAdapter struct {
 	caps Capabilities
 }
 
-func (a testAdapter) ID() string { return a.id }
-func (a testAdapter) Capabilities() Capabilities { return a.caps }
+func (a testAdapter) ID() string                                   { return a.id }
+func (a testAdapter) Capabilities() Capabilities                   { return a.caps }
 func (a testAdapter) ValidateConfig(context.Context, []byte) error { return nil }
-func (a testAdapter) Start(context.Context, []byte) error { return nil }
+func (a testAdapter) Start(context.Context, []byte) error          { return nil }
 func (a testAdapter) Health(context.Context) (HealthReport, error) {
 	return HealthReport{Status: StatusHealthy, CheckedAt: time.Now()}, nil
 }
