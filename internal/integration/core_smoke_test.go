@@ -38,8 +38,8 @@ func (a *smokeAdapter) Start(context.Context, []byte) error {
 
 func (*smokeAdapter) Health(context.Context) (engine.HealthReport, error) {
 	return engine.HealthReport{
-		Status: engine.StatusHealthy,
-		Latency: 12 * time.Millisecond,
+		Status:    engine.StatusHealthy,
+		Latency:   12 * time.Millisecond,
 		CheckedAt: time.Now().UTC(),
 	}, nil
 }
