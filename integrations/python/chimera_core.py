@@ -25,7 +25,7 @@ class ChimeraCoreClient:
     def evaluate(self, sample: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(sample, Mapping):
             raise TypeError("sample must be a mapping")
-        raw = self._transport("evaluate", {"sample": dict(sample)})
+        raw = self._transport("evaluate", {"sample": json.dumps(dict(sample), separators=(",", ":"))})
         try:
             result = json.loads(raw)
         except (TypeError, json.JSONDecodeError) as exc:
@@ -40,7 +40,7 @@ class ChimeraCoreClient:
 
     def confirm_switch(self, target_id: str) -> None:
         self._require_id(target_id)
-        self._transport("confirmSwitch", {"target_id": target_id})
+        self._transport("confirmSwitch", {"targetId": target_id})
 
     def cancel_switch(self) -> None:
         self._transport("cancelSwitch", {})
