@@ -67,6 +67,43 @@ func TestLifecycle(t *testing.T) {
 	}
 }
 
+func TestHealthReportsUnexpectedProcessExit(t *testing.T) {
+	a := New(fakeBinary(t, "if [ \"$1\" = \"check\" ]; then exit 0; fi\nexit 7"))
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := a.Start(ctx, []byte("{}")); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		report, err := a.Health(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if report.Status == engine.StatusFailed {
+			if report.ErrorCode != "process_exited" {
+				t.Fatalf("unexpected error code: %+v", report)
+			}
+			if err := a.Stop(ctx); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("health did not report the exited process")
+}
+
+func TestHealthHonorsCancelledContext(t *testing.T) {
+	a := New("sing-box")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := a.Health(ctx); err == nil {
+		t.Fatal("expected cancelled context error")
+	}
+}
+
 func TestRejectsInvalidInputBeforeExec(t *testing.T) {
 	a := New("/does/not/exist")
 	if err := a.ValidateConfig(context.Background(), nil); err == nil {
