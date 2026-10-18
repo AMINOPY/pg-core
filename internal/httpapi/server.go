@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -69,7 +70,8 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) validateManifest(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+	mediaType, _, mediaTypeErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if mediaTypeErr != nil || mediaType != "application/json" {
 		writeError(w, http.StatusUnsupportedMediaType, "CONTENT_TYPE_REQUIRED", "Content-Type must be application/json")
 		return
 	}
