@@ -26,9 +26,13 @@ This is a source-code review of the `periodic-malware-scan` branch and its exist
 
 **Status: Not implemented by this branch.** HMAC helpers exist, but the repository review does not establish that the runtime configuration path verifies a signature before use. Android Keystore integration and signed update verification must be implemented in the platform application and tested there. Until then, do not treat configuration files as authenticated or use this scaffold to protect sensitive traffic.
 
+### Go standard-library vulnerability in the previous CI toolchain
+
+**Status: CI toolchain updated; rebuild/retest pending.** `govulncheck` found GO-2026-6617 (HTTP/2 HPACK encoder race causing a server crash) in the previous CI toolchain, Go 1.22.12. The advisory identifies Go 1.26.9 as a fixed version. CI now uses Go 1.26.9 and reruns vulnerability analysis. Any distributed binaries must also be rebuilt using a fixed Go release; changing CI alone does not patch already-built artifacts.
+
 ### Dependencies
 
-**Status: Automated checks added; results pending.** CI now runs Go vulnerability analysis and Dependabot is configured. No clean vulnerability result is claimed until these jobs complete. Review Java/Kotlin dependency update alerts as well as Go findings.
+**Status: Automated checks added; results pending.** CI runs Go vulnerability analysis and Dependabot is configured. No clean vulnerability result is claimed until the updated jobs complete. Review Java/Kotlin dependency update alerts as well as Go findings.
 
 ## Validation required before release
 
