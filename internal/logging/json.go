@@ -3,23 +3,24 @@ package logging
 
 import (
 	"context"
+	"io"
 	"log/slog"
+	"os"
 	"strings"
 )
 
 type redactingHandler struct { next slog.Handler }
 
-func NewJSONLogger(level slog.Level, attrs ...slog.Attr) *slog.Logger {
-	h := slog.NewJSONHandler(nilWriter{}, &slog.HandlerOptions{Level: level})
-	_ = h
-	return slog.New(NewJSONHandler(defaultWriter{}, level, attrs...))
+// NewJSONLogger writes structured JSON to stderr and redacts sensitive attributes.
+func NewJSONLogger(level slog.Level) *slog.Logger {
+	return NewJSONLoggerWithWriter(os.Stderr, level)
 }
 
 // NewJSONHandler returns a JSON handler that redacts attributes whose keys look
 // sensitive. Applications should still avoid logging raw configs or credentials.
-func NewJSONHandler(w interface{ Write([]byte) (int, error) }, level slog.Level, attrs ...slog.Attr) slog.Handler {
-	h := slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level})
-	var out slog.Handler = &redactingHandler{next: h}
+func NewJSONHandler(w io.Writer, level slog.Level, attrs ...slog.Attr) slog.Handler {
+	if w == nil { w = io.Discard }
+	var out slog.Handler = &redactingHandler{next: slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level})}
 	if len(attrs) > 0 { out = out.WithAttrs(attrs) }
 	return out
 }
@@ -28,8 +29,7 @@ func (h *redactingHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	return h.next.Enabled(ctx, level)
 }
 func (h *redactingHandler) Handle(ctx context.Context, r slog.Record) error {
-	var clean slog.Record
-	clean = slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
+	clean := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
 	r.Attrs(func(a slog.Attr) bool { clean.AddAttrs(redact(a)); return true })
 	return h.next.Handle(ctx, clean)
 }
@@ -48,15 +48,11 @@ func redact(a slog.Attr) slog.Attr {
 	if a.Value.Kind() == slog.KindGroup {
 		group := a.Value.Group()
 		for i := range group { group[i] = redact(group[i]) }
-		return slog.Group(a.Key, attrsToAny(group)...)
+		args := make([]any, len(group))
+		for i, item := range group { args[i] = item }
+		return slog.Group(a.Key, args...)
 	}
 	return a
-}
-
-func attrsToAny(attrs []slog.Attr) []any {
-	out := make([]any, len(attrs))
-	for i, a := range attrs { out[i] = a }
-	return out
 }
 func sensitiveKey(key string) bool {
 	k := strings.ToLower(strings.NewReplacer("-", "", "_", "", ".", "").Replace(key))
@@ -66,12 +62,6 @@ func sensitiveKey(key string) bool {
 	return false
 }
 
-// NewJSONLoggerWithWriter is the preferred constructor for applications.
-func NewJSONLoggerWithWriter(w interface{ Write([]byte) (int, error) }, level slog.Level) *slog.Logger {
+func NewJSONLoggerWithWriter(w io.Writer, level slog.Level) *slog.Logger {
 	return slog.New(NewJSONHandler(w, level))
 }
-
-type nilWriter struct{}
-func (nilWriter) Write(p []byte) (int, error) { return len(p), nil }
-type defaultWriter struct{}
-func (defaultWriter) Write(p []byte) (int, error) { return len(p), nil }
