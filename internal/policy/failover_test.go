@@ -143,3 +143,26 @@ func TestFailoverDoesNotSwitchForSmallLatencyGain(t *testing.T) {
 		t.Fatalf("should not switch healthy connection before threshold: %+v", decision)
 	}
 }
+
+func TestNewSampleInvalidatesStaleProposal(t *testing.T) {
+	controller, err := NewFailoverController(FailoverConfig{
+		FailureThreshold: 1, MaxLatency: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	decision, err := controller.Evaluate("current", failoverCandidates(engine.StatusFailed, -1), now)
+	if err != nil || !decision.Switch {
+		t.Fatalf("expected initial switch proposal: decision=%+v err=%v", decision, err)
+	}
+
+	recovered := failoverCandidates(engine.StatusHealthy, 20*time.Millisecond)
+	decision, err = controller.Evaluate("current", recovered, now.Add(time.Second))
+	if err != nil || decision.Switch {
+		t.Fatalf("recovered current server should cancel proposal: decision=%+v err=%v", decision, err)
+	}
+	if err := controller.ConfirmSwitch("fast", now.Add(time.Second)); !errors.Is(err, ErrNoPendingSwitch) {
+		t.Fatalf("stale proposal must not be confirmable, got %v", err)
+	}
+}
