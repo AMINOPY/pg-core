@@ -19,6 +19,12 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Java, Python, and Kotlin bridge-client scaffolds (host transport still required)
 - Unit tests and GitHub Actions workflow
 
+## AI Network Diagnostics
+
+See [docs/AI_NETWORK_SCANNER.md](docs/AI_NETWORK_SCANNER.md). The `internal/ai` package validates bounded network measurements and returns a 0–100 score, findings, confidence estimates, and practical recommendations. The analysis is deterministic and local; it is not yet a trained AI model. The app must obtain speed-test measurements from a user-approved engine such as a self-hosted LibreSpeed or OpenSpeedTest deployment.
+
+Carrier/radio metadata is optional and should be collected only with user consent. Never send subscriber identifiers, phone numbers, precise location, credentials, or raw profiles to the analyzer. The core does not silently run speed tests or scan IP ranges.
+
 ## Foundation (Phase A)
 
 Schema versioning, defensive structured-log redaction, lifecycle event bus, CLI diagnostics/status and capability negotiation are implemented. The CLI engine list reports known IDs; it does not mean every engine is available in the CLI.
