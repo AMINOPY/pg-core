@@ -22,8 +22,8 @@ const (
 // SpeedTestReport contains opt-in throughput measurements against endpoints
 // explicitly configured by the operator. Mbps is decimal megabits per second.
 type SpeedTestReport struct {
-	DownloadURL      string        `json:"download_url,omitempty"`
-	UploadURL        string        `json:"upload_url,omitempty"`
+	DownloadHost     string        `json:"download_host,omitempty"`
+	UploadHost       string        `json:"upload_host,omitempty"`
 	DownloadBytes    int64         `json:"download_bytes,omitempty"`
 	UploadBytes      int64         `json:"upload_bytes,omitempty"`
 	DownloadDuration time.Duration `json:"download_duration_ns,omitempty"`
@@ -110,12 +110,13 @@ func (s SpeedTester) client() *http.Client {
 // Run executes whichever measurements have URLs configured. Both URLs may be
 // omitted, but a configured URL must pass validation before any request occurs.
 func (s SpeedTester) Run(ctx context.Context, downloadURL, uploadURL string) SpeedTestReport {
-	out := SpeedTestReport{DownloadURL: downloadURL, UploadURL: uploadURL}
+	out := SpeedTestReport{}
 	if strings.TrimSpace(downloadURL) != "" {
 		u, err := validateSpeedURL(downloadURL)
 		if err != nil {
 			out.DownloadError = err.Error()
 		} else {
+			out.DownloadHost = u.Hostname()
 			out.DownloadBytes, out.DownloadDuration, out.DownloadMbps, out.DownloadError = s.download(ctx, u)
 		}
 	}
@@ -124,6 +125,7 @@ func (s SpeedTester) Run(ctx context.Context, downloadURL, uploadURL string) Spe
 		if err != nil {
 			out.UploadError = err.Error()
 		} else {
+			out.UploadHost = u.Hostname()
 			out.UploadBytes, out.UploadDuration, out.UploadMbps, out.UploadError = s.upload(ctx, u)
 		}
 	}
