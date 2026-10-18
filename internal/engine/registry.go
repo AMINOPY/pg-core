@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrDuplicateAdapter = errors.New("engine adapter already registered")
-	ErrAdapterNotFound = errors.New("engine adapter not found")
+	ErrAdapterNotFound  = errors.New("engine adapter not found")
 )
 
 type Requirements struct {
@@ -83,10 +83,18 @@ func (r *Registry) Negotiate(id string, required Requirements) error {
 	}
 	got := adapter.Capabilities()
 	var missing []string
-	if required.TUN && !got.TUN { missing = append(missing, "tun") }
-	if required.DNS && !got.DNS { missing = append(missing, "dns") }
-	if required.Routing && !got.Routing { missing = append(missing, "routing") }
-	if required.HealthChecks && !got.HealthChecks { missing = append(missing, "health_checks") }
+	if required.TUN && !got.TUN {
+		missing = append(missing, "tun")
+	}
+	if required.DNS && !got.DNS {
+		missing = append(missing, "dns")
+	}
+	if required.Routing && !got.Routing {
+		missing = append(missing, "routing")
+	}
+	if required.HealthChecks && !got.HealthChecks {
+		missing = append(missing, "health_checks")
+	}
 	if len(missing) > 0 {
 		return fmt.Errorf("engine %q lacks required capabilities: %s", id, strings.Join(missing, ", "))
 	}
