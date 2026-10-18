@@ -20,6 +20,7 @@ func TestNormalizeDomain(t *testing.T) {
 		{"example.com:443", "", true},
 		{"-bad.example", "", true},
 		{"bad..example", "", true},
+		{strings.Repeat("a", maxRawDomainBytes+1), "", true},
 	}
 	for _, tt := range tests {
 		got, err := NormalizeDomain(tt.input)
@@ -61,6 +62,9 @@ func FuzzNormalizeDomainRejectsMalformedInput(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, raw string) {
+		if len(raw) > maxRawDomainBytes {
+			return
+		}
 		host, err := NormalizeDomain(raw)
 		if err != nil {
 			return
