@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -38,6 +39,9 @@ func TestFailoverAfterConsecutiveFailuresAcrossSubscriptions(t *testing.T) {
 	if !second.Switch || second.Target.ID != "fast" || second.Target.SubscriptionID != "sub-b" {
 		t.Fatalf("expected best cross-subscription candidate: %+v", second)
 	}
+	if err := controller.ConfirmSwitch("fast", now.Add(100*time.Millisecond)); err != nil {
+		t.Fatalf("confirm successful switch: %v", err)
+	}
 }
 
 func TestFailoverOnHighLatencyAndCooldown(t *testing.T) {
@@ -53,6 +57,9 @@ func TestFailoverOnHighLatencyAndCooldown(t *testing.T) {
 	if err != nil || !decision.Switch {
 		t.Fatalf("expected latency failover: decision=%+v err=%v", decision, err)
 	}
+	if err := controller.ConfirmSwitch("fast", now); err != nil {
+		t.Fatalf("confirm successful switch: %v", err)
+	}
 	next := []ServerCandidate{
 		{ID: "fast", SubscriptionID: "sub-b", Status: engine.StatusFailed, Latency: -1},
 		{ID: "next", SubscriptionID: "sub-c", Status: engine.StatusHealthy, Latency: 50 * time.Millisecond},
@@ -63,6 +70,35 @@ func TestFailoverOnHighLatencyAndCooldown(t *testing.T) {
 	}
 	if decision.Switch || decision.Reason != "cooldown" {
 		t.Fatalf("expected cooldown to prevent flapping: %+v", decision)
+	}
+}
+
+func TestFailedSwitchDoesNotStartCooldown(t *testing.T) {
+	controller, err := NewFailoverController(FailoverConfig{
+		FailureThreshold: 1, MaxLatency: time.Second, Cooldown: time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	candidates := failoverCandidates(engine.StatusFailed, -1)
+	decision, err := controller.Evaluate("current", candidates, now)
+	if err != nil || !decision.Switch {
+		t.Fatalf("expected switch proposal: decision=%+v err=%v", decision, err)
+	}
+	if err := controller.ConfirmSwitch("wrong", now); !errors.Is(err, ErrUnexpectedSwitchTarget) {
+		t.Fatalf("expected target mismatch error, got %v", err)
+	}
+	controller.CancelSwitch()
+	decision, err = controller.Evaluate("current", candidates, now.Add(time.Second))
+	if err != nil || !decision.Switch {
+		t.Fatalf("failed switch should not start cooldown: decision=%+v err=%v", decision, err)
+	}
+	if err := controller.ConfirmSwitch("fast", now.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := controller.ConfirmSwitch("fast", now.Add(2*time.Second)); !errors.Is(err, ErrNoPendingSwitch) {
+		t.Fatalf("expected no-pending-switch error, got %v", err)
 	}
 }
 
