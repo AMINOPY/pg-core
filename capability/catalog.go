@@ -15,24 +15,24 @@ import (
 type AdoptionMode string
 
 const (
-	Native AdoptionMode = "native"
-	Adapter AdoptionMode = "adapter"
+	Native      AdoptionMode = "native"
+	Adapter     AdoptionMode = "adapter"
 	Unavailable AdoptionMode = "unavailable"
 )
 
 type Requirement struct {
-	Name string
+	Name           string
 	MinimumVersion string
 }
 
 type Manifest struct {
-	ID string
-	Version string
-	Summary string
-	Capabilities []string
-	Requires []Requirement
-	License string
-	SourceURL string
+	ID                 string
+	Version            string
+	Summary            string
+	Capabilities       []string
+	Requires           []Requirement
+	License            string
+	SourceURL          string
 	// SourceReuseAllowed must only be true after a human has verified the
 	// source license and compatibility. It is not an automatic license detector.
 	SourceReuseAllowed bool
@@ -44,17 +44,19 @@ type Host struct {
 
 type Assessment struct {
 	Manifest Manifest
-	Mode AdoptionMode
-	Missing []string
-	Reason string
+	Mode     AdoptionMode
+	Missing  []string
+	Reason   string
 }
 
 type Catalog struct {
-	mu sync.RWMutex
+	mu    sync.RWMutex
 	items map[string]Manifest
 }
 
-func NewCatalog() *Catalog { return &Catalog{items: make(map[string]Manifest)} }
+func NewCatalog() *Catalog {
+	return &Catalog{items: make(map[string]Manifest)}
+}
 
 func (c *Catalog) Register(m Manifest) error {
 	m.ID = strings.TrimSpace(m.ID)
@@ -66,11 +68,16 @@ func (c *Catalog) Register(m Manifest) error {
 		return errors.New("capability: at least one capability is required")
 	}
 	for _, name := range m.Capabilities {
-		if strings.TrimSpace(name) == "" { return errors.New("capability: empty capability name") }
+		if strings.TrimSpace(name) == "" {
+			return errors.New("capability: empty capability name")
+		}
 	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if _, exists := c.items[m.ID]; exists { return fmt.Errorf("capability: duplicate manifest %q", m.ID) }
+	if _, exists := c.items[m.ID]; exists {
+		return fmt.Errorf("capability: duplicate manifest %q", m.ID)
+	}
 	m.Capabilities = append([]string(nil), m.Capabilities...)
 	m.Requires = append([]Requirement(nil), m.Requires...)
 	c.items[m.ID] = m
@@ -80,9 +87,13 @@ func (c *Catalog) Register(m Manifest) error {
 func (c *Catalog) List() []Manifest {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	ids := make([]string, 0, len(c.items))
-	for id := range c.items { ids = append(ids, id) }
+	for id := range c.items {
+		ids = append(ids, id)
+	}
 	sort.Strings(ids)
+
 	out := make([]Manifest, 0, len(ids))
 	for _, id := range ids {
 		m := c.items[id]
@@ -99,8 +110,11 @@ func (c *Catalog) Assess(id string, host Host) (Assessment, error) {
 	c.mu.RLock()
 	m, ok := c.items[id]
 	c.mu.RUnlock()
-	if !ok { return Assessment{}, fmt.Errorf("capability: manifest %q not found", id) }
-	result := Assessment{Manifest:m, Mode:Adapter}
+	if !ok {
+		return Assessment{}, fmt.Errorf("capability: manifest %q not found", id)
+	}
+
+	result := Assessment{Manifest: m, Mode: Adapter}
 	for _, req := range m.Requires {
 		if _, ok := host.Capabilities[req.Name]; !ok {
 			result.Missing = append(result.Missing, req.Name)
