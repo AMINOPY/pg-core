@@ -25,7 +25,7 @@ const (
 	maxLatencyMS   = 7 * 24 * 60 * 60 * 1000
 )
 
-var ErrInvalidInput = errors.New("invalid mobile bridge input")
+var errInvalidInput = errors.New("invalid mobile bridge input")
 
 type config struct {
 	FailureThreshold int   `json:"failure_threshold"`
@@ -63,17 +63,17 @@ type Core struct {
 // NewCore creates a thread-safe policy facade. All duration values are in ms.
 func NewCore(configJSON string) (*Core, error) {
 	if len(configJSON) == 0 || len(configJSON) > maxConfigBytes {
-		return nil, ErrInvalidInput
+		return nil, errInvalidInput
 	}
 	var cfg config
 	if err := decodeStrict([]byte(configJSON), &cfg); err != nil {
-		return nil, fmt.Errorf("%w: config: %v", ErrInvalidInput, err)
+		return nil, fmt.Errorf("%w: config: %v", errInvalidInput, err)
 	}
 	if cfg.MaxLatencyMS <= 0 || cfg.MaxLatencyMS > maxLatencyMS ||
 		cfg.CooldownMS < 0 || cfg.CooldownMS > maxLatencyMS ||
 		cfg.MinImprovementMS < 0 || cfg.MinImprovementMS > maxLatencyMS ||
 		cfg.FailureThreshold < 1 || cfg.FailureThreshold > 100 {
-		return nil, ErrInvalidInput
+		return nil, errInvalidInput
 	}
 	controller, err := policy.NewFailoverController(policy.FailoverConfig{
 		FailureThreshold: cfg.FailureThreshold,
@@ -82,7 +82,7 @@ func NewCore(configJSON string) (*Core, error) {
 		MinImprovement:   time.Duration(cfg.MinImprovementMS) * time.Millisecond,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
+		return nil, fmt.Errorf("%w: %v", errInvalidInput, err)
 	}
 	return &Core{controller: controller, now: time.Now}, nil
 }
@@ -92,35 +92,35 @@ func NewCore(configJSON string) (*Core, error) {
 // after the platform has switched and independently verified connectivity.
 func (c *Core) EvaluateJSON(sampleJSON string) (string, error) {
 	if c == nil || c.controller == nil {
-		return "", ErrInvalidInput
+		return "", errInvalidInput
 	}
 	if len(sampleJSON) == 0 || len(sampleJSON) > maxSampleBytes {
-		return "", ErrInvalidInput
+		return "", errInvalidInput
 	}
 	var sample sampleInput
 	if err := decodeStrict([]byte(sampleJSON), &sample); err != nil {
-		return "", fmt.Errorf("%w: sample: %v", ErrInvalidInput, err)
+		return "", fmt.Errorf("%w: sample: %v", errInvalidInput, err)
 	}
 	if strings.TrimSpace(sample.CurrentID) == "" || len(sample.CurrentID) > 256 ||
 		len(sample.Candidates) == 0 || len(sample.Candidates) > maxCandidates {
-		return "", ErrInvalidInput
+		return "", errInvalidInput
 	}
 	seen := make(map[string]struct{}, len(sample.Candidates))
 	candidates := make([]policy.ServerCandidate, 0, len(sample.Candidates))
 	for _, item := range sample.Candidates {
 		if strings.TrimSpace(item.ID) == "" || len(item.ID) > 256 ||
 			len(item.SubscriptionID) > 256 || item.LatencyMS < -1 || item.LatencyMS > maxLatencyMS {
-			return "", ErrInvalidInput
+			return "", errInvalidInput
 		}
 		if _, exists := seen[item.ID]; exists {
-			return "", fmt.Errorf("%w: duplicate candidate ID", ErrInvalidInput)
+			return "", fmt.Errorf("%w: duplicate candidate ID", errInvalidInput)
 		}
 		seen[item.ID] = struct{}{}
 		status := engine.Status(item.Status)
 		switch status {
 		case engine.StatusHealthy, engine.StatusDegraded, engine.StatusFailed, engine.StatusStopped:
 		default:
-			return "", fmt.Errorf("%w: unsupported candidate status", ErrInvalidInput)
+			return "", fmt.Errorf("%w: unsupported candidate status", errInvalidInput)
 		}
 		candidates = append(candidates, policy.ServerCandidate{
 			ID: item.ID, SubscriptionID: item.SubscriptionID,
@@ -149,7 +149,7 @@ func (c *Core) EvaluateJSON(sampleJSON string) (string, error) {
 // session is connected and a separate connectivity check succeeds.
 func (c *Core) ConfirmSwitch(targetID string) error {
 	if c == nil || c.controller == nil || strings.TrimSpace(targetID) == "" || len(targetID) > 256 {
-		return ErrInvalidInput
+		return errInvalidInput
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
