@@ -1,9 +1,11 @@
 # Weak-network resilience
 
 The `internal/resilience` package provides bounded exponential reconnect delays
-for engine adapters. The default schedule starts at 500 ms, doubles after each
-consecutive failure, and caps at 30 seconds. A scheduler may apply symmetric
-jitter to avoid synchronized retry bursts.
+and a cancellable retry runner for engine adapters. The default schedule starts
+at 500 ms, doubles after each consecutive failure, and caps at 30 seconds. A
+scheduler may apply symmetric jitter to avoid synchronized retry bursts.
+`Run` treats the supplied retry classifier as authoritative: unknown or
+permanent errors should not be retried.
 
 Recommended adapter behavior for weak links:
 
@@ -20,8 +22,10 @@ Recommended adapter behavior for weak links:
   without creating parallel unbounded reconnect loops.
 - Expose state and metrics (connecting, connected, degraded, retrying) so a UI
   can explain recovery rather than appearing frozen.
+- Keep retries cancellable and bounded; avoid retrying non-idempotent operations
+  unless the adapter can guarantee safe repetition.
 
-This is a timing policy, not a complete tunnel implementation. The current
+This is a reusable policy, not a complete tunnel implementation. The current
 scaffold still needs engine adapters to consume it, plus platform-specific TUN,
 DNS, route management, and end-to-end leak/recovery tests. It does not promise
 connectivity where the network blocks the selected transport.
