@@ -10,6 +10,7 @@ The engine-agnostic policy in `internal/policy/failover.go` computes when a call
 - Candidates are ranked by latency, then subscription ID, then server ID for deterministic ties.
 - `Cooldown` prevents repeated rapid switches. `MinImprovement` avoids switching solely for a small latency gain when the active server is still healthy.
 - If no target qualifies, the policy reports `no_healthy_alternative` and does not invent a fallback.
+- `Evaluate` returns a proposal only. The caller must start the target and verify connectivity, then call `ConfirmSwitch(targetID, now)`. Failed or abandoned attempts should call `CancelSwitch()`; cooldown begins only after confirmation, so a failed attempt does not block another try.
 
 ## Integration boundary
 
