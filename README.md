@@ -2,7 +2,7 @@
 
 **Status: early scaffold / not production-ready.**
 
-Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. A first sing-box subprocess adapter is now available, but Chimera is not yet a production-ready VPN client.
+Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. A first sing-box subprocess adapter is available, but Chimera is not yet a production-ready VPN client.
 
 ## Current implementation
 
@@ -12,8 +12,8 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Start validation, health checks, failure cleanup, and serialized lifecycle operations
 - Deterministic route-candidate selection based on health and latency
 - Bounded DNS/HTTPS diagnostics for explicitly supplied hostnames
-- sing-box adapter: upstream config check, private temporary profile, process start/health/stop
-- Unit tests and GitHub Actions workflow
+- sing-box subprocess adapter: upstream config check, private temporary profile, process start/health/stop
+- Process-exit and health-context tests, plus GitHub Actions CI
 
 ## Foundation (Phase A)
 
@@ -22,9 +22,11 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 
 ## sing-box integration (Phase B)
 
-See [docs/SING_BOX_ADAPTER.md](docs/SING_BOX_ADAPTER.md). The adapter wraps an already installed sing-box executable. It validates a complete JSON profile with `sing-box check`, writes it with restrictive permissions, starts the child process, checks process liveness, and stops/cleans up the process.
+See [docs/SING_BOX_ADAPTER.md](docs/SING_BOX_ADAPTER.md). The portable adapter wraps an already installed sing-box executable. It validates a complete JSON profile with `sing-box check`, writes it with restrictive permissions, starts the child process, checks process liveness, and stops/cleans up the process.
 
-The adapter does **not** install or pin sing-box, configure OS routes, install system DNS settings, create a system TUN device itself, or guarantee end-to-end connectivity. A live process is not proof that routing or DNS works. Platform-specific route/DNS ownership, rollback, privilege design, and real-engine integration tests remain before production use.
+**Android status:** this subprocess adapter is not an Android VPN implementation. See [docs/ANDROID_SING_BOX.md](docs/ANDROID_SING_BOX.md) for the required `VpnService`/TUN ownership model, DNS and route verification, service-revocation handling, and connectivity rollback. This repository does not yet include an Android app module or device-level tests.
+
+The adapter does **not** install or pin sing-box, configure OS routes, install system DNS settings, create a system TUN device itself, or guarantee end-to-end connectivity. A live process is not proof that routing or DNS works. No kill-switch or DNS leak-prevention guarantee is made.
 
 ## Quick start
 
@@ -43,7 +45,7 @@ See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use syste
 
 | Engine | Status |
 |---|---|
-| sing-box | Initial subprocess adapter implemented; platform networking validation remains |
+| sing-box | Portable subprocess adapter implemented; Android requires separate native integration |
 | Xray-core | Planned |
 | Mihomo | Planned |
 | Aether | Research only |
