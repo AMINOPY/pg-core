@@ -10,8 +10,8 @@ import (
 type Severity string
 
 const (
-	SeverityInfo Severity = "info"
-	SeverityWarn Severity = "warning"
+	SeverityInfo  Severity = "info"
+	SeverityWarn  Severity = "warning"
 	SeverityError Severity = "error"
 )
 
