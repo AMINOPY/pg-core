@@ -12,18 +12,32 @@ import (
 type EngineID string
 
 const (
-	EngineXray    EngineID = "xray"
-	EngineSingBox EngineID = "sing-box"
-	EngineMihomo  EngineID = "mihomo"
-	EngineAether  EngineID = "aether"
+	CurrentSchemaVersion          = 1
+	EngineXray           EngineID = "xray"
+	EngineSingBox        EngineID = "sing-box"
+	EngineMihomo         EngineID = "mihomo"
+	EngineAether         EngineID = "aether"
 )
 
 type Config struct {
-	Profile      string     `json:"profile"`
-	ActiveEngine EngineID   `json:"active_engine"`
-	Enabled      []EngineID `json:"enabled_engines"`
-	TUNOwner     string     `json:"tun_owner,omitempty"`
-	DNSOwner     string     `json:"dns_owner,omitempty"`
+	SchemaVersion int        `json:"schema_version"`
+	Profile       string     `json:"profile"`
+	ActiveEngine  EngineID   `json:"active_engine"`
+	Enabled       []EngineID `json:"enabled_engines"`
+	TUNOwner      string     `json:"tun_owner,omitempty"`
+	DNSOwner      string     `json:"dns_owner,omitempty"`
+}
+
+// Normalize applies safe, deterministic migrations for older schema versions.
+// Version 0 represents pre-versioning configs and is upgraded in memory to v1.
+func (c Config) Normalize() (Config, error) {
+	if c.SchemaVersion == 0 {
+		c.SchemaVersion = CurrentSchemaVersion
+	}
+	if c.SchemaVersion != CurrentSchemaVersion {
+		return c, fmt.Errorf("unsupported schema_version %d (supported: %d)", c.SchemaVersion, CurrentSchemaVersion)
+	}
+	return c, nil
 }
 
 func Load(path string) (Config, error) {
@@ -46,17 +60,25 @@ func Load(path string) (Config, error) {
 		}
 		return cfg, fmt.Errorf("parse JSON trailer: %w", err)
 	}
+	cfg, err = cfg.Normalize()
+	if err != nil {
+		return cfg, err
+	}
 	return cfg, nil
 }
 
 func (c Config) Validate() error {
+	normalized, err := c.Normalize()
+	if err != nil {
+		return err
+	}
+	c = normalized
 	if strings.TrimSpace(c.Profile) == "" {
 		return errors.New("profile must not be empty")
 	}
 	if !knownEngine(c.ActiveEngine) {
 		return fmt.Errorf("active_engine %q is unsupported", c.ActiveEngine)
 	}
-
 	enabled := make(map[EngineID]bool, len(c.Enabled))
 	for _, id := range c.Enabled {
 		if !knownEngine(id) {

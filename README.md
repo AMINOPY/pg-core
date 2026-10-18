@@ -14,6 +14,22 @@ Chimera Core is a proposed modular network-engine coordinator. The current Go co
 - Network diagnostics package: hostname validation, DNS lookup latency, HTTPS reachability/status, bounded concurrent batch checks, per-check timeouts
 - Go unit tests and GitHub Actions workflow
 
+## Core foundation additions (Phase A)
+
+- Adapter registry with deterministic listing and capability negotiation before start
+- Configuration schema version 1; legacy unversioned files normalize to v1 in memory, unknown future versions are rejected
+- Structured JSON logging with defensive redaction for common secret-bearing attribute names
+- Bounded in-process lifecycle event bus; optional orchestrator integration via `NewWithEvents`
+- CLI commands for config validation, bounded hostname diagnostics, known engine IDs, and local status
+
+Examples:
+
+    go run ./cmd/chimera --list-engines
+    go run ./cmd/chimera --status
+    go run ./cmd/chimera --diagnose example.com
+
+The engine list reports known IDs, not available adapters. The status command reports local CLI state only; there is no daemon or active tunnel. Diagnostics perform DNS and HTTPS checks for the hostname explicitly supplied by the operator.
+
 ## Quick start
 
 Requires Go 1.22 or newer.
@@ -23,7 +39,7 @@ Requires Go 1.22 or newer.
     go run ./cmd/chimera
     go run ./cmd/chimera --config config.example.json
 
-The CLI currently validates configuration only. It does not start a network engine, configure TUN, modify system routes, or provide a tunnel. The diagnostics package is a Go API, not yet exposed as a CLI or GUI.
+The CLI can validate configuration and run bounded DNS/HTTPS diagnostics, but it does not start a network engine, configure TUN, modify system routes, or provide a tunnel. No GUI or background status daemon is included.
 
 ## Network diagnostics API
 
