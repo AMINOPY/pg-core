@@ -10,51 +10,44 @@ import (
 )
 
 var (
-	ErrNoChecker = errors.New("diagnostics: checker is required")
-	ErrNoRepairer = errors.New("diagnostics: repairer is required")
+	ErrNoChecker   = errors.New("diagnostics: checker is required")
+	ErrNoRepairer  = errors.New("diagnostics: repairer is required")
 	ErrRepairLimit = errors.New("diagnostics: repair attempt limit reached")
 )
 
-// Finding is a sanitized diagnostic result. Details should not contain secrets.
 type Finding struct {
-	Code       string
-	Component  string
-	Summary    string
+	Code        string
+	Component   string
+	Summary     string
 	Recoverable bool
 }
 
-// Checker inspects a component without changing its state.
 type Checker interface {
 	Check(context.Context) (Finding, error)
 }
 
-// Repairer applies one explicitly implemented, bounded recovery action.
 type Repairer interface {
 	Repair(context.Context, Finding) error
 }
 
-// Verifier checks whether a repair actually restored the expected state.
 type Verifier interface {
 	Verify(context.Context, Finding) error
 }
 
-// Result reports what happened; Repaired is true only after verification succeeds.
 type Result struct {
-	Finding  Finding
-	Attempted bool
-	Repaired bool
-	StartedAt time.Time
+	Finding    Finding
+	Attempted  bool
+	Repaired   bool
+	StartedAt  time.Time
 	FinishedAt time.Time
-	Err error
+	Err        error
 }
 
-// Runner executes a single diagnostic cycle. It never loops indefinitely and
-// never treats a repair as successful without a successful verification.
 type Runner struct {
-	Checker Checker
-	Repairer Repairer
-	Verifier Verifier
-	Timeout time.Duration
+	Checker     Checker
+	Repairer    Repairer
+	Verifier    Verifier
+	Timeout     time.Duration
 	MaxAttempts int
 }
 
@@ -84,7 +77,9 @@ func (r Runner) RunOnce(ctx context.Context) Result {
 		return result
 	}
 	limit := r.MaxAttempts
-	if limit == 0 { limit = 1 }
+	if limit == 0 {
+		limit = 1
+	}
 	if limit < 1 || limit > 3 {
 		result.Err = fmt.Errorf("diagnostics: MaxAttempts must be between 1 and 3")
 		return result
@@ -106,8 +101,13 @@ func (r Runner) RunOnce(ctx context.Context) Result {
 		} else {
 			result.Err = fmt.Errorf("diagnostics verification after attempt %d: %w", attempt+1, err)
 		}
-		if ctx.Err() != nil { result.Err = ctx.Err(); return result }
+		if ctx.Err() != nil {
+			result.Err = ctx.Err()
+			return result
+		}
 	}
-	if result.Err == nil { result.Err = ErrRepairLimit }
+	if result.Err == nil {
+		result.Err = ErrRepairLimit
+	}
 	return result
 }
