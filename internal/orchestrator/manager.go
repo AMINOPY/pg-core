@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/AMINOPY/pg-core/internal/engine"
+	"github.com/AMINOPY/pg-core/internal/events"
 )
 
 const cleanupTimeout = 5 * time.Second
@@ -25,16 +26,22 @@ type Manager struct {
 	mu      sync.RWMutex
 	status  engine.Status
 	last    engine.HealthReport
+	bus     *events.Bus
 }
 
 func New(adapter engine.Adapter) (*Manager, error) {
+	return NewWithEvents(adapter, nil)
+}
+
+// NewWithEvents optionally publishes lifecycle transitions to an in-process bus.
+func NewWithEvents(adapter engine.Adapter, bus *events.Bus) (*Manager, error) {
 	if adapter == nil {
 		return nil, errors.New("engine adapter is required")
 	}
 	if adapter.ID() == "" {
 		return nil, errors.New("engine adapter ID must not be empty")
 	}
-	return &Manager{adapter: adapter, status: engine.StatusStopped}, nil
+	return &Manager{adapter: adapter, status: engine.StatusStopped, bus: bus}, nil
 }
 
 func (m *Manager) Status() (engine.Status, engine.HealthReport) {
@@ -45,10 +52,18 @@ func (m *Manager) Status() (engine.Status, engine.HealthReport) {
 
 func (m *Manager) setStatus(status engine.Status, report engine.HealthReport) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.status = status
 	if report.EngineID != "" || !report.CheckedAt.IsZero() {
 		m.last = report
+	}
+	m.mu.Unlock()
+	if m.bus != nil {
+		engineID := report.EngineID
+		if engineID == "" { engineID = m.adapter.ID() }
+		m.bus.Publish(events.Event{
+			Type: string(status), EngineID: engineID, Status: string(status),
+			ErrorCode: report.ErrorCode, At: time.Now().UTC(),
+		})
 	}
 }
 
