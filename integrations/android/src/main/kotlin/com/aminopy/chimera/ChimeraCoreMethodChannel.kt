@@ -6,27 +6,33 @@ import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 
 /**
- * Stable boundary implemented by a tiny adapter around the generated gomobile AAR.
- * Keep this interface independent of generated Java names so gomobile can be pinned
- * and upgraded without leaking generated types into the Flutter API.
+ * Stable boundary implemented by a small adapter around the generated gomobile AAR.
+ * Keep generated Java names out of the Flutter-facing API.
  */
 interface ChimeraGoCore : AutoCloseable {
-    /** Returns the Go policy decision JSON for a sanitized sample. */
     fun evaluate(sampleJson: String): String
     fun confirmSwitch(targetId: String)
     fun cancelSwitch()
 }
 
+interface ChimeraGoLearningStore {
+    fun observe(observationJson: String)
+    fun snapshot(): String
+    fun export(): String
+    fun import(snapshotJson: String)
+}
+
 fun interface ChimeraGoCoreFactory {
     fun create(configJson: String): ChimeraGoCore
+
+    /** Implement against gomobile NewLearningStore for adaptive evidence support. */
+    fun createLearningStore(): ChimeraGoLearningStore =
+        throw UnsupportedOperationException("Learning store adapter is not configured")
 }
 
 /**
- * Flutter MethodChannel host for the Go policy API.
- *
- * The embedding application must supply a ChimeraGoCoreFactory backed by the
- * generated gomobile AAR. This plugin deliberately does not create a VpnService:
- * flutter_v2ray remains the only VPN/TUN owner and performs the actual profile switch.
+ * Flutter MethodChannel host for the Go policy and learning APIs.
+ * This plugin does not create a VpnService: flutter_v2ray remains the only VPN/TUN owner.
  */
 class ChimeraCoreMethodChannel(
     private val factory: ChimeraGoCoreFactory
@@ -34,6 +40,7 @@ class ChimeraCoreMethodChannel(
     private val lock = Any()
     private var channel: MethodChannel? = null
     private var core: ChimeraGoCore? = null
+    private var learningStore: ChimeraGoLearningStore? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME).also {
@@ -47,6 +54,7 @@ class ChimeraCoreMethodChannel(
         synchronized(lock) {
             core?.close()
             core = null
+            learningStore = null
         }
     }
 
@@ -55,7 +63,6 @@ class ChimeraCoreMethodChannel(
             when (call.method) {
                 "initialize" -> {
                     val config = requireJsonString(call.argument("config"))
-                    // Construct first: if initialization fails, keep the old core usable.
                     val replacement = factory.create(config)
                     synchronized(lock) {
                         val previous = core
@@ -63,7 +70,7 @@ class ChimeraCoreMethodChannel(
                         try {
                             previous?.close()
                         } catch (_: Exception) {
-                            // The replacement is already active; do not expose native details.
+                            // Replacement is active; do not expose native details.
                         }
                     }
                     result.success(mapOf("ready" to true))
@@ -71,10 +78,8 @@ class ChimeraCoreMethodChannel(
                 "evaluate" -> {
                     val sample = requireJsonString(call.argument("sample"))
                     val decision = synchronized(lock) {
-                        requireNotNull(core) { "Chimera core is not initialized" }
-                            .evaluate(sample)
+                        requireNotNull(core) { "Chimera core is not initialized" }.evaluate(sample)
                     }
-                    // Return a structured map rather than an opaque JSON string to Dart.
                     result.success(JSONObject(decision).toMap())
                 }
                 "confirmSwitch" -> {
@@ -82,8 +87,7 @@ class ChimeraCoreMethodChannel(
                         ?.takeIf { it.isNotBlank() && it.length <= MAX_ID_LENGTH }
                         ?: throw IllegalArgumentException("Invalid targetId")
                     synchronized(lock) {
-                        requireNotNull(core) { "Chimera core is not initialized" }
-                            .confirmSwitch(target)
+                        requireNotNull(core) { "Chimera core is not initialized" }.confirmSwitch(target)
                     }
                     result.success(mapOf("confirmed" to true))
                 }
@@ -92,6 +96,24 @@ class ChimeraCoreMethodChannel(
                         requireNotNull(core) { "Chimera core is not initialized" }.cancelSwitch()
                     }
                     result.success(mapOf("cancelled" to true))
+                }
+                "recordOutcome" -> {
+                    val observation = requireJsonString(call.argument("observation"))
+                    synchronized(lock) { getLearningStore().observe(observation) }
+                    result.success(mapOf("recorded" to true))
+                }
+                "learningSnapshot" -> {
+                    val snapshot = synchronized(lock) { getLearningStore().snapshot() }
+                    result.success(snapshot)
+                }
+                "exportLearning" -> {
+                    val snapshot = synchronized(lock) { getLearningStore().export() }
+                    result.success(snapshot)
+                }
+                "importLearning" -> {
+                    val snapshot = requireJsonString(call.argument("snapshot"))
+                    synchronized(lock) { getLearningStore().import(snapshot) }
+                    result.success(mapOf("imported" to true))
                 }
                 else -> result.notImplemented()
             }
@@ -104,10 +126,14 @@ class ChimeraCoreMethodChannel(
         }
     }
 
+    private fun getLearningStore(): ChimeraGoLearningStore {
+        if (learningStore == null) learningStore = factory.createLearningStore()
+        return requireNotNull(learningStore)
+    }
+
     private fun requireJsonString(value: String?): String {
         val raw = value?.takeIf { it.isNotBlank() && it.length <= MAX_JSON_LENGTH }
             ?: throw IllegalArgumentException("Expected a bounded JSON string")
-        // Parse before passing to Go; Go remains authoritative for schema validation.
         JSONObject(raw)
         return raw
     }
