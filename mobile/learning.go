@@ -42,15 +42,21 @@ func (s *LearningStore) SnapshotJSON() (string, error) {
 		return "", errInvalidInput
 	}
 	data, err := json.Marshal(s.store.Snapshot())
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return string(data), nil
 }
 
 // ExportJSON returns a versioned backup without credentials or profile data.
 func (s *LearningStore) ExportJSON() (string, error) {
-	if s == nil || s.store == nil { return "", errInvalidInput }
+	if s == nil || s.store == nil {
+		return "", errInvalidInput
+	}
 	data, err := s.store.Export()
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return string(data), nil
 }
 
