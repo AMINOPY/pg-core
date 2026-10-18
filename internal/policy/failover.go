@@ -38,11 +38,11 @@ type FailoverDecision struct {
 // FailoverController provides deterministic failover decisions. It does not
 // start/stop engines or modify routes; callers must execute and verify a switch.
 type FailoverController struct {
-	cfg            FailoverConfig
-	currentID      string
-	failureStreak  int
-	lastSwitch     time.Time
-	pendingTarget  string
+	cfg             FailoverConfig
+	currentID       string
+	failureStreak   int
+	lastSwitch      time.Time
+	pendingTarget   string
 }
 
 func NewFailoverController(cfg FailoverConfig) (*FailoverController, error) {
