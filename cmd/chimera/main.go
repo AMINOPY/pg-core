@@ -29,7 +29,9 @@ func main() {
 			fmt.Fprintf(os.Stderr, "encode diagnostics: %v\n", err)
 			os.Exit(1)
 		}
-		if !result.DNSOK || !result.HTTPSOK { os.Exit(1) }
+		if !result.DNSOK || !result.HTTPSOK {
+			os.Exit(1)
+		}
 		return
 	case *listEngines:
 		fmt.Println("Known engine IDs (adapters are not yet implemented/registered):")
