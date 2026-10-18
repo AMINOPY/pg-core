@@ -1,3 +1,5 @@
+import 'dart:convert' as convert;
+
 import 'package:flutter/services.dart';
 
 /// Sanitized health sample sent from Dart to the Go failover policy.
@@ -184,4 +186,4 @@ class ChimeraCoreBridge {
   }
 }
 
-String _jsonEncode(Object? value) => _jsonEncodeImpl(value);
+String _jsonEncode(Object? value) => convert.jsonEncode(value);
