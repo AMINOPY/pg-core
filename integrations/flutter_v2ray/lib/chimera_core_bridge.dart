@@ -68,6 +68,28 @@ class ChimeraFailoverDecision {
   }
 }
 
+/// A verified, sanitized outcome. Failed observations must use latencyMs=-1.
+class ChimeraConnectorOutcome {
+  const ChimeraConnectorOutcome({
+    required this.connectorId,
+    required this.version,
+    required this.success,
+    required this.latencyMs,
+  });
+
+  final String connectorId;
+  final String version;
+  final bool success;
+  final int latencyMs;
+
+  Map<String, Object?> toJson() => {
+        'connector_id': connectorId,
+        'version': version,
+        'success': success,
+        'latency_ms': latencyMs,
+      };
+}
+
 /// Dart side of the Android MethodChannel bridge to Chimera's Go policy API.
 ///
 /// This bridge evaluates policy only. The app must use its single
@@ -144,6 +166,60 @@ class ChimeraCoreBridge {
     return ChimeraFailoverDecision.fromJson(response);
   }
 
+  /// Record only after the host independently verifies the outcome.
+  Future<void> recordOutcome(ChimeraConnectorOutcome outcome) async {
+    if (outcome.connectorId.trim().isEmpty ||
+        outcome.connectorId.length > 256 ||
+        outcome.version.trim().isEmpty ||
+        outcome.version.length > 256 ||
+        outcome.latencyMs < -1 ||
+        outcome.latencyMs > 604800000 ||
+        (!outcome.success && outcome.latencyMs != -1)) {
+      throw ArgumentError('Invalid connector outcome.');
+    }
+    await _channel.invokeMethod<Object?>('recordOutcome', {
+      'observation': _encode(outcome.toJson()),
+    });
+  }
+
+  /// Returns sanitized learning records, not profiles or credentials.
+  Future<List<Map<String, Object?>>> learningSnapshot() async {
+    final raw = await _channel.invokeMethod<String>('learningSnapshot');
+    if (raw == null) {
+      throw const FormatException('Empty learning snapshot.');
+    }
+    final decoded = convert.jsonDecode(raw);
+    if (decoded is! List) {
+      throw const FormatException('Invalid learning snapshot.');
+    }
+    return decoded.map((item) {
+      if (item is! Map) {
+        throw const FormatException('Invalid learning record.');
+      }
+      return Map<String, Object?>.from(item);
+    }).toList(growable: false);
+  }
+
+  /// Export this string into platform-protected storage if persistence is needed.
+  Future<String> exportLearning() async {
+    final raw = await _channel.invokeMethod<String>('exportLearning');
+    if (raw == null) {
+      throw const FormatException('Empty learning export.');
+    }
+    return raw;
+  }
+
+  /// Restore a previously exported, versioned snapshot.
+  Future<void> importLearning(String snapshotJson) async {
+    if (snapshotJson.isEmpty || snapshotJson.length > 1024 * 1024) {
+      throw ArgumentError('Invalid learning snapshot size.');
+    }
+    await _channel.invokeMethod<Object?>(
+      'importLearning',
+      {'snapshot': snapshotJson},
+    );
+  }
+
   Future<void> confirmSwitch(String targetId) async {
     _requireInitialized();
     if (targetId.trim().isEmpty || targetId.length > 256) {
@@ -179,11 +255,5 @@ class ChimeraCoreBridge {
         'min_improvement_ms': minImprovementMs,
       });
 
-  String _encode(Map<String, Object?> value) {
-    // dart:convert is used via this local helper to keep the bridge payload
-    // JSON-only and independent from Flutter's platform channel codecs.
-    return _jsonEncode(value);
-  }
+  String _encode(Map<String, Object?> value) => convert.jsonEncode(value);
 }
-
-String _jsonEncode(Object? value) => convert.jsonEncode(value);
