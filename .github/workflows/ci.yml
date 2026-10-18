@@ -11,7 +11,7 @@ permissions:
 jobs:
   go:
     name: Go checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
@@ -32,10 +32,10 @@ jobs:
 
   python:
     name: Python client tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Test Python client
@@ -44,7 +44,7 @@ jobs:
 
   java:
     name: Java client tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -58,7 +58,7 @@ jobs:
 
   kotlin:
     name: Kotlin client tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
