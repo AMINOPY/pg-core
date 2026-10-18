@@ -46,13 +46,18 @@ then create the adapter with the app's status callback:
 
 ## Important boundary
 
-The Go service and this Dart adapter are not connected through Go FFI or a
-MethodChannel in this repository yet. A production app must add a native bridge
-that passes sanitized candidate IDs, subscription IDs, health samples, and
-switch results between Go policy and Flutter. Do not send share links,
-credentials, or raw configuration through logs. The plugin must be the single
-VPN/TUN owner while active; do not run the sing-box adapter as a second VPN
-owner on the same traffic path.
+The repository now includes a Dart MethodChannel client
+(`chimera_core_bridge.dart`), a serialized failover coordinator
+(`chimera_auto_failover.dart`), and a Kotlin MethodChannel host under
+`integrations/android`. The native host still requires an app-provided
+`ChimeraGoCoreFactory` built against the exact generated gomobile AAR; this
+repository does not yet contain a complete Flutter host app or generated AAR.
+Do not send share links, credentials, or raw configuration through logs. The
+plugin must be the single VPN/TUN owner while active; do not run the sing-box
+adapter as a second VPN owner on the same traffic path.
+
+See [the Android production checklist](../android/PRODUCTION_CHECKLIST.md) for
+the reproducible build boundary and required physical-device validation.
 
 Test Android permission denial/revocation, process death, failed replacement,
 rollback, DNS, IPv4/IPv6, route restoration, and real connectivity on physical
