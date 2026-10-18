@@ -14,35 +14,35 @@ import (
 )
 
 const (
-	SchemaVersion = "1.0"
+	SchemaVersion    = "1.0"
 	MaxManifestBytes = 256 << 10
-	MaxCapabilities = 128
-	MaxSchemaBytes = 64 << 10
+	MaxCapabilities  = 128
+	MaxSchemaBytes   = 64 << 10
 )
 
 var (
-	idPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$`)
-	permissionPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(\.[a-z][a-z0-9_-]*){0,5}$`)
+	idPattern           = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$`)
+	permissionPattern   = regexp.MustCompile(`^[a-z][a-z0-9]*(\.[a-z][a-z0-9_-]*){0,5}$`)
 	ErrManifestTooLarge = errors.New("capability manifest exceeds size limit")
 )
 
 // Manifest is supplied by a connector and must be treated as untrusted input.
 // It deliberately contains no executable code or credentials.
 type Manifest struct {
-	SchemaVersion string       `json:"schema_version"`
-	ConnectorID   string       `json:"connector_id"`
-	ConnectorVersion string    `json:"connector_version"`
-	Capabilities  []Capability `json:"capabilities"`
+	SchemaVersion    string       `json:"schema_version"`
+	ConnectorID      string       `json:"connector_id"`
+	ConnectorVersion string       `json:"connector_version"`
+	Capabilities     []Capability `json:"capabilities"`
 }
 
 type Capability struct {
-	ID            string          `json:"id"`
-	Version       string          `json:"version"`
-	InputSchema   json.RawMessage `json:"input_schema"`
-	OutputSchema  json.RawMessage `json:"output_schema"`
-	Permissions   []string        `json:"permissions"`
-	Risk          string          `json:"risk"`
-	Execution     string          `json:"execution"`
+	ID           string          `json:"id"`
+	Version      string          `json:"version"`
+	InputSchema  json.RawMessage `json:"input_schema"`
+	OutputSchema json.RawMessage `json:"output_schema"`
+	Permissions  []string        `json:"permissions"`
+	Risk         string          `json:"risk"`
+	Execution    string          `json:"execution"`
 }
 
 // ParseManifest bounds input, rejects unknown fields and trailing JSON values,
@@ -59,7 +59,7 @@ func ParseManifest(data []byte) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("decode capability manifest: %w", err)
 	}
 	var trailing any
-	if !errors.Is(decodeTrailing(dec, &trailing), io.EOF) {
+	if err := dec.Decode(&trailing); !errors.Is(err, io.EOF) {
 		return Manifest{}, errors.New("multiple or invalid trailing JSON values")
 	}
 	if err := m.Validate(); err != nil {
@@ -67,8 +67,6 @@ func ParseManifest(data []byte) (Manifest, error) {
 	}
 	return m, nil
 }
-
-func decodeTrailing(dec *json.Decoder, v any) error { return dec.Decode(v) }
 
 func (m Manifest) Validate() error {
 	if m.SchemaVersion != SchemaVersion {
