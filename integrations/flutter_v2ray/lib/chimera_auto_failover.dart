@@ -17,7 +17,6 @@ class ChimeraAutoFailover {
   final Future<bool> Function(ChimeraV2RayCandidate candidate)
       verifyConnectivity;
 
-  Future<bool> _running = Future<bool>.value(false);
   bool _busy = false;
 
   /// Samples the explicitly supplied candidates and executes at most one switch.
