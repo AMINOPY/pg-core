@@ -32,11 +32,11 @@ type errorEnvelope struct {
 }
 
 type validationResponse struct {
-	SchemaVersion string                    `json:"schema_version"`
-	Valid         bool                       `json:"valid"`
-	ConnectorID   string                     `json:"connector_id,omitempty"`
-	Version       string                     `json:"connector_version,omitempty"`
-	Capabilities  []capabilitySummary        `json:"capabilities,omitempty"`
+	SchemaVersion string              `json:"schema_version"`
+	Valid         bool                `json:"valid"`
+	ConnectorID   string              `json:"connector_id,omitempty"`
+	Version       string              `json:"connector_version,omitempty"`
+	Capabilities  []capabilitySummary `json:"capabilities,omitempty"`
 }
 
 type capabilitySummary struct {
