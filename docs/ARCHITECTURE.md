@@ -16,6 +16,7 @@
 - internal/orchestrator: serialized engine lifecycle, health refresh, and bounded cleanup after startup failures.
 - internal/policy: deterministic candidate selection that prefers healthy engines, then lower measured latency, and uses degraded engines only as fallback.
 - internal/malwarescan: bounded SHA-256 signature scanning for explicitly authorized directories, with optional quarantine and cancellable periodic scheduling.
+- internal/security: HMAC-SHA-256 integrity tags plus binary/Morse diagnostic encodings; encodings are not encryption or authentication.
 - cmd/chimera: validation-only CLI in this scaffold.
 
 ## Engine roles
