@@ -3,7 +3,7 @@ package resilience
 import (
 	"context"
 	"errors"
-	"fmt"
+	"net"
 	"time"
 )
 
@@ -26,17 +26,16 @@ func Run(ctx context.Context, policy Policy, maxAttempts int, retryable Retryabl
 		return err
 	}
 
-	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		lastErr = operation(ctx)
-		if lastErr == nil {
+		err := operation(ctx)
+		if err == nil {
 			return nil
 		}
-		if !retryable(lastErr) || attempt == maxAttempts-1 {
-			return lastErr
+		if !retryable(err) || attempt == maxAttempts-1 {
+			return err
 		}
 
 		delay, err := policy.DelayFor(attempt)
@@ -47,16 +46,16 @@ func Run(ctx context.Context, policy Policy, maxAttempts int, retryable Retryabl
 		select {
 		case <-ctx.Done():
 			if !timer.Stop() {
-				<-timer.C
+				select {
+				case <-timer.C:
+				default:
+				}
 			}
 			return ctx.Err()
 		case <-timer.C:
 		}
 	}
-	if lastErr == nil {
-		return nil
-	}
-	return fmt.Errorf("retry attempts exhausted: %w", lastErr)
+	return nil
 }
 
 // IsTransientNetworkError is a conservative helper for common temporary network
@@ -66,13 +65,6 @@ func IsTransientNetworkError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var netErr interface{ Timeout() bool }
-	if errors.As(err, &netErr) && netErr.Timeout() {
-		return true
-	}
-	var temporary interface{ Temporary() bool }
-	if errors.As(err, &temporary) && temporary.Temporary() {
-		return true
-	}
-	return false
+	var netErr net.Error
+	return errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary())
 }
