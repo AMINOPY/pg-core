@@ -3,6 +3,7 @@ package mobile
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/AMINOPY/pg-core/internal/learning"
@@ -14,8 +15,13 @@ type LearningStore struct {
 	store *learning.Store
 }
 
+type rankedRecord struct {
+	learning.Record
+	Score float64 `json:"score"`
+}
+
 // NewLearningStore creates an isolated in-memory store. The host may persist
-// ExportJSON output in its platform-protected storage and restore it on startup.
+// ExportJSON output in platform-protected storage and restore it on startup.
 func NewLearningStore() *LearningStore {
 	return &LearningStore{store: learning.NewStore()}
 }
@@ -36,12 +42,39 @@ func (s *LearningStore) ObserveJSON(raw string) error {
 	return nil
 }
 
-// SnapshotJSON returns records in deterministic connector/version order.
+// SnapshotJSON returns sanitized records in stable connector/version order.
 func (s *LearningStore) SnapshotJSON() (string, error) {
 	if s == nil || s.store == nil {
 		return "", errInvalidInput
 	}
 	data, err := json.Marshal(s.store.Snapshot())
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// RankedJSON returns records sorted by an evidence-based score (highest first).
+// Scores are hints only and must never bypass trusted permission policy.
+func (s *LearningStore) RankedJSON() (string, error) {
+	if s == nil || s.store == nil {
+		return "", errInvalidInput
+	}
+	records := s.store.Snapshot()
+	ranked := make([]rankedRecord, 0, len(records))
+	for _, record := range records {
+		ranked = append(ranked, rankedRecord{Record: record, Score: learning.Score(record)})
+	}
+	sort.Slice(ranked, func(i, j int) bool {
+		if ranked[i].Score != ranked[j].Score {
+			return ranked[i].Score > ranked[j].Score
+		}
+		if ranked[i].ConnectorID != ranked[j].ConnectorID {
+			return ranked[i].ConnectorID < ranked[j].ConnectorID
+		}
+		return ranked[i].Version < ranked[j].Version
+	})
+	data, err := json.Marshal(ranked)
 	if err != nil {
 		return "", err
 	}
