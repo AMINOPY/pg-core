@@ -1,0 +1,7 @@
+{
+  "profile": "development",
+  "active_engine": "sing-box",
+  "enabled_engines": ["sing-box"],
+  "tun_owner": "sing-box",
+  "dns_owner": "sing-box"
+}
