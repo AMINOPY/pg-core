@@ -1,67 +1,52 @@
-# AI Network Diagnostics (proposal)
+# AI Network Diagnostics
 
-This document defines the first integration boundary for an `AI` diagnostics capability in pg-core. It is a design/specification, not a claim that platform-specific collection or an ML model is already implemented.
+This feature is an initial, explainable diagnostics module in `internal/ai`. It is operational as a CLI diagnostic report; it is not a trained ML model, mobile app UI, SIM inspector, or full throughput test yet.
 
-## Goals
+## Run it
 
-Provide one opt-in diagnostic report combining:
-- Connectivity checks: DNS resolution and certificate-verified HTTPS reachability for explicitly configured targets.
-- Latency quality: HTTP request latency, jitter estimate, failed-request ratio, and stability over a bounded test window.
-- Throughput: download/upload measurements using a self-hosted test endpoint.
-- Connection context: platform-reported connection type when available (Wi-Fi/cellular/unknown), with the source and confidence recorded.
-- Recommendations: deterministic, explainable rules first; an optional AI explanation layer may summarize the measurements but must not invent measurements.
-
-## Suggested package boundary
-
-Keep the diagnostics independent of the VPN engine lifecycle:
-
-```text
-internal/ai/
-  report.go       # report and finding types
-  runner.go       # bounded orchestration and cancellation
-  connectivity.go # DNS + verified HTTPS probes
-  stability.go    # latency samples, jitter, failure ratio
-  speedtest.go    # adapter for a configured speed-test endpoint
-  recommendations.go # deterministic findings
+```sh
+go run ./cmd/chimera --ai-scan example.com
+go run ./cmd/chimera --ai-scan example.com --samples 10
 ```
 
-The runner should accept a context, explicit target allowlist, deadlines, and a maximum test-data budget. It must never scan arbitrary IP ranges or silently run continuous tests.
+The command prints a JSON report. Samples are clamped to 1–20 (default 5), each DNS/HTTPS check has a bounded timeout, and the overall CLI operation has a two-minute deadline. Exit status is non-zero when no HTTPS sample succeeds.
 
-## Speed-test integrations
+## Current measurements
 
-- [LibreSpeed](https://github.com/librespeed/speedtest): preferred first adapter. Self-host the test backend and use its supported download/upload/ping interfaces. Keep test duration and payload limits configurable; ask the user before upload/download tests that may consume mobile data.
-- [OpenSpeedTest](https://github.com/openspeedtest/Speed-Test): optional alternative backend behind the same adapter contract. Verify the upstream project's current license and deployment requirements before distributing or embedding assets.
-- [Network Checker](https://github.com/mirarr-app/network-checker): evaluate as a reference for diagnostics and UX; do not copy code until its license and compatibility are verified.
+- DNS lookup success/failure
+- HTTPS reachability using the Go standard library with TLS certificate validation enabled
+- HTTPS request latency min/average/max (this is not pure ICMP ping; it includes server response behavior)
+- Failed HTTPS sample percentage
+- Jitter estimate: mean absolute change between consecutive successful HTTPS timings
+- Rule-based findings with severity, explanation, and measured evidence
 
-Do not bundle or redistribute upstream assets until their licenses and notices have been reviewed. Prefer configuring a user-controlled/self-hosted endpoint over sending network test traffic to an unknown third party.
+Findings are deterministic heuristics. No network measurement is invented and no external AI provider is contacted.
 
-## SIM and cellular details
+## Planned adapters
 
-SIM/operator data is platform-specific and is not available to a generic Go process or ordinary web page. Implement separate native providers only where the OS exposes the data and the user grants required permissions. Return `unknown` when unavailable. Do not collect phone numbers, IMSI, ICCID, precise location, or other subscriber identifiers for this feature. If the platform only exposes a carrier label or radio technology, collect only that coarse value with explicit consent.
+- [LibreSpeed](https://github.com/librespeed/speedtest): integrate with a trusted, preferably self-hosted backend for real download/upload/ping tests.
+- [OpenSpeedTest](https://github.com/openspeedtest/Speed-Test): possible alternative throughput backend.
+- [Network Checker](https://github.com/mirarr-app/network-checker): reference for UX and diagnostics; review its license and compatibility before reusing code.
 
-## Privacy and safety requirements
+These projects are not bundled and are not automatically contacted by `--ai-scan`. A real throughput test can consume substantial mobile data, so any future implementation must require a configured trusted endpoint and explicit user consent.
 
-- Diagnostics are user-triggered and clearly show expected data use before throughput tests.
-- No telemetry by default; saving or sharing reports requires a separate opt-in.
-- Redact IP addresses and hostnames from logs by default.
-- Use HTTPS with certificate verification; never disable TLS verification to make a test pass.
-- Bound concurrency, request count, payload size, and total duration.
-- Cancel promptly when the user stops a test or the context expires.
-- Keep VPN engine start/stop and routing ownership separate from diagnostics.
-- Report measured facts separately from inferred recommendations and include uncertainty.
+## SIM and carrier details
 
-## Initial implementation sequence
+A generic Go CLI cannot reliably inspect SIM identity or cellular radio metadata across platforms. This command does not claim to detect SIM type, carrier, signal strength, or mobile radio technology. Future native providers must be platform-specific, permission-gated, and return `unknown` when the OS does not expose a value. Subscriber identifiers such as IMSI/ICCID and phone numbers are out of scope.
 
-1. Add report types and unit-tested deterministic recommendation rules.
-2. Add bounded DNS/HTTPS and stability probes using existing diagnostics conventions.
-3. Add an opt-in throughput adapter for a configured LibreSpeed endpoint.
-4. Add platform-specific connection-context providers behind capability interfaces.
-5. Add a UI/API surface named **AI** only after the core API and tests are in place.
+## Safety and privacy requirements
 
-## Acceptance criteria
+- Only probes the hostname explicitly supplied by the user; no IP-range scanning.
+- No automatic telemetry or result sharing.
+- TLS verification remains enabled.
+- No OS routes, DNS settings, or VPN engine state are changed.
+- Results are point-in-time observations and do not prove that an ISP or service is universally blocked.
+- Do not treat a live engine process as proof of end-to-end connectivity.
 
-- Tests cover cancellation, timeouts, malformed targets, partial failures, and redaction.
-- No external requests occur until a user starts diagnostics.
-- Throughput tests require a configured endpoint and an explicit data-use confirmation.
-- Unsupported SIM/carrier fields return `unknown`, never fabricated values.
-- Recommendations cite the measurements that triggered them.
+## Validation
+
+```sh
+gofmt -w .
+go vet ./...
+go test ./...
+```
