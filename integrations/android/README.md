@@ -1,14 +1,15 @@
 # Android MethodChannel integration
 
-**Implementation status:** Go policy, bounded learning store, Dart bridge, and Kotlin channel source are present; the consuming app's gomobile adapter and Android device validation are not complete. See the [production checklist](PRODUCTION_CHECKLIST.md).
+**Implementation status:** Go policy, bounded learning store, AI-style network analyzer, Dart bridge, and Kotlin channel source are present; the consuming app's gomobile adapter and Android device validation are not complete. See the [production checklist](PRODUCTION_CHECKLIST.md).
 
-This directory contains the native Flutter channel host. The Dart bridge lives in `integrations/flutter_v2ray/lib/chimera_core_bridge.dart` and the execution coordinator is `chimera_auto_failover.dart`.
+This directory contains the native Flutter channel host. Dart bridges live in `integrations/flutter_v2ray/lib/chimera_core_bridge.dart` and `chimera_ai.dart`; the execution coordinator is `chimera_auto_failover.dart`.
 
 ## Current integration boundary
 
 - Failover methods: `initialize`, `evaluate`, `confirmSwitch`, and `cancelSwitch`.
 - Learning methods: `recordOutcome`, `learningSnapshot`, `exportLearning`, and `importLearning`.
-- The Android application must supply `ChimeraGoCoreFactory` against the exact generated gomobile AAR. Map `NewCore`, `EvaluateJSON`, `ConfirmSwitch`, and `CancelSwitch` to `ChimeraGoCore`. Implement `createLearningStore()` using gomobile's `NewLearningStore`, mapping `ObserveJSON`, `RankedJSON`, `ExportJSON`, and `ImportJSON` to `ChimeraGoLearningStore`.
+- AI diagnostics method: `analyzeNetwork`, backed by `mobile.AnalyzeNetworkJSON`.
+- The Android application must supply `ChimeraGoCoreFactory` against the exact generated gomobile AAR. Map `NewCore`, `EvaluateJSON`, `ConfirmSwitch`, and `CancelSwitch` to `ChimeraGoCore`. Implement `createLearningStore()` using gomobile's `NewLearningStore`, mapping `ObserveJSON`, `RankedJSON`, `ExportJSON`, and `ImportJSON` to `ChimeraGoLearningStore`. Implement `createAIAnalyzer()` with `mobile.AnalyzeNetworkJSON` and `ChimeraGoAIAnalyzer`.
 - Register the handler with the application's FlutterEngine, e.g. `engine.plugins.add(ChimeraCoreMethodChannel(factory))`.
 - Add the Kotlin file to the Android host app's source set and include Flutter embedding dependencies. This repository has no standalone Android/Flutter application module, Gradle wrapper, generated AAR, or device-test environment; therefore the source has not been compiled against a concrete generated gomobile artifact.
 - On Dart, initialize `ChimeraCoreBridge`, then create `ChimeraAutoFailover` with the existing `ChimeraFlutterV2Ray` adapter. The coordinator switches only explicitly supplied profiles and confirms only after the app's independent connectivity verifier succeeds.
@@ -42,6 +43,10 @@ await failover.runOnce(explicitCandidates);
 ```
 
 The example's `appOwnedConnectivityCheck` and `explicitCandidates` are application-provided, not APIs supplied by this repository.
+
+## AI diagnostics and speed tests
+
+Call `ChimeraAI.analyze(ChimeraNetworkReport(...))` from `chimera_ai.dart`. The host collects the measurements; the Go analyzer validates and explains them. Integrate a user-approved self-hosted LibreSpeed/OpenSpeedTest measurement service separately, then pass its results to this API. The analyzer itself does not generate traffic or start speed tests. Carrier/radio metadata is optional and should be collected only with user consent.
 
 ## Security and lifecycle
 
