@@ -49,6 +49,14 @@ It returns a proposal such as:
 
 Supported status values are `healthy`, `degraded`, `failed`, and `stopped`. Latency is milliseconds; `-1` means unavailable. Inputs are strictly decoded, capped at 64 candidates, and duplicate IDs/unknown JSON fields are rejected.
 
+## AI network analysis API
+
+The mobile package exposes `AnalyzeNetworkJSON(reportJSON)`. It accepts a bounded JSON report with measured throughput, latency, jitter, packet loss, DNS timing, transport type, and optional coarse cellular metadata. It returns a score, grade, findings, confidence estimates, and recommended next steps. The analyzer is deterministic and local, not a trained model.
+
+The Dart client is `integrations/flutter_v2ray/lib/chimera_ai.dart`. The Android host should implement `ChimeraGoAIAnalyzer` by forwarding the JSON to `mobile.AnalyzeNetworkJSON`, and provide it from `ChimeraGoCoreFactory.createAIAnalyzer()`. The speed-test engine itself must be provided separately by the app (for example a user-approved self-hosted LibreSpeed/OpenSpeedTest server). The core does not start large transfers or silently consume mobile data.
+
+Only pass coarse, user-approved metadata. Do not include subscriber identifiers, phone numbers, precise location, credentials, or raw connection profiles. See [AI Network Diagnostics](AI_NETWORK_SCANNER.md) for the full contract and validation checklist.
+
 ## Adaptive learning API
 
 `NewLearningStore()` creates a bounded in-memory evidence store. The exported gomobile facade includes:
