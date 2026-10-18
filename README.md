@@ -16,6 +16,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Bounded HTTPS health probes and serialized failover service with switch verification/rollback hooks
 - Thread-safe JSON API in `mobile` for exposing failover policy through gomobile
 - Dart adapter for the upstream `flutter_v2ray` plugin
+- Java, Python, and Kotlin bridge-client scaffolds (host transport still required)
 - Unit tests and GitHub Actions workflow
 
 ## Foundation (Phase A)
@@ -51,6 +52,10 @@ The bounded probe implementation in [internal/health](internal/health) samples o
 - [Android mobile bridge API](docs/ANDROID_MOBILE_BRIDGE.md) documents the gomobile-friendly JSON API and host-side switch/verify/confirm sequence.
 
 The Go API now exposes failover decisions to a native Android host, but this repository still does **not** include a complete Flutter application, generated AAR, production Kotlin `MethodChannel`, or Android `VpnService` implementation. Device-level verification of routes, DNS, rollback, and end-to-end traffic is still required. The Flutter plugin must be the single VPN/TUN owner for that integration; do not run it alongside the sing-box adapter for the same traffic path.
+
+## Multi-language clients
+
+See [docs/LANGUAGE_BINDINGS.md](docs/LANGUAGE_BINDINGS.md) for Java, Python, and Kotlin client scaffolds. These clients do not embed the Go runtime or create a VPN; each host application must provide and test a transport to the policy API.
 
 ## Engine roadmap
 
