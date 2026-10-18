@@ -22,12 +22,19 @@ interface ChimeraGoLearningStore {
     fun import(snapshotJson: String)
 }
 
+interface ChimeraGoAIAnalyzer {
+    fun analyzeNetwork(reportJson: String): String
+}
+
 fun interface ChimeraGoCoreFactory {
     fun create(configJson: String): ChimeraGoCore
 
     /** Implement against gomobile NewLearningStore for adaptive evidence support. */
     fun createLearningStore(): ChimeraGoLearningStore =
         throw UnsupportedOperationException("Learning store adapter is not configured")
+
+    fun createAIAnalyzer(): ChimeraGoAIAnalyzer =
+        throw UnsupportedOperationException("AI analyzer adapter is not configured")
 }
 
 /**
@@ -41,6 +48,7 @@ class ChimeraCoreMethodChannel(
     private var channel: MethodChannel? = null
     private var core: ChimeraGoCore? = null
     private var learningStore: ChimeraGoLearningStore? = null
+    private var aiAnalyzer: ChimeraGoAIAnalyzer? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME).also {
@@ -55,6 +63,7 @@ class ChimeraCoreMethodChannel(
             core?.close()
             core = null
             learningStore = null
+            aiAnalyzer = null
         }
     }
 
@@ -97,6 +106,11 @@ class ChimeraCoreMethodChannel(
                     }
                     result.success(mapOf("cancelled" to true))
                 }
+                "analyzeNetwork" -> {
+                    val report = requireJsonString(call.argument("report"))
+                    val analysis = synchronized(lock) { getAIAnalyzer().analyzeNetwork(report) }
+                    result.success(JSONObject(analysis).toMap())
+                }
                 "recordOutcome" -> {
                     val observation = requireJsonString(call.argument("observation"))
                     synchronized(lock) { getLearningStore().observe(observation) }
@@ -129,6 +143,11 @@ class ChimeraCoreMethodChannel(
     private fun getLearningStore(): ChimeraGoLearningStore {
         if (learningStore == null) learningStore = factory.createLearningStore()
         return requireNotNull(learningStore)
+    }
+
+    private fun getAIAnalyzer(): ChimeraGoAIAnalyzer {
+        if (aiAnalyzer == null) aiAnalyzer = factory.createAIAnalyzer()
+        return requireNotNull(aiAnalyzer)
     }
 
     private fun requireJsonString(value: String?): String {
