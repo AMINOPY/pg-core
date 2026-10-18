@@ -54,7 +54,8 @@ Supported status values are `healthy`, `degraded`, `failed`, and `stopped`. Late
 `NewLearningStore()` creates a bounded in-memory evidence store. The exported gomobile facade includes:
 
 - `ObserveJSON(observationJSON)`: record a verified result.
-- `SnapshotJSON()`: retrieve sanitized records in deterministic order.
+- `SnapshotJSON()`: sanitized records in stable ID/version order.
+- `RankedJSON()`: records sorted by evidence-based score (highest first), with a `score` field in the range 0–100.
 - `ExportJSON()` and `ImportJSON(snapshotJSON)`: versioned persistence interchange.
 
 Observation example:
@@ -63,9 +64,9 @@ Observation example:
 {"connector_id":"profile-2","version":"1","success":true,"latency_ms":90}
 ```
 
-Failed observations must use `"success":false,"latency_ms":-1`. Record an observation only after the host independently verifies end-to-end connectivity; do not trust a connector's self-reported success. The store tracks success/failure counts, consecutive failures, and an exponentially weighted latency estimate. Scores are ranking hints only and do not grant permissions or replace manifest validation. The store is bounded to 2,048 connector/version records and imports are limited to 1 MiB.
+Failed observations must use `"success":false,"latency_ms":-1`. Record an observation only after the host independently verifies end-to-end connectivity; do not trust a connector's self-reported success. The store tracks success/failure counts, consecutive failures, and an exponentially weighted latency estimate. Scores are ranking hints only and do not grant permissions or automatically override failover policy. The store is bounded to 2,048 connector/version records and imports are limited to 1 MiB.
 
-The Android adapter should implement both `ChimeraGoCore` and `ChimeraGoLearningStore`; `ChimeraGoCoreFactory.createLearningStore()` should wrap gomobile's `NewLearningStore`. Keep exported snapshots in platform-protected storage if persistence is desired. Learning is not automatically persisted, and a fresh store is created after engine detachment.
+The Android adapter should implement both `ChimeraGoCore` and `ChimeraGoLearningStore`; `ChimeraGoCoreFactory.createLearningStore()` should wrap gomobile's `NewLearningStore`. Map the Kotlin `snapshot()` method to Go `RankedJSON()`. Keep exported snapshots in platform-protected storage if persistence is desired. Learning is not automatically persisted, and a fresh store is created after engine detachment.
 
 ## Required host-side sequence
 
