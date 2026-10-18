@@ -33,8 +33,8 @@ This is a source-code review of the `periodic-malware-scan` branch and its exist
 ## Validation required before release
 
 1. Confirm formatting, `go vet`, `go test`, and `go test -race` pass on this branch.
-2. Review `govulncheck` and dependency-review results; resolve or document every applicable finding.
-3. Run fuzz/property tests for JSON decoders, scanner path handling, cancellation, and malformed signature feeds.
+2. Review `govulncheck` results and Dependabot alerts; resolve or document every applicable finding.
+3. Run the CI fuzz tests and extend coverage for scanner path handling, cancellation, and malformed signature feeds.
 4. Exercise scan/quarantine behavior in a disposable test directory with symlinks, oversized files, permission failures, concurrent file replacement, and cancellation.
 5. Verify the actual app's signature-checking path and platform key storage, including tampered configuration and rollback attempts.
 6. Run authorized device-level tests and verify that failed startup, failed health checks, and process termination do not leave unintended processes or network routes.
