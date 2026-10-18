@@ -25,6 +25,17 @@
 - [ ] Select and document one supported OS/privilege model
 - [ ] Add platform-specific integration tests for DNS/routes and rollback
 
+## AI diagnostics (initial CLI implementation)
+- [x] Add bounded, cancellable repeated DNS/HTTPS checks and JSON report
+- [x] Calculate HTTPS latency min/average/max, failed-sample ratio, and timing variation
+- [x] Add evidence-backed deterministic findings and tests
+- [x] Expose `--ai-scan` CLI command with a 2-minute overall deadline
+- [x] Add opt-in bounded HTTP download/upload measurements for operator-configured endpoints
+- [ ] Add native LibreSpeed/OpenSpeedTest protocol adapter
+- [ ] Add platform-native, permission-gated connection/carrier metadata providers
+- [ ] Add UI integration after a supported application frontend is selected
+- [ ] Run full CI and format/vet/test validation before merge
+
 ## Phase C — Network correctness
 - [ ] Define DNS ownership and leak-test strategy
 - [ ] Define IPv4/IPv6 policy
