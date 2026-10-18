@@ -40,6 +40,29 @@ func TestMobileLearningStoreRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRankedJSONIncludesScore(t *testing.T) {
+	s := NewLearningStore()
+	for _, raw := range []string{
+		`{"connector_id":"z-good","version":"1","success":true,"latency_ms":50}`,
+		`{"connector_id":"z-good","version":"1","success":true,"latency_ms":60}`,
+		`{"connector_id":"a-bad","version":"1","success":false,"latency_ms":-1}`,
+	} {
+		if err := s.ObserveJSON(raw); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ranked, err := s.RankedJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(ranked, `"score"`) || !strings.Contains(ranked, `"connector_id":"z-good"`) {
+		t.Fatalf("ranked output missing score or connector: %s", ranked)
+	}
+	if strings.Index(ranked, "z-good") > strings.Index(ranked, "a-bad") {
+		t.Fatalf("higher-evidence connector should rank first: %s", ranked)
+	}
+}
+
 func TestMobileLearningRejectsMalformedInput(t *testing.T) {
 	s := NewLearningStore()
 	for _, raw := range []string{"", "{", `{"connector_id":"x","version":"1","success":false,"latency_ms":3}`, `{"connector_id":"x","version":"1","success":true,"latency_ms":1,"extra":1}`} {
