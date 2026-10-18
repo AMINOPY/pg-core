@@ -1,0 +1,61 @@
+# Android / Flutter bridge API
+
+This package exposes the failover policy as a small JSON-only Go API that can be exported with `gomobile`. It is the native boundary for an Android host; it does not create a VPN, manipulate Android routes, or replace `flutter_v2ray`'s connection lifecycle.
+
+## Build the Android library
+
+Use a Go toolchain supported by the pinned gomobile release, Android SDK/NDK, and the gomobile setup documented by the Go mobile project. From the repository root:
+
+```sh
+go test ./...
+go install golang.org/x/mobile/cmd/gomobile@latest
+gomobile init
+mkdir -p build
+gomobile bind -target=android -androidapi 23 -o build/chimera-core.aar ./mobile
+```
+
+Pin the gomobile version in CI/release automation rather than using `@latest` for reproducible release builds. The generated AAR must be integrated into the Android host app and exposed to Dart through a native `MethodChannel` (or an equivalent bridge). Generated Java/Kotlin signatures should be checked against the exact gomobile version used by the app.
+
+## API contract
+
+`NewCore(configJSON)` accepts:
+
+```json
+{
+  "failure_threshold": 2,
+  "max_latency_ms": 1500,
+  "cooldown_ms": 10000,
+  "min_improvement_ms": 100
+}
+```
+
+`EvaluateJSON(sampleJSON)` accepts sanitized samples from the app. Keep credentials, raw share links, full profile JSON, and secrets out of this bridge payload:
+
+```json
+{
+  "current_id": "profile-1",
+  "candidates": [
+    {"id": "profile-1", "subscription_id": "sub-a", "status": "failed", "latency_ms": -1},
+    {"id": "profile-2", "subscription_id": "sub-a", "status": "healthy", "latency_ms": 90}
+  ]
+}
+```
+
+It returns a proposal such as:
+
+```json
+{"current_id":"profile-1","switch":true,"target_id":"profile-2","reason":"current_unavailable","target_latency_ms":90}
+```
+
+Supported status values are `healthy`, `degraded`, `failed`, and `stopped`. Latency is milliseconds; `-1` means unavailable. Inputs are strictly decoded, capped at 64 candidates, and duplicate IDs/unknown JSON fields are rejected.
+
+## Required host-side sequence
+
+1. Let `flutter_v2ray` own the single Android VPN session for this integration. Do not start another TUN owner for the same traffic path.
+2. Probe only app-supplied profiles. Send IDs, status, and measured latency to `EvaluateJSON`; do not send credentials or raw profiles.
+3. If `switch` is false, keep the active profile and continue monitoring.
+4. If true, ask the plugin to switch to `target_id`. Independently verify that the new session is connected and a user-approved connectivity check succeeds.
+5. Only then call `ConfirmSwitch(targetID)`. On any failed, cancelled, or unverified switch, restore the previous profile if possible and call `CancelSwitch()`.
+6. Serialize all switch operations in the host. A successful plugin start callback alone is not proof that routes, DNS, and end-to-end traffic work.
+
+The policy facade is thread-safe. It does not implement Android `VpnService`, route/DNS ownership, a kill switch, persistent profile storage, or atomic handover. Device tests must cover permission denial, process death, failed replacement, rollback, IPv4/IPv6, DNS leaks, and network changes before describing the integration as production-ready.
