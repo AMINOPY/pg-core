@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "profile": "development",
   "active_engine": "sing-box",
   "enabled_engines": ["sing-box"],
