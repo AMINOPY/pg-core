@@ -11,25 +11,23 @@ import (
 )
 
 func TestProbeHealthyAndServerError(t *testing.T) {
-	okServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/bad" {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	defer okServer.Close()
-	badServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}))
-	defer badServer.Close()
+	defer server.Close()
 
 	prober, err := NewProber(time.Second, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Trust only the test servers' certificates.
-	client := okServer.Client()
-	prober.client = client
+	prober.client = server.Client()
 	results, err := prober.Probe(context.Background(), []Target{
-		{ID: "ok", SubscriptionID: "sub-a", URL: okServer.URL},
-		{ID: "bad", SubscriptionID: "sub-b", URL: badServer.URL},
+		{ID: "ok", SubscriptionID: "sub-a", URL: server.URL + "/ok"},
+		{ID: "bad", SubscriptionID: "sub-b", URL: server.URL + "/bad"},
 	})
 	if err != nil {
 		t.Fatal(err)
