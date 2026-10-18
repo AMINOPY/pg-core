@@ -8,10 +8,10 @@ import (
 	"github.com/AMINOPY/pg-core/internal/engine"
 )
 
-var ErrInvalidFailoverConfig = errors.New("invalid failover policy configuration")
+var (
+	ErrInvalidFailoverConfig = errors.New("invalid failover policy configuration")
+)
 
-// ServerCandidate identifies a server profile and its subscription/source.
-// A negative latency (including a sentinel such as -1) means no valid sample.
 type ServerCandidate struct {
 	ID             string
 	SubscriptionID string
@@ -36,10 +36,10 @@ type FailoverDecision struct {
 // FailoverController provides deterministic failover decisions. It does not
 // start/stop engines or modify routes; callers must execute and verify a switch.
 type FailoverController struct {
-	cfg          FailoverConfig
-	currentID    string
+	cfg           FailoverConfig
+	currentID     string
 	failureStreak int
-	lastSwitch   time.Time
+	lastSwitch    time.Time
 }
 
 func NewFailoverController(cfg FailoverConfig) (*FailoverController, error) {
