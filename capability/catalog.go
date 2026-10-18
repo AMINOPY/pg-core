@@ -33,8 +33,6 @@ type Manifest struct {
 	Requires           []Requirement
 	License            string
 	SourceURL          string
-	// SourceReuseAllowed must only be true after a human has verified the
-	// source license and compatibility. It is not an automatic license detector.
 	SourceReuseAllowed bool
 }
 
@@ -72,7 +70,6 @@ func (c *Catalog) Register(m Manifest) error {
 			return errors.New("capability: empty capability name")
 		}
 	}
-
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if _, exists := c.items[m.ID]; exists {
@@ -87,13 +84,11 @@ func (c *Catalog) Register(m Manifest) error {
 func (c *Catalog) List() []Manifest {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-
 	ids := make([]string, 0, len(c.items))
 	for id := range c.items {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-
 	out := make([]Manifest, 0, len(ids))
 	for _, id := range ids {
 		m := c.items[id]
@@ -104,8 +99,6 @@ func (c *Catalog) List() []Manifest {
 	return out
 }
 
-// Assess determines whether a feature can be adopted using the host's declared
-// capabilities. It never executes code or fetches a third-party repository.
 func (c *Catalog) Assess(id string, host Host) (Assessment, error) {
 	c.mu.RLock()
 	m, ok := c.items[id]
@@ -113,7 +106,6 @@ func (c *Catalog) Assess(id string, host Host) (Assessment, error) {
 	if !ok {
 		return Assessment{}, fmt.Errorf("capability: manifest %q not found", id)
 	}
-
 	result := Assessment{Manifest: m, Mode: Adapter}
 	for _, req := range m.Requires {
 		if _, ok := host.Capabilities[req.Name]; !ok {
