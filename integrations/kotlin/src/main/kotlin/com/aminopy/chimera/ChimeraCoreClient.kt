@@ -14,13 +14,13 @@ class ChimeraCoreClient(private val bridge: ChimeraCoreBridge) {
     @Throws(Exception::class)
     fun evaluate(sampleJson: String): String {
         require(sampleJson.isNotBlank()) { "sampleJson must not be blank" }
-        return bridge.invoke("evaluate", mapOf("sample_json" to sampleJson))
+        return bridge.invoke("evaluate", mapOf("sample" to sampleJson))
     }
 
     @Throws(Exception::class)
     fun confirmSwitch(targetId: String) {
         require(targetId.isNotBlank()) { "targetId must not be blank" }
-        bridge.invoke("confirmSwitch", mapOf("target_id" to targetId))
+        bridge.invoke("confirmSwitch", mapOf("targetId" to targetId))
     }
 
     @Throws(Exception::class)
