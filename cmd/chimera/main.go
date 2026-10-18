@@ -29,11 +29,11 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		runner := ai.Runner{
-			Checker: diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1},
-			Samples: *samples,
-			Interval: 150 * time.Millisecond,
+			Checker:     diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1},
+			Samples:     *samples,
+			Interval:    150 * time.Millisecond,
 			DownloadURL: *downloadURL,
-			UploadURL: *uploadURL,
+			UploadURL:   *uploadURL,
 			SpeedTester: ai.SpeedTester{Timeout: 15 * time.Second},
 		}
 		report, err := runner.Run(ctx, *aiScan)
