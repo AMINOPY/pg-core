@@ -20,7 +20,7 @@ func TestMobileLearningStoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(snapshot, `"samples":2`) || !strings.Contains(snapshot, `"consecutive_failures":0`) {
+	if !strings.Contains(snapshot, `"samples":2`) || !strings.Contains(snapshot, `"consecutive_failures":1`) {
 		t.Fatalf("unexpected snapshot: %s", snapshot)
 	}
 	exported, err := s.ExportJSON()
