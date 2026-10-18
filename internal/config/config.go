@@ -12,20 +12,20 @@ import (
 type EngineID string
 
 const (
-	CurrentSchemaVersion = 1
-	EngineXray EngineID = "xray"
-	EngineSingBox EngineID = "sing-box"
-	EngineMihomo EngineID = "mihomo"
-	EngineAether EngineID = "aether"
+	CurrentSchemaVersion          = 1
+	EngineXray           EngineID = "xray"
+	EngineSingBox        EngineID = "sing-box"
+	EngineMihomo         EngineID = "mihomo"
+	EngineAether         EngineID = "aether"
 )
 
 type Config struct {
 	SchemaVersion int        `json:"schema_version"`
-	Profile string           `json:"profile"`
-	ActiveEngine EngineID    `json:"active_engine"`
-	Enabled []EngineID       `json:"enabled_engines"`
-	TUNOwner string           `json:"tun_owner,omitempty"`
-	DNSOwner string           `json:"dns_owner,omitempty"`
+	Profile       string     `json:"profile"`
+	ActiveEngine  EngineID   `json:"active_engine"`
+	Enabled       []EngineID `json:"enabled_engines"`
+	TUNOwner      string     `json:"tun_owner,omitempty"`
+	DNSOwner      string     `json:"dns_owner,omitempty"`
 }
 
 // Normalize applies safe, deterministic migrations for older schema versions.
