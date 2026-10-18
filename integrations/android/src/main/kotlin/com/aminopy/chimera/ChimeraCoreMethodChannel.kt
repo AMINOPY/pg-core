@@ -1,7 +1,5 @@
 package com.aminopy.chimera
 
-import android.os.Handler
-import android.os.Looper
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -34,7 +32,6 @@ class ChimeraCoreMethodChannel(
     private val factory: ChimeraGoCoreFactory
 ) : FlutterPlugin, MethodChannel.MethodCallHandler {
     private val lock = Any()
-    private val mainHandler = Handler(Looper.getMainLooper())
     private var channel: MethodChannel? = null
     private var core: ChimeraGoCore? = null
 
