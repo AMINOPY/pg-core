@@ -44,13 +44,15 @@
 - [ ] Add dependency and license scanning
 - [ ] Publish support matrix by OS and engine version
 
-## Phase F — Mobile integration (API boundary implemented)
+## Phase F — Mobile integration (bridge source implemented; app wiring incomplete)
 - [x] Add bounded, strict JSON API for failover policy in the `mobile` package
 - [x] Document gomobile export command and host-side contract
 - [x] Unit-test input validation, deterministic proposals, and confirm/cancel lifecycle
-- [ ] Pin gomobile version and build the AAR in CI
-- [ ] Add Android host `MethodChannel` implementation wired to the generated AAR
-- [ ] Connect Dart adapter to the native bridge
+- [x] Add Kotlin MethodChannel host source for initialize/evaluate/confirm/cancel
+- [x] Add Dart MethodChannel client and serialized plugin failover coordinator source
+- [ ] Implement the app-specific `ChimeraGoCoreFactory` against a pinned generated gomobile AAR
+- [ ] Add a Flutter/Android host app and build the AAR in CI
+- [ ] Run Dart analysis/tests and compile Kotlin against the generated AAR
 - [ ] Add Android device tests for permission handling, failed switch, rollback, DNS/routes, and network changes
 
 ## Non-goals
