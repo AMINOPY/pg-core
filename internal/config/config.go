@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/AMINOPY/pg-core/internal/security"
 )
 
 const MaxConfigBytes int64 = 1 << 20 // 1 MiB hard limit for untrusted config input.
@@ -43,11 +45,34 @@ func (c Config) Normalize() (Config, error) {
 	return c, nil
 }
 
+// Load parses a bounded configuration file. It validates structure, not authenticity.
 func Load(path string) (Config, error) {
-	var cfg Config
+	data, err := readConfig(path)
+	if err != nil {
+		return Config{}, err
+	}
+	return parseConfig(data)
+}
+
+// LoadVerified verifies the exact file bytes before parsing. The host must
+// obtain key from a secure secret store and tag from a trusted signed source.
+// Callers that require authenticated configuration must use this function
+// instead of Load.
+func LoadVerified(path string, key []byte, tag string) (Config, error) {
+	data, err := readConfig(path)
+	if err != nil {
+		return Config{}, err
+	}
+	if !security.Verify(key, data, tag) {
+		return Config{}, errors.New("configuration integrity verification failed")
+	}
+	return parseConfig(data)
+}
+
+func readConfig(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return cfg, fmt.Errorf("open config: %w", err)
+		return nil, fmt.Errorf("open config: %w", err)
 	}
 	defer f.Close()
 
@@ -55,25 +80,29 @@ func Load(path string) (Config, error) {
 	// unbounded memory use. Read one byte beyond the limit to detect overflow.
 	data, err := io.ReadAll(io.LimitReader(f, MaxConfigBytes+1))
 	if err != nil {
-		return cfg, fmt.Errorf("read config: %w", err)
+		return nil, fmt.Errorf("read config: %w", err)
 	}
 	if int64(len(data)) > MaxConfigBytes {
-		return cfg, fmt.Errorf("config exceeds maximum size of %d bytes", MaxConfigBytes)
+		return nil, fmt.Errorf("config exceeds maximum size of %d bytes", MaxConfigBytes)
 	}
+	return data, nil
+}
 
+func parseConfig(data []byte) (Config, error) {
+	var cfg Config
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&cfg); err != nil {
-		return cfg, fmt.Errorf("parse JSON: %w", err)
+		return Config{}, fmt.Errorf("parse JSON: %w", err)
 	}
 	var extra any
 	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
 		if err == nil {
-			return cfg, errors.New("parse JSON: multiple JSON values are not allowed")
+			return Config{}, errors.New("parse JSON: multiple JSON values are not allowed")
 		}
-		return cfg, fmt.Errorf("parse JSON trailer: %w", err)
+		return Config{}, fmt.Errorf("parse JSON trailer: %w", err)
 	}
-	cfg, err = cfg.Normalize()
+	cfg, err := cfg.Normalize()
 	if err != nil {
 		return cfg, err
 	}

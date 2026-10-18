@@ -75,3 +75,17 @@ func TestConfigIsStrictAndBounded(t *testing.T) {
 		t.Fatal("expected invalid threshold to be rejected")
 	}
 }
+
+func FuzzNewCoreAndEvaluateJSONNoPanic(f *testing.F) {
+	f.Add("")
+	f.Add("{")
+	f.Add(`{"failure_threshold":1,"max_latency_ms":1000,"cooldown_ms":0,"min_improvement_ms":0}`)
+	f.Add(`{"current_id":"a","candidates":[]}`)
+	f.Fuzz(func(t *testing.T, raw string) {
+		core, err := NewCore(raw)
+		if err != nil {
+			return
+		}
+		_, _ = core.EvaluateJSON(raw)
+	})
+}
