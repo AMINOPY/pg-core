@@ -19,6 +19,12 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Java, Python, and Kotlin bridge-client scaffolds (host transport still required)
 - Unit tests and GitHub Actions workflow
 
+## AI Network Diagnostics
+
+See [docs/AI_NETWORK_SCANNER.md](docs/AI_NETWORK_SCANNER.md). The `internal/ai` package validates bounded network measurements and returns a 0–100 score, findings, confidence estimates, and practical recommendations. The analysis is deterministic and local; it is not yet a trained AI model. The app must obtain speed-test measurements from a user-approved engine such as a self-hosted LibreSpeed or OpenSpeedTest deployment.
+
+Carrier/radio metadata is optional and should be collected only with user consent. Never send subscriber identifiers, phone numbers, precise location, credentials, or raw profiles to the analyzer. The core does not silently run speed tests or scan IP ranges.
+
 ## Foundation (Phase A)
 
 Schema versioning, defensive structured-log redaction, lifecycle event bus, CLI diagnostics/status and capability negotiation are implemented. The CLI engine list reports known IDs; it does not mean every engine is available in the CLI.
@@ -81,3 +87,22 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP
     go test ./...
 
 Contributions should include tests and document supported platforms and engine versions.
+
+
+## Website / application integration API
+
+A small authenticated HTTP API is available for server-side integration. It currently validates connector manifests; it does not execute plugins, perform automatic code generation, start a VPN, or guarantee DPI circumvention.
+
+See [docs/INTEGRATE_API.md](docs/INTEGRATE_API.md) for local startup, curl, Node.js, and Python examples.
+
+Quick local run:
+
+    export CHIMERA_API_KEY="$(openssl rand -hex 32)"
+    go run ./cmd/chimera-api
+
+The API binds to `127.0.0.1:8080` by default and refuses to start without a key. Keep the key on the server; never embed it in browser JavaScript or a mobile application bundle. For public deployments, use HTTPS via a trusted reverse proxy and configure access controls, rate limiting, and exact CORS origins.
+
+- `GET /healthz` — public process-health check.
+- `POST /v1/manifests/validate` — bearer-authenticated, size-bounded manifest validation.
+
+This is the first integration surface, not yet the completed adaptive runtime. Connector discovery, permission-scoped execution, sandboxing, signed package distribution, device enrollment, and a tested DPI-resilient transport remain future implementation work.
