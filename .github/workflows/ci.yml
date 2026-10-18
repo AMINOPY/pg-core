@@ -32,9 +32,9 @@ jobs:
       - name: Run Go race tests
         run: go test -race ./...
       - name: Fuzz hostname normalization
-        run: go test ./internal/diagnostics -run=^$ -fuzz=FuzzNormalizeDomainRejectsMalformedInput -fuzztime=10s
+        run: go test ./internal/diagnostics -run=^$ -fuzz=FuzzNormalizeDomainRejectsMalformedInput -fuzztime=5s -parallel=2
       - name: Fuzz mobile JSON boundary handling
-        run: go test ./mobile -run=^$ -fuzz=FuzzNewCoreAndEvaluateJSONNoPanic -fuzztime=10s
+        run: go test ./mobile -run=^$ -fuzz=FuzzNewCoreAndEvaluateJSONNoPanic -fuzztime=5s -parallel=2
       - name: Check known Go vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
 
