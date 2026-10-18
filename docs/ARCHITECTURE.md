@@ -15,6 +15,8 @@
 - internal/engine: adapter contract and common health model.
 - internal/orchestrator: serialized engine lifecycle, health refresh, and bounded cleanup after startup failures.
 - internal/policy: deterministic candidate selection that prefers healthy engines, then lower measured latency, and uses degraded engines only as fallback.
+- internal/malwarescan: bounded SHA-256 signature scanning for explicitly authorized directories, with optional quarantine and cancellable periodic scheduling.
+- internal/security: HMAC-SHA-256 integrity tags plus binary/Morse diagnostic encodings; encodings are not encryption or authentication.
 - cmd/chimera: validation-only CLI in this scaffold.
 
 ## Engine roles
@@ -41,4 +43,4 @@ stopped -> starting -> healthy / degraded / failed -> stopping -> stopped
 
 ## Current status
 
-Implemented: strict config loading/validation, engine adapter contract, lifecycle coordinator, deterministic candidate selection, unit tests, and CI workflow. Not implemented: TUN integration, DNS proxy, OS route management, VPN service, real health probes, or third-party engine adapters.
+Implemented: strict config loading/validation, engine adapter contract, lifecycle coordinator, deterministic candidate selection, bounded signature-based malware scanning/quarantine for authorized directories, unit tests, and CI workflow. Not implemented: TUN integration, DNS proxy, OS route management, VPN service, real health probes, or third-party engine adapters.
