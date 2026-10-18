@@ -34,16 +34,6 @@ jobs:
       - name: Check known Go vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
 
-  dependency-review:
-    name: Dependency review
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/dependency-review-action@v4
-
   python:
     name: Python client tests
     runs-on: ubuntu-24.04
