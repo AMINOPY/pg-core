@@ -75,6 +75,9 @@ func (s *Store) Observe(o Observation) error {
 	if !exists {
 		r = Record{ConnectorID: o.ConnectorID, Version: o.Version}
 	}
+	if r.Samples == ^uint64(0) || (o.Success && r.Successes == ^uint64(0)) || (!o.Success && r.Failures == ^uint64(0)) {
+		return ErrStoreFull
+	}
 	r.Samples++
 	if o.Success {
 		r.Successes++
@@ -121,7 +124,8 @@ func (s *Store) Snapshot() []Record {
 // an authorization decision; callers must separately enforce manifest policy.
 // Insufficiently observed connectors receive a conservative score.
 func Score(r Record) float64 {
-	if r.Samples == 0 || r.Successes > r.Samples || r.Failures > r.Samples {
+	if r.Samples == 0 || r.Successes > r.Samples || r.Failures > r.Samples ||
+		r.Successes != r.Samples-r.Failures || r.MeanLatencyMS < 0 || r.MeanLatencyMS > float64(maxLatencyMS) {
 		return 0
 	}
 	successRate := float64(r.Successes) / float64(r.Samples)
@@ -179,7 +183,7 @@ func (s *Store) Import(data []byte) error {
 			strings.TrimSpace(r.Version) == "" || len(r.Version) > maxIDLength ||
 			r.Samples == 0 || r.Successes > r.Samples || r.Failures > r.Samples || r.Successes != r.Samples-r.Failures ||
 			r.MeanLatencyMS < 0 || r.MeanLatencyMS > float64(maxLatencyMS) ||
-			r.ConsecutiveFailures > uint32(r.Failures) || r.LastObserved.IsZero() {
+			uint64(r.ConsecutiveFailures) > r.Failures || r.LastObserved.IsZero() {
 			return ErrInvalidObservation
 		}
 		k := key{r.ConnectorID, r.Version}
