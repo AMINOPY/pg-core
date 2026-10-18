@@ -1,5 +1,7 @@
 # Android MethodChannel integration
 
+**Implementation status:** policy and bridge source are present; the consuming app's gomobile adapter and Android device validation are not complete. See the [production checklist](PRODUCTION_CHECKLIST.md).
+
 This directory contains the native Flutter channel host for the Go failover policy. The Dart side lives in `integrations/flutter_v2ray/lib/chimera_core_bridge.dart` and the execution coordinator is `chimera_auto_failover.dart`.
 
 ## Current integration boundary
