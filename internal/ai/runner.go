@@ -58,7 +58,7 @@ func (r Runner) Run(ctx context.Context, hostname string) (Report, error) {
 		Samples:     count,
 		Checks:      make([]diagnostics.Result, 0, count),
 		Findings:    []Finding{},
-		Disclaimer: "Point-in-time observations. HTTPS timings are not ICMP ping. Throughput is measured only when configured endpoints are supplied; carrier and SIM details are not inferred.",
+		Disclaimer:  "Point-in-time observations. HTTPS timings are not ICMP ping. Throughput is measured only when configured endpoints are supplied; carrier and SIM details are not inferred.",
 	}
 	checker := r.Checker
 	if checker.Timeout <= 0 {
