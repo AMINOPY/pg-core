@@ -10,6 +10,8 @@ import (
 
 var (
 	ErrInvalidFailoverConfig = errors.New("invalid failover policy configuration")
+	ErrNoPendingSwitch       = errors.New("no pending failover decision")
+	ErrUnexpectedSwitchTarget = errors.New("confirmed target does not match pending failover decision")
 )
 
 type ServerCandidate struct {
@@ -36,10 +38,11 @@ type FailoverDecision struct {
 // FailoverController provides deterministic failover decisions. It does not
 // start/stop engines or modify routes; callers must execute and verify a switch.
 type FailoverController struct {
-	cfg           FailoverConfig
-	currentID     string
-	failureStreak int
-	lastSwitch    time.Time
+	cfg            FailoverConfig
+	currentID      string
+	failureStreak  int
+	lastSwitch     time.Time
+	pendingTarget  string
 }
 
 func NewFailoverController(cfg FailoverConfig) (*FailoverController, error) {
@@ -50,8 +53,9 @@ func NewFailoverController(cfg FailoverConfig) (*FailoverController, error) {
 }
 
 // Evaluate observes one health sample and returns a switch decision. Calls
-// should be serialized by the owner of the active connection. now must be
-// monotonic-compatible with the timestamps supplied by the caller.
+// should be serialized by the owner of the active connection. A returned
+// decision is only a proposal; call ConfirmSwitch after the replacement is
+// started and verified, or leave it unconfirmed if the attempt fails.
 func (c *FailoverController) Evaluate(currentID string, candidates []ServerCandidate, now time.Time) (FailoverDecision, error) {
 	if currentID == "" {
 		return FailoverDecision{}, errors.New("current server ID is required")
@@ -70,12 +74,14 @@ func (c *FailoverController) Evaluate(currentID string, candidates []ServerCandi
 	if c.currentID != currentID {
 		c.currentID = currentID
 		c.failureStreak = 0
+		c.pendingTarget = ""
 	}
 	bad := current.Status != engine.StatusHealthy || current.Latency < 0 || current.Latency > c.cfg.MaxLatency
 	if bad {
 		c.failureStreak++
 	} else {
 		c.failureStreak = 0
+		c.pendingTarget = ""
 	}
 
 	reason := "current_healthy"
@@ -125,8 +131,28 @@ func (c *FailoverController) Evaluate(currentID string, candidates []ServerCandi
 	decision.Target = target
 	decision.Switch = true
 	decision.Reason = reason
-	c.lastSwitch = now
-	c.currentID = target.ID
-	c.failureStreak = 0
+	c.pendingTarget = target.ID
 	return decision, nil
+}
+
+// ConfirmSwitch commits cooldown and controller state only after the caller
+// has successfully started the target and verified connectivity.
+func (c *FailoverController) ConfirmSwitch(targetID string, now time.Time) error {
+	if c.pendingTarget == "" {
+		return ErrNoPendingSwitch
+	}
+	if targetID == "" || targetID != c.pendingTarget {
+		return ErrUnexpectedSwitchTarget
+	}
+	c.currentID = targetID
+	c.lastSwitch = now
+	c.failureStreak = 0
+	c.pendingTarget = ""
+	return nil
+}
+
+// CancelSwitch clears a failed or abandoned switch proposal without starting
+// the cooldown. The caller should keep monitoring the current connection.
+func (c *FailoverController) CancelSwitch() {
+	c.pendingTarget = ""
 }
