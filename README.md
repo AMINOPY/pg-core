@@ -12,7 +12,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Start validation, health checks, failure cleanup, and serialized lifecycle operations
 - Deterministic route-candidate selection based on health and latency
 - Bounded DNS/HTTPS diagnostics for explicitly supplied hostnames
-- AI diagnostics report: repeated HTTPS checks, latency min/average/max, failed-sample ratio, jitter estimate, and evidence-backed rule findings
+- AI diagnostics report: repeated HTTPS checks, latency min/average/max, failed-sample ratio, jitter estimate, evidence-backed rule findings, and opt-in bounded HTTP throughput measurements
 - sing-box adapter: upstream config check, private temporary profile, process start/health/stop
 - Unit tests and GitHub Actions workflow
 
@@ -34,13 +34,19 @@ Run the bounded AI diagnostics report (contacts only the hostname you specify):
     go run ./cmd/chimera --ai-scan example.com
     go run ./cmd/chimera --ai-scan example.com --samples 10
 
-The AI scan accepts 1–20 samples (default 5), uses bounded per-request timeouts, emits JSON, and returns a non-zero exit code if no HTTPS samples succeed. It reports HTTPS request timing, not ICMP ping or download/upload throughput.
+The scan accepts 1–20 samples (default 5), uses bounded timeouts, emits JSON, and returns a non-zero exit code if no HTTPS samples succeed. HTTPS request timing is not ICMP ping.
+
+To opt into actual throughput measurements, supply your own trusted test endpoints:
+
+    go run ./cmd/chimera --ai-scan example.com --download-url https://speed.example.test/download --upload-url https://speed.example.test/upload
+
+The download endpoint should return a successful 2xx response with bytes to download. The upload endpoint should accept a POST with `application/octet-stream` and return 2xx. By default, at most 10 MiB is read for download and 1 MiB is sent for upload; hard caps are 50 MiB and 10 MiB. Endpoints must use HTTPS (HTTP is allowed only for loopback development tests), and upload redirects are not followed. These are generic HTTP endpoints, not an automatic LibreSpeed/OpenSpeedTest protocol adapter. Throughput tests can consume mobile data and should only be enabled intentionally.
 
 ## Network diagnostics and speed tests
 
 See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md) and [docs/AI_NETWORK_DIAGNOSTICS.md](docs/AI_NETWORK_DIAGNOSTICS.md). DNS/HTTPS checks use the system resolver and certificate-verified HTTPS, and are limited to explicitly supplied hostnames. They do not scan IP ranges or impersonate third-party services.
 
-For actual download/upload speed, deploy a trusted speed-test backend such as [LibreSpeed](https://github.com/librespeed/speedtest) or [OpenSpeedTest](https://github.com/openspeedtest/Speed-Test). Those services are not bundled or automatically contacted by the current AI scan. Run throughput tests only when you understand the data usage and have configured a trusted endpoint.
+For a full browser-style speed-test protocol, deploy a trusted backend such as [LibreSpeed](https://github.com/librespeed/speedtest) or [OpenSpeedTest](https://github.com/openspeedtest/Speed-Test). The CLI's generic throughput hooks do not yet implement either project's native protocol and never contact those services automatically.
 
 ## sing-box integration
 
