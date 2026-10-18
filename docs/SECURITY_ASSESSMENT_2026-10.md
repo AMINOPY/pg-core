@@ -9,6 +9,7 @@ This is a source-code review of the `periodic-malware-scan` branch and its exist
 - Reject scanner file-size limits above 1 GiB so `maxFileBytes + 1` cannot overflow; non-positive limits continue to select the bounded default.
 - Check that the path still identifies the file originally opened before quarantine, verify the moved object identity after rename, and hash the quarantined content again before reporting success.
 - Add a regression test for invalid file-size limits.
+- Add `config.LoadVerified`, which verifies an HMAC over the exact file bytes before strict JSON parsing, with tamper-rejection tests.
 - Add `govulncheck` to Go CI and configure Dependabot updates.
 - Configure Dependabot for Go modules, Maven, Gradle, and GitHub Actions.
 
@@ -24,7 +25,7 @@ This is a source-code review of the `periodic-malware-scan` branch and its exist
 
 ### Signed configuration verification and platform key storage
 
-**Status: Not implemented by this branch.** HMAC helpers exist, but the repository review does not establish that the runtime configuration path verifies a signature before use. Android Keystore integration and signed update verification must be implemented in the platform application and tested there. Until then, do not treat configuration files as authenticated or use this scaffold to protect sensitive traffic.
+**Status: Verified-load API added; production enforcement remains incomplete.** `config.LoadVerified` now checks an HMAC over the exact file bytes before strict parsing, and a regression test rejects tampered contents. This is symmetric authentication, not a public-key signature. The host must obtain the key and expected tag from trusted sources and must call `LoadVerified`; the existing CLI validation-only path still calls `Load` and does not execute the config. Android Keystore integration and signed update/rollback protection remain platform-app work. Do not treat configuration as authenticated unless the consuming runtime explicitly uses the verified loader with secure key handling.
 
 ### Go standard-library vulnerability in the previous CI toolchain
 
