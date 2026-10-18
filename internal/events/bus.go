@@ -25,21 +25,31 @@ type Bus struct {
 	closed bool
 }
 
-func NewBus() *Bus { return &Bus{subs: make(map[uint64]chan Event)} }
+func NewBus() *Bus {
+	return &Bus{subs: make(map[uint64]chan Event)}
+}
 
 // Subscribe returns a receive-only channel and an idempotent unsubscribe function.
 func (b *Bus) Subscribe(buffer int) (<-chan Event, func(), error) {
-	if b == nil { return nil, nil, errors.New("event bus is nil") }
-	if buffer < 1 { return nil, nil, errors.New("subscriber buffer must be positive") }
+	if b == nil {
+		return nil, nil, errors.New("event bus is nil")
+	}
+	if buffer < 1 {
+		return nil, nil, errors.New("subscriber buffer must be positive")
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.closed { return nil, nil, errors.New("event bus is closed") }
+	if b.closed {
+		return nil, nil, errors.New("event bus is closed")
+	}
 	b.nextID++
 	id := b.nextID
 	ch := make(chan Event, buffer)
 	b.subs[id] = ch
 	var once sync.Once
-	return ch, func() { once.Do(func() { b.remove(id) }) }, nil
+	return ch, func() {
+		once.Do(func() { b.remove(id) })
+	}, nil
 }
 
 func (b *Bus) remove(id uint64) {
@@ -54,11 +64,17 @@ func (b *Bus) remove(id uint64) {
 // Publish never blocks on a slow subscriber. It returns the number of subscribers
 // whose buffers were full and therefore did not receive this event.
 func (b *Bus) Publish(event Event) int {
-	if b == nil { return 0 }
-	if event.At.IsZero() { event.At = time.Now().UTC() }
+	if b == nil {
+		return 0
+	}
+	if event.At.IsZero() {
+		event.At = time.Now().UTC()
+	}
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	if b.closed { return 0 }
+	if b.closed {
+		return 0
+	}
 	dropped := 0
 	for _, ch := range b.subs {
 		select {
@@ -71,10 +87,17 @@ func (b *Bus) Publish(event Event) int {
 }
 
 func (b *Bus) Close() {
-	if b == nil { return }
+	if b == nil {
+		return
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.closed { return }
+	if b.closed {
+		return
+	}
 	b.closed = true
-	for id, ch := range b.subs { delete(b.subs, id); close(ch) }
+	for id, ch := range b.subs {
+		delete(b.subs, id)
+		close(ch)
+	}
 }
