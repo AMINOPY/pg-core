@@ -48,9 +48,7 @@ func redact(a slog.Attr) slog.Attr {
 	if a.Value.Kind() == slog.KindGroup {
 		group := a.Value.Group()
 		for i := range group { group[i] = redact(group[i]) }
-		args := make([]any, len(group))
-		for i, item := range group { args[i] = item }
-		return slog.Group(a.Key, args...)
+		return slog.Attr{Key: a.Key, Value: slog.GroupValue(group...)}
 	}
 	return a
 }
