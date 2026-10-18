@@ -60,13 +60,16 @@
 - [x] Reject unknown manifest fields, duplicate capability IDs, malformed schemas, and oversized input
 - [x] Document connector API proposal and trust boundaries
 - [x] Document automated learning pipeline and release gates
+- [x] Add authenticated, size-bounded HTTP manifest-validation endpoint
+- [x] Add exact-origin CORS allowlist, HTTP timeouts, security headers, and API tests
+- [x] Add server-side Node.js/Python integration examples and a sample manifest
 - [ ] Implement connector identity and scoped authorization
 - [ ] Implement capability discovery over a real transport
 - [ ] Implement policy-checked operation execution
 - [ ] Build disposable, OS-isolated adapter generation and test workers
 - [ ] Add signed package metadata, staged activation, revocation, and rollback
 - [ ] Add server/device enrollment and independently enforced local policy
-- [ ] Add MCP and HTTP adapters with contract tests
+- [ ] Implement HTTP/MCP connector discovery and policy-checked operation APIs with contract tests
 
 ## Phase H — Transport resilience and DPI testing
 - [x] Document DPI resilience goals and limitations
