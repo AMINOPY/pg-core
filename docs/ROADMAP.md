@@ -44,6 +44,15 @@
 - [ ] Add dependency and license scanning
 - [ ] Publish support matrix by OS and engine version
 
+## Phase F — Mobile integration (API boundary implemented)
+- [x] Add bounded, strict JSON API for failover policy in the `mobile` package
+- [x] Document gomobile export command and host-side contract
+- [x] Unit-test input validation, deterministic proposals, and confirm/cancel lifecycle
+- [ ] Pin gomobile version and build the AAR in CI
+- [ ] Add Android host `MethodChannel` implementation wired to the generated AAR
+- [ ] Connect Dart adapter to the native bridge
+- [ ] Add Android device tests for permission handling, failed switch, rollback, DNS/routes, and network changes
+
 ## Non-goals
 - Guaranteeing resistance to every DPI or filtering system
 - Impersonating real third-party services
