@@ -55,9 +55,16 @@ class ChimeraCoreMethodChannel(
             when (call.method) {
                 "initialize" -> {
                     val config = requireJsonString(call.argument("config"))
+                    // Construct first: if initialization fails, keep the old core usable.
+                    val replacement = factory.create(config)
                     synchronized(lock) {
-                        core?.close()
-                        core = factory.create(config)
+                        val previous = core
+                        core = replacement
+                        try {
+                            previous?.close()
+                        } catch (_: Exception) {
+                            // The replacement is already active; do not expose native details.
+                        }
                     }
                     result.success(mapOf("ready" to true))
                 }
@@ -82,18 +89,18 @@ class ChimeraCoreMethodChannel(
                 }
                 "cancelSwitch" -> {
                     synchronized(lock) {
-                        core?.cancelSwitch()
+                        requireNotNull(core) { "Chimera core is not initialized" }.cancelSwitch()
                     }
                     result.success(mapOf("cancelled" to true))
                 }
                 else -> result.notImplemented()
             }
         } catch (error: IllegalArgumentException) {
-            result.error("INVALID_ARGUMENT", error.message ?: "Invalid argument", null)
+            result.error("INVALID_ARGUMENT", "Invalid argument", null)
         } catch (error: IllegalStateException) {
-            result.error("CORE_NOT_READY", error.message ?: "Core is not initialized", null)
+            result.error("CORE_NOT_READY", "Core is not initialized", null)
         } catch (error: Exception) {
-            result.error("CHIMERA_CORE_ERROR", error.message ?: "Core operation failed", null)
+            result.error("CHIMERA_CORE_ERROR", "Core operation failed", null)
         }
     }
 
