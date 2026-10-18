@@ -3,6 +3,7 @@ package resilience
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -42,20 +43,20 @@ func TestRunDoesNotRetryPermanentError(t *testing.T) {
 
 func TestRunHonorsCancellationDuringBackoff(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	attempts := 0
+	defer cancel()
+	var attempts atomic.Int32
 	done := make(chan error, 1)
 	p := Policy{InitialDelay: time.Second, MaxDelay: time.Second, Multiplier: 1}
 	go func() {
 		done <- Run(ctx, p, 3, func(error) bool { return true }, func(context.Context) error {
-			attempts++
+			attempts.Add(1)
 			return errors.New("temporary")
 		})
 	}()
 	deadline := time.After(time.Second)
-	for attempts == 0 {
+	for attempts.Load() == 0 {
 		select {
 		case <-deadline:
-			cancel()
 			t.Fatal("operation was not called")
 		case <-time.After(time.Millisecond):
 		}
@@ -69,8 +70,8 @@ func TestRunHonorsCancellationDuringBackoff(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("Run did not return after cancellation")
 	}
-	if attempts != 1 {
-		t.Fatalf("got %d attempts, want 1", attempts)
+	if got := attempts.Load(); got != 1 {
+		t.Fatalf("got %d attempts, want 1", got)
 	}
 }
 
