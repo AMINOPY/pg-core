@@ -25,13 +25,13 @@ public final class ChimeraCoreClient {
             throw new IllegalArgumentException("sampleJson must not be empty");
         }
         return bridge.invoke("evaluate", java.util.Collections.<String, Object>singletonMap(
-                "sample_json", sampleJson));
+                "sample", sampleJson));
     }
 
     public void confirmSwitch(String targetId) throws Exception {
         requireId(targetId);
         bridge.invoke("confirmSwitch", java.util.Collections.<String, Object>singletonMap(
-                "target_id", targetId));
+                "targetId", targetId));
     }
 
     public void cancelSwitch() throws Exception {
