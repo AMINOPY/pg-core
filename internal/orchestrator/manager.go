@@ -59,10 +59,15 @@ func (m *Manager) setStatus(status engine.Status, report engine.HealthReport) {
 	m.mu.Unlock()
 	if m.bus != nil {
 		engineID := report.EngineID
-		if engineID == "" { engineID = m.adapter.ID() }
+		if engineID == "" {
+			engineID = m.adapter.ID()
+		}
 		m.bus.Publish(events.Event{
-			Type: string(status), EngineID: engineID, Status: string(status),
-			ErrorCode: report.ErrorCode, At: time.Now().UTC(),
+			Type:      string(status),
+			EngineID:  engineID,
+			Status:    string(status),
+			ErrorCode: report.ErrorCode,
+			At:        time.Now().UTC(),
 		})
 	}
 }
