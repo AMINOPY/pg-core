@@ -2,6 +2,7 @@ package logging
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"strings"
@@ -24,6 +25,6 @@ func TestRedactsSensitiveAttributes(t *testing.T) {
 func TestRedactsNestedGroup(t *testing.T) {
 	var out bytes.Buffer
 	logger := NewJSONLoggerWithWriter(&out, slog.LevelInfo)
-	logger.LogAttrs(t.Context(), slog.LevelInfo, "nested", slog.Group("auth", slog.String("private_key", "hidden")))
+	logger.LogAttrs(context.Background(), slog.LevelInfo, "nested", slog.Group("auth", slog.String("private_key", "hidden")))
 	if strings.Contains(out.String(), "hidden") || !strings.Contains(out.String(), "[REDACTED]") { t.Fatalf("nested redaction failed: %s", out.String()) }
 }
