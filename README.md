@@ -63,3 +63,12 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP
     go test ./...
 
 Contributions should include tests and document supported platforms and engine versions.
+
+
+## Health probes and executable failover
+
+The bounded probe implementation in [internal/health](internal/health) samples only explicitly configured HTTPS endpoints, uses verified TLS, limits concurrency and request time, and treats failed probes as latency -1. [internal/failover](internal/failover) can run the policy periodically through an application-provided switcher, verify the replacement, and request rollback if verification fails. It does not itself own OS routing or TUN, and the caller must provide the correct health endpoint and current active-candidate state.
+
+## Flutter V2Ray adapter
+
+See [integrations/flutter_v2ray](integrations/flutter_v2ray/README.md). The Dart adapter wraps the upstream flutter_v2ray plugin for parsing, latency measurement, and connection lifecycle. It is not yet connected to the Go service through FFI or a native MethodChannel, and plugin replacement is not guaranteed to be seamless. Do not run it alongside the sing-box adapter as a second VPN/TUN owner.
