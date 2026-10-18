@@ -30,7 +30,8 @@
 - [x] Calculate HTTPS latency min/average/max, failed-sample ratio, and timing variation
 - [x] Add evidence-backed deterministic findings and tests
 - [x] Expose `--ai-scan` CLI command with a 2-minute overall deadline
-- [ ] Add trusted, opt-in LibreSpeed/OpenSpeedTest throughput adapter
+- [x] Add opt-in bounded HTTP download/upload measurements for operator-configured endpoints
+- [ ] Add native LibreSpeed/OpenSpeedTest protocol adapter
 - [ ] Add platform-native, permission-gated connection/carrier metadata providers
 - [ ] Add UI integration after a supported application frontend is selected
 - [ ] Run full CI and format/vet/test validation before merge
