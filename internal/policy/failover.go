@@ -74,8 +74,10 @@ func (c *FailoverController) Evaluate(currentID string, candidates []ServerCandi
 	if c.currentID != currentID {
 		c.currentID = currentID
 		c.failureStreak = 0
-		c.pendingTarget = ""
 	}
+	// A proposal is valid only for the latest evaluation. Do not allow a stale
+	// target to be confirmed after a later sample no longer recommends switching.
+	c.pendingTarget = ""
 	bad := current.Status != engine.StatusHealthy || current.Latency < 0 || current.Latency > c.cfg.MaxLatency
 	if bad {
 		c.failureStreak++
