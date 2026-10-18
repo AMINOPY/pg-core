@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"os"
 	"strings"
 )
+
+const MaxConfigBytes int64 = 1 << 20 // 1 MiB hard limit for untrusted config input.
 
 type EngineID string
 
@@ -48,7 +51,17 @@ func Load(path string) (Config, error) {
 	}
 	defer f.Close()
 
-	dec := json.NewDecoder(f)
+	// Bound input before decoding so untrusted config files cannot force
+	// unbounded memory use. Read one byte beyond the limit to detect overflow.
+	data, err := io.ReadAll(io.LimitReader(f, MaxConfigBytes+1))
+	if err != nil {
+		return cfg, fmt.Errorf("read config: %w", err)
+	}
+	if int64(len(data)) > MaxConfigBytes {
+		return cfg, fmt.Errorf("config exceeds maximum size of %d bytes", MaxConfigBytes)
+	}
+
+	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&cfg); err != nil {
 		return cfg, fmt.Errorf("parse JSON: %w", err)
