@@ -8,18 +8,44 @@ import (
 	"os"
 	"time"
 
+	"github.com/AMINOPY/pg-core/internal/ai"
 	"github.com/AMINOPY/pg-core/internal/config"
 	"github.com/AMINOPY/pg-core/internal/diagnostics"
 )
 
 func main() {
 	configPath := flag.String("config", "", "path to a Chimera JSON configuration file (validation only)")
-	diagnose := flag.String("diagnose", "", "run bounded DNS + HTTPS checks for a hostname")
+	diagnose := flag.String("diagnose", "", "run one DNS + HTTPS check for a hostname")
+	aiScan := flag.String("ai-scan", "", "run bounded AI network diagnostics for a hostname (DNS/HTTPS latency and stability)")
+	samples := flag.Int("samples", 5, "number of AI diagnostic samples (1-20)")
 	listEngines := flag.Bool("list-engines", false, "list known engine IDs and implementation status")
 	status := flag.Bool("status", false, "show local CLI status (no daemon is currently available)")
 	flag.Parse()
 
 	switch {
+	case *aiScan != "":
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		runner := ai.Runner{
+			Checker: diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1},
+			Samples: *samples,
+			Interval: 150 * time.Millisecond,
+		}
+		report, err := runner.Run(ctx, *aiScan)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "AI diagnostics failed: %v\n", err)
+			os.Exit(2)
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "encode AI report: %v\n", err)
+			os.Exit(1)
+		}
+		if report.Successful == 0 {
+			os.Exit(1)
+		}
+		return
 	case *diagnose != "":
 		checker := diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1}
 		result := checker.Check(context.Background(), *diagnose)
@@ -44,10 +70,11 @@ func main() {
 		fmt.Println("Chimera Core status: CLI available; no background daemon or active tunnel.")
 		return
 	case *configPath == "":
-		fmt.Println("Chimera Core — early scaffold")
+		fmt.Println("Chimera Core — modular network core")
 		fmt.Println("No network engine is started by this command.")
 		fmt.Println("Use --config config.example.json to validate a configuration.")
-		fmt.Println("Use --diagnose example.com for a bounded DNS/HTTPS check.")
+		fmt.Println("Use --diagnose example.com for a single DNS/HTTPS check.")
+		fmt.Println("Use --ai-scan example.com for bounded, explainable network diagnostics.")
 		return
 	}
 
