@@ -92,9 +92,6 @@ func (p *Prober) Probe(ctx context.Context, targets []Target) ([]ProbeResult, er
 	sem := make(chan struct{}, p.concurrency)
 	var wg sync.WaitGroup
 	for i, target := range targets {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		wg.Add(1)
 		go func(i int, target Target) {
 			defer wg.Done()
