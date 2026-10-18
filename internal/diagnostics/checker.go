@@ -24,6 +24,8 @@ type Result struct {
 	Error        string        `json:"error,omitempty"`
 }
 
+const maxRawDomainBytes = 512
+
 type Checker struct {
 	Timeout time.Duration
 	Workers int
@@ -49,6 +51,10 @@ func (c Checker) workers() int {
 
 // NormalizeDomain accepts a hostname only, not a URL, path, or port.
 func NormalizeDomain(raw string) (string, error) {
+	// Bound raw input before lowercasing/trimming, which allocate new strings.
+	if len(raw) > maxRawDomainBytes {
+		return "", errors.New("hostname input is too long")
+	}
 	host := strings.TrimSuffix(strings.TrimSpace(strings.ToLower(raw)), ".")
 	host = strings.TrimSpace(host)
 	if host == "" || strings.Contains(host, "://") || strings.ContainsAny(host, "/:@?# ") {
