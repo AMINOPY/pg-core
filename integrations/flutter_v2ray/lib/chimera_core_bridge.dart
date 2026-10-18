@@ -115,13 +115,13 @@ class ChimeraCoreBridge {
       throw ArgumentError('Provide a current ID and 1 to 64 candidates.');
     }
     final ids = <String>{};
+    const allowedStatuses = <String>{'healthy', 'degraded', 'failed', 'stopped'};
     for (final candidate in candidates) {
       if (candidate.id.trim().isEmpty ||
           candidate.id.length > 256 ||
           !ids.add(candidate.id) ||
           candidate.subscriptionId.length > 256 ||
-          !const {'healthy', 'degraded', 'failed', 'stopped'}
-              .contains(candidate.status) ||
+          !allowedStatuses.contains(candidate.status) ||
           candidate.latencyMs < -1 ||
           candidate.latencyMs > 604800000) {
         throw ArgumentError('Invalid or duplicate candidate data.');
