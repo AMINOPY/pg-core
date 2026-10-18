@@ -173,13 +173,12 @@ func decodeStrict(data []byte, out any) error {
 		return err
 	}
 	var trailing any
-	if !errors.Is(errFromTrailingDecode(decoder), io.EOF) {
-		return errors.New("trailing JSON value")
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return errors.New("trailing JSON value")
+		}
+		return err
 	}
 	return nil
-}
-
-func errFromTrailingDecode(decoder *json.Decoder) error {
-	var trailing any
-	return decoder.Decode(&trailing)
 }
