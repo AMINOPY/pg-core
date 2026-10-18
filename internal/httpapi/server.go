@@ -19,7 +19,7 @@ import (
 const maxRequestBytes = capability.MaxManifestBytes
 
 type Server struct {
-	apiKey        string
+	apiKey         string
 	allowedOrigins map[string]struct{}
 	mux            *http.ServeMux
 }
