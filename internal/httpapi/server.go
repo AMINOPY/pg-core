@@ -93,10 +93,10 @@ func (s *Server) validateManifest(w http.ResponseWriter, r *http.Request) {
 	}
 	response := validationResponse{
 		SchemaVersion: capability.SchemaVersion,
-		Valid: true,
-		ConnectorID: manifest.ConnectorID,
-		Version: manifest.ConnectorVersion,
-		Capabilities: make([]capabilitySummary, 0, len(manifest.Capabilities)),
+		Valid:         true,
+		ConnectorID:   manifest.ConnectorID,
+		Version:       manifest.ConnectorVersion,
+		Capabilities:  make([]capabilitySummary, 0, len(manifest.Capabilities)),
 	}
 	for _, item := range manifest.Capabilities {
 		perms := append([]string(nil), item.Permissions...)
