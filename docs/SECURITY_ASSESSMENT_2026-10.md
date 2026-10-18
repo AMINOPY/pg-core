@@ -9,6 +9,7 @@ This is a source-code review of the `periodic-malware-scan` branch and its exist
 - Reject scanner file-size limits above 1 GiB so `maxFileBytes + 1` cannot overflow; non-positive limits continue to select the bounded default.
 - Check that the path still identifies the file originally opened before quarantine, verify the moved object identity after rename, and hash the quarantined content again before reporting success.
 - Add a regression test for invalid file-size limits.
+- Bound raw hostname input before normalization allocates transformed strings, with oversized-input regression and fuzz coverage.
 - Add `config.LoadVerified`, which verifies an HMAC over the exact file bytes before strict JSON parsing, with tamper-rejection tests.
 - Add `govulncheck` to Go CI and configure Dependabot updates.
 - Configure Dependabot for Go modules, Maven, Gradle, and GitHub Actions.
@@ -18,6 +19,10 @@ This is a source-code review of the `periodic-malware-scan` branch and its exist
 ### Scanner file identity and content can change during scanning/quarantine
 
 **Status: Mitigations added; residual race risk remains.** The scanner now checks file identity before and after the rename and verifies the quarantined bytes against the digest. A hostile process with write access to the scanned directory may still race path-based filesystem operations; portable Go APIs do not provide a fully race-free move-by-open-file-descriptor abstraction across all supported operating systems. Do not scan attacker-writable directories while automatic quarantine is enabled. A platform-specific, handle-relative implementation would be needed to close this class of race completely.
+
+### Unbounded raw hostname input
+
+**Status: Addressed in code; CI validation pending.** Hostname normalization now rejects raw input over 512 bytes before lowercasing or trimming, avoiding large allocation work on hostile inputs. The fuzz target also skips oversized inputs to keep the fuzz run resource-bounded.
 
 ### Scanner size limit can overflow
 
