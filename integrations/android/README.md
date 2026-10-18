@@ -8,14 +8,14 @@ This directory contains the native Flutter channel host. The Dart bridge lives i
 
 - Failover methods: `initialize`, `evaluate`, `confirmSwitch`, and `cancelSwitch`.
 - Learning methods: `recordOutcome`, `learningSnapshot`, `exportLearning`, and `importLearning`.
-- The Android application must supply `ChimeraGoCoreFactory` against the exact generated gomobile AAR. Map `NewCore`, `EvaluateJSON`, `ConfirmSwitch`, and `CancelSwitch` to `ChimeraGoCore`. Implement `createLearningStore()` using gomobile's `NewLearningStore`, mapping `ObserveJSON`, `SnapshotJSON`, `ExportJSON`, and `ImportJSON` to `ChimeraGoLearningStore`.
+- The Android application must supply `ChimeraGoCoreFactory` against the exact generated gomobile AAR. Map `NewCore`, `EvaluateJSON`, `ConfirmSwitch`, and `CancelSwitch` to `ChimeraGoCore`. Implement `createLearningStore()` using gomobile's `NewLearningStore`, mapping `ObserveJSON`, `RankedJSON`, `ExportJSON`, and `ImportJSON` to `ChimeraGoLearningStore`.
 - Register the handler with the application's FlutterEngine, e.g. `engine.plugins.add(ChimeraCoreMethodChannel(factory))`.
 - Add the Kotlin file to the Android host app's source set and include Flutter embedding dependencies. This repository has no standalone Android/Flutter application module, Gradle wrapper, generated AAR, or device-test environment; therefore the source has not been compiled against a concrete generated gomobile artifact.
 - On Dart, initialize `ChimeraCoreBridge`, then create `ChimeraAutoFailover` with the existing `ChimeraFlutterV2Ray` adapter. The coordinator switches only explicitly supplied profiles and confirms only after the app's independent connectivity verifier succeeds.
 
 ## Adaptive learning
 
-Call `recordOutcome` only after independently verifying the outcome. It accepts connector ID, connector version, success, and latency—not credentials, share links, or raw profile data. Failed observations must use latency `-1`. `learningSnapshot` returns sanitized statistics; `exportLearning` / `importLearning` allow the app to persist the versioned store in platform-protected storage. Persistence is not automatic, and learning scores do not grant permissions.
+Call `recordOutcome` only after independently verifying the outcome. It accepts connector ID, connector version, success, and latency—not credentials, share links, or raw profile data. Failed observations must use latency `-1`. `learningSnapshot` returns sanitized statistics sorted by evidence-based score; `exportLearning` / `importLearning` allow the app to persist the versioned store in platform-protected storage. Persistence is not automatic, and learning scores do not grant permissions.
 
 ## Example Dart setup
 
