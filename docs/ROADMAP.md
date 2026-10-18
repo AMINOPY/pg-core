@@ -49,6 +49,8 @@
 - [x] Document gomobile export command and host-side contract
 - [x] Unit-test input validation, deterministic proposals, and confirm/cancel lifecycle
 - [x] Add Kotlin MethodChannel host source for initialize/evaluate/confirm/cancel
+- [x] Preserve the active native core if reinitialization fails; avoid returning native exception details to Dart
+- [x] Document Android build, single-VPN-owner, rollback, and device-test requirements
 - [x] Add Dart MethodChannel client and serialized plugin failover coordinator source
 - [ ] Implement the app-specific ChimeraGoCoreFactory against a pinned generated gomobile AAR
 - [ ] Add a Flutter/Android host app and build the AAR in CI
