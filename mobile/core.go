@@ -42,16 +42,16 @@ type candidateInput struct {
 }
 
 type sampleInput struct {
-	CurrentID  string            `json:"current_id"`
-	Candidates []candidateInput   `json:"candidates"`
+	CurrentID  string           `json:"current_id"`
+	Candidates []candidateInput `json:"candidates"`
 }
 
 type decisionOutput struct {
-	CurrentID string          `json:"current_id"`
-	Switch    bool            `json:"switch"`
-	TargetID  string          `json:"target_id,omitempty"`
-	Reason    string          `json:"reason"`
-	LatencyMS int64           `json:"target_latency_ms,omitempty"`
+	CurrentID string `json:"current_id"`
+	Switch    bool   `json:"switch"`
+	TargetID  string `json:"target_id,omitempty"`
+	Reason    string `json:"reason"`
+	LatencyMS int64  `json:"target_latency_ms,omitempty"`
 }
 
 type Core struct {
@@ -173,11 +173,13 @@ func decodeStrict(data []byte, out any) error {
 		return err
 	}
 	var trailing any
-	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return errors.New("trailing JSON value")
-		}
-		return err
+	if !errors.Is(errFromTrailingDecode(decoder), io.EOF) {
+		return errors.New("trailing JSON value")
 	}
 	return nil
+}
+
+func errFromTrailingDecode(decoder *json.Decoder) error {
+	var trailing any
+	return decoder.Decode(&trailing)
 }
