@@ -138,11 +138,11 @@ func TestFetchManifestUsesWellKnownPathAndVerifiesSignedResponse(t *testing.T) {
 			t.Fatalf("missing JSON Accept header")
 		}
 		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header: http.Header{"Content-Type": []string{"application/json"}},
-			Body: io.NopCloser(strings.NewReader(string(body))),
+			StatusCode:    http.StatusOK,
+			Header:        http.Header{"Content-Type": []string{"application/json"}},
+			Body:          io.NopCloser(strings.NewReader(string(body))),
 			ContentLength: int64(len(body)),
-			Request: req,
+			Request:       req,
 		}, nil
 	})}
 	got, err := fetchManifestWithClient(context.Background(), "https://tunnel.example.com", map[string]ed25519.PublicKey{"test-key-1": pub}, now, 7, client)
@@ -159,9 +159,9 @@ func TestFetchManifestRejectsRedirect(t *testing.T) {
 	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusFound,
-			Header: http.Header{"Location": []string{"https://other.example.com/.well-known/pg-core/transport.json"}},
-			Body: io.NopCloser(strings.NewReader("")),
-			Request: req,
+			Header:     http.Header{"Location": []string{"https://other.example.com/.well-known/pg-core/transport.json"}},
+			Body:       io.NopCloser(strings.NewReader("")),
+			Request:    req,
 		}, nil
 	})}
 	_, err := fetchManifestWithClient(context.Background(), "https://tunnel.example.com", nil, now, 0, client)
