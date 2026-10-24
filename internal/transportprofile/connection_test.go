@@ -99,3 +99,31 @@ func TestProbeCDNIPsDoesNotProbeInvalidConfig(t *testing.T) {
 		t.Fatalf("got IP %q", got[0].IP)
 	}
 }
+
+func TestPlanConnectionsModesAndOrdering(t *testing.T) {
+	cfg := validConnectionConfig()
+	plan, err := PlanConnections(cfg)
+	if err != nil || len(plan) != 1 || plan[0].Mode != ModeDirect ||
+		plan[0].Address != "tunnel.example.com" || plan[0].ServerName != "tunnel.example.com" {
+		t.Fatalf("direct plan = %#v, err = %v", plan, err)
+	}
+
+	cfg.Mode = ModeAuto
+	cfg.ServerName = "edge.example.net"
+	cfg.CDNIPs = []string{"192.0.2.10", "2001:db8::10"}
+	plan, err = PlanConnections(cfg)
+	if err != nil || len(plan) != 3 {
+		t.Fatalf("auto plan = %#v, err = %v", plan, err)
+	}
+	if plan[0].Mode != ModeDirect || plan[1].Mode != ModeCDNFronting ||
+		plan[1].Address != "192.0.2.10" || plan[1].ServerName != "edge.example.net" ||
+		plan[1].HTTPHost != "tunnel.example.com" || plan[2].Address != "2001:db8::10" {
+		t.Fatalf("unexpected auto candidate order/content: %#v", plan)
+	}
+
+	cfg.Mode = ModeCDNFronting
+	plan, err = PlanConnections(cfg)
+	if err != nil || len(plan) != 2 || plan[0].Mode != ModeCDNFronting {
+		t.Fatalf("fronting plan = %#v, err = %v", plan, err)
+	}
+}
