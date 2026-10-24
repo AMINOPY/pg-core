@@ -34,3 +34,36 @@ jobs:
         run: go test ./...
       - name: Race detector
         run: go test -race ./...
+
+  cross-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux/amd64
+            goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+          - target: windows/amd64
+            goos: windows
+            goarch: amd64
+            runner: windows-latest
+          - target: android/arm64
+            goos: android
+            goarch: arm64
+            runner: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: false
+      - name: Compile packages for target
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: go build ./...
