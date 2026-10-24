@@ -30,14 +30,14 @@ var ErrInvalidManifest = errors.New("invalid transport manifest")
 // manifest to the operator-controlled discovery hostname. Sequence supports
 // caller-managed rollback protection.
 type Manifest struct {
-	Version   int        `json:"version"`
-	KeyID     string     `json:"key_id"`
-	Host      string     `json:"host"`
-	Sequence  uint64     `json:"sequence"`
-	IssuedAt  time.Time  `json:"issued_at"`
-	ExpiresAt time.Time  `json:"expires_at"`
-	Profiles  []Profile  `json:"profiles"`
-	Signature string     `json:"signature"`
+	Version   int       `json:"version"`
+	KeyID     string    `json:"key_id"`
+	Host      string    `json:"host"`
+	Sequence  uint64    `json:"sequence"`
+	IssuedAt  time.Time `json:"issued_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	Profiles  []Profile `json:"profiles"`
+	Signature string    `json:"signature"`
 }
 
 type unsignedManifest struct {
