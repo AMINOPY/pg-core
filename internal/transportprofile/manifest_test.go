@@ -159,10 +159,10 @@ func TestFetchManifestRejectsRedirect(t *testing.T) {
 	client := &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-			StatusCode: http.StatusFound,
-			Header:     http.Header{"Location": []string{"https://other.example.com/.well-known/pg-core/transport.json"}},
-			Body:       io.NopCloser(strings.NewReader("")),
-			Request:    req,
+				StatusCode: http.StatusFound,
+				Header:     http.Header{"Location": []string{"https://other.example.com/.well-known/pg-core/transport.json"}},
+				Body:       io.NopCloser(strings.NewReader("")),
+				Request:    req,
 			}, nil
 		}),
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
