@@ -22,12 +22,12 @@ const (
 )
 
 type Config struct {
-	SchemaVersion int        `json:"schema_version"`
-	Profile       string     `json:"profile"`
-	ActiveEngine  EngineID   `json:"active_engine"`
-	Enabled       []EngineID `json:"enabled_engines"`
-	TUNOwner      string     `json:"tun_owner,omitempty"`
-	DNSOwner      string     `json:"dns_owner,omitempty"`
+	SchemaVersion int                                `json:"schema_version"`
+	Profile       string                             `json:"profile"`
+	ActiveEngine  EngineID                           `json:"active_engine"`
+	Enabled       []EngineID                         `json:"enabled_engines"`
+	TUNOwner      string                             `json:"tun_owner,omitempty"`
+	DNSOwner      string                             `json:"dns_owner,omitempty"`
 	Connection    *transportprofile.ConnectionConfig `json:"connection,omitempty"`
 }
 
