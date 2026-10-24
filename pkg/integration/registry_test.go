@@ -20,7 +20,7 @@ func (r *testRegistry) RegisterAction(a Action) error {
 }
 
 type testModule struct {
-	desc Descriptor
+	desc   Descriptor
 	opened EntryPoint
 }
 
