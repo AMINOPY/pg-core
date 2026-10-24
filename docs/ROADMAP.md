@@ -38,9 +38,17 @@
 - [ ] Evaluate Aether integration surface and license
 - [ ] Reject incompatible combinations during validation
 
-## Phase E — Quality
+## Phase E — Transport resilience
+- [x] Add strict validation contract for explicit HTTPS/WebSocket/gRPC transport profiles
+- [x] Document customer-controlled CDN/TLS transport requirements and discovery design
+- [ ] Implement signed `.well-known/pg-core/transport.json` discovery with expiry and rollback protection
+- [ ] Implement transport dialer and bounded reconnect/health checks
+- [ ] Test CDN provider compatibility and end-to-end TLS identity validation
+- [ ] Add transport benchmarks before selecting a performance-sensitive implementation language
+
+## Phase F — Quality
 - [x] Add a fuzz target for strict config JSON decoding and schema validation
-- [ ] Fuzz policy normalization
+- [ ] Fuzz policy normalization and transport-profile validation
 - [ ] Add benchmarks and long-running tests
 - [ ] Add dependency and license scanning
 - [ ] Publish support matrix by OS and engine version
