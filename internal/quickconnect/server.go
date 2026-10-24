@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/AMINOPY/pg-core/internal/engine"
+	"github.com/AMINOPY/pg-core/internal/autocdn"
 	"github.com/AMINOPY/pg-core/internal/engine/native"
 	"github.com/AMINOPY/pg-core/internal/fronting"
 )
@@ -39,7 +40,8 @@ type statusResponse struct {
 }
 
 type Server struct {
-	key string
+	key     string
+	catalog *autocdn.Catalog
 
 	mu      sync.Mutex
 	adapter *native.Adapter
@@ -51,7 +53,25 @@ func NewFromEnv() (*Server, error) {
 	if !validServerKey(key) {
 		return nil, errors.New("CHIMERA_TUNNEL_KEY must be set to a server key of at least 24 URL-safe characters")
 	}
-	return &Server{key: key}, nil
+	s := &Server{key: key}
+	catalogPath := strings.TrimSpace(os.Getenv("CHIMERA_AUTO_CANDIDATES"))
+	if catalogPath != "" {
+		data, err := os.ReadFile(catalogPath)
+		if err != nil {
+			return nil, fmt.Errorf("read Auto candidate catalog: %w", err)
+		}
+		dec := json.NewDecoder(strings.NewReader(string(data)))
+		dec.DisallowUnknownFields()
+		var catalog autocdn.Catalog
+		if err := dec.Decode(&catalog); err != nil {
+			return nil, fmt.Errorf("parse Auto candidate catalog: %w", err)
+		}
+		if err := catalog.Validate(); err != nil {
+			return nil, fmt.Errorf("validate Auto candidate catalog: %w", err)
+		}
+		s.catalog = &catalog
+	}
+	return s, nil
 }
 
 func validServerKey(key string) bool {
@@ -73,6 +93,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/api/status", s.handleStatus)
 	mux.HandleFunc("/api/connect", s.handleConnect)
+	mux.HandleFunc("/api/auto/select", s.handleAutoSelect)
 	mux.HandleFunc("/api/disconnect", s.handleDisconnect)
 	return s.localOnly(mux)
 }
@@ -127,6 +148,33 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	a, addr := s.adapter, s.addr
 	s.mu.Unlock()
 	writeJSON(w, http.StatusOK, statusResponse{Connected: a != nil, SOCKS: addr})
+}
+
+
+func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.catalog == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "Auto mode is not configured; set CHIMERA_AUTO_CANDIDATES to a trusted candidate catalog",
+		})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+	route, err := (autocdn.Scanner{Workers: 32, Timeout: 1800 * time.Millisecond, Budget: autocdn.MaxPairProbes}).Select(ctx, *s.catalog, nil)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"sni": route.SNI,
+		"cdn_ip": route.CDNIP,
+		"latency_ms": float64(route.Latency) / float64(time.Millisecond),
+		"checked_at": route.CheckedAt,
+	})
 }
 
 func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
