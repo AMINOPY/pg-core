@@ -1,6 +1,6 @@
 # CDN-backed TLS transport and automatic profile discovery
 
-**Status: profile contract only; no traffic transport or discovery client is implemented yet.**
+**Status: signed manifest verification and bounded HTTPS discovery are implemented; traffic transport and OS tunnel integration are not implemented yet.**
 
 Chimera can support a CDN-backed endpoint when the operator controls (or is explicitly authorized to use) the hostname and configures the CDN to proxy that origin. TLS must authenticate the configured endpoint. SNI is the hostname used during the TLS handshake; it does not itself create a tunnel or make a CDN relay arbitrary protocols.
 
@@ -14,7 +14,7 @@ The `internal/transportprofile` package validates an explicit endpoint profile:
 - transport kind is explicit (`https`, `websocket`, or `grpc`)
 - secrets are referenced by environment-variable name rather than embedded in JSON
 
-This package is a validation contract, not a dialer. It does not configure a CDN, establish a tunnel, discover a profile, or modify system routes/DNS.
+The package validates profiles and signed manifests and can fetch the well-known document over certificate-verified HTTPS. It is not a traffic dialer: it does not configure a CDN, establish a tunnel, or modify system routes/DNS.
 
 ## Proposed no-manual-config flow
 
@@ -27,7 +27,7 @@ A universal zero-config mode is not technically possible: a client still needs a
 5. If discovery fails or the signature/expiry is invalid, the client fails closed or asks the user to retry. It must not silently pick random public hosts.
 6. The app reports the selected transport, certificate-validation status, discovery timestamp, and failure reason without logging credentials.
 
-The signed manifest, key rotation, expiry/rollback protection, discovery client, and endpoint health scoring remain future work.
+The client-side signed manifest verification, expiry checks, sequence check, and bounded discovery fetch are implemented. The caller must persist the last accepted sequence to make rollback protection survive restarts. Key rotation workflow, operator-side manifest publishing, endpoint health scoring, and transport connection remain future work.
 
 ## CDN and SNI requirements
 
@@ -40,4 +40,4 @@ The signed manifest, key rotation, expiry/rollback protection, discovery client,
 
 ## Planned validation
 
-Before enabling this as a product feature, add tests for manifest signatures, expiry and rollback, hostname binding, invalid certificates, oversized responses, redirect handling, credential redaction, provider protocol limits, reconnect behavior, and controlled end-to-end traffic. Then test actual Android, Linux, and Windows routing separately; transport discovery does not implement TUN, routes, DNS, or leak protection.
+Before enabling this as a product feature, extend integration tests for invalid certificates, oversized responses, credential redaction, provider protocol limits, reconnect behavior, and controlled end-to-end traffic. Existing unit tests cover manifest signatures, expiry, sequence rollback, hostname binding, HTTPS discovery, redirect rejection, and unsafe discovery URLs. Then test actual Android, Linux, and Windows routing separately; transport discovery does not implement TUN, routes, DNS, or leak protection.
