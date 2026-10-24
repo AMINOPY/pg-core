@@ -62,6 +62,10 @@ func TestRejectsInvalidKindPathAndAuthReference(t *testing.T) {
 	}{
 		{"unknown kind", func(p *Profile) { p.Kind = "stealth-magic" }},
 		{"relative path", func(p *Profile) { p.Path = "transport" }},
+		{"authority-like path", func(p *Profile) { p.Path = "//attacker.example/path" }},
+		{"query in path", func(p *Profile) { p.Path = "/transport?next=example.org" }},
+		{"fragment in path", func(p *Profile) { p.Path = "/transport#fragment" }},
+		{"backslash in path", func(p *Profile) { p.Path = "/transport\\admin" }},
 		{"line break in path", func(p *Profile) { p.Path = "/transport\r\nHost: attacker.example" }},
 		{"raw secret not allowed", func(p *Profile) { p.AuthRef = "super-secret-token" }},
 		{"invalid environment reference", func(p *Profile) { p.AuthRef = "env:bad-name" }},
