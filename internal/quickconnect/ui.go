@@ -43,9 +43,9 @@ const form=document.getElementById('form'),statusBox=document.getElementById('st
 async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});let data={};try{data=await r.json()}catch{}if(!r.ok)throw new Error(data.error||data.message||'Request failed');return data}
 function show(s){statusBox.textContent=s}
 function busy(v){connectBtn.disabled=v;disconnectBtn.disabled=v}
-form.addEventListener('submit',async e=>{e.preventDefault();busy(true);show('در حال بررسی TLS/WebSocket و راه‌اندازی پراکسی محلی…');try{const d=await api('/api/connect',{sni:document.getElementById('sni').value.trim(),edge_ips:document.getElementById('ips').value.trim()});show((d.message||'Connected')+'\nSOCKS5: '+d.socks)}catch(e){show('اتصال برقرار نشد. SNI، IPها، کلید سرور و تنظیمات CDN را بررسی کن.\\nجزئیات: '+e.message)}finally{busy(false)}});
+form.addEventListener('submit',async e=>{e.preventDefault();busy(true);show('در حال بررسی TLS/WebSocket و راه‌اندازی پراکسی محلی…');try{const d=await api('/api/connect',{sni:document.getElementById('sni').value.trim(),edge_ips:document.getElementById('ips').value.trim()});show(('اتصال برقرار شد.')+'\nپراکسی SOCKS5: '+d.socks)}catch(e){show('اتصال برقرار نشد. SNI، IPها، کلید سرور و تنظیمات CDN را بررسی کن.\\nجزئیات: '+e.message)}finally{busy(false)}});
 disconnectBtn.addEventListener('click',async()=>{busy(true);try{const d=await api('/api/disconnect',{});show('اتصال قطع شد.')}catch(e){show('قطع اتصال ناموفق بود: '+e.message)}finally{busy(false)}});
-api('/api/status').then(d=>{if(d.connected)show('Connected\nSOCKS5: '+d.socks)}).catch(()=>show('رابط محلی در دسترس نیست.'));
+api('/api/status').then(d=>{if(d.connected)show('اتصال برقرار است.\nSOCKS5: '+d.socks)}).catch(()=>show('رابط محلی در دسترس نیست.'));
 </script>
 </body>
 </html>`
