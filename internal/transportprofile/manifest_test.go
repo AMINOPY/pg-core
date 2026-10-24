@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -115,47 +115,56 @@ func TestSignManifestRejectsInvalidPrivateKey(t *testing.T) {
 	}
 }
 
-func TestFetchManifestUsesWellKnownPathAndVerifiesTLSResponse(t *testing.T) {
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestFetchManifestUsesWellKnownPathAndVerifiesSignedResponse(t *testing.T) {
 	now := time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
 	m, pub, priv := signedFixture(t, now)
-	m.Host = "localhost"
+	m.Host = "tunnel.example.com"
 	m, err := SignManifest(m, priv)
 	if err != nil {
 		t.Fatal(err)
 	}
 	body := marshalManifest(t, m)
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != discoveryPath {
-			http.NotFound(w, r)
-			return
+	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Scheme != "https" || req.URL.Host != "tunnel.example.com" || req.URL.Path != discoveryPath {
+			t.Fatalf("unexpected discovery request URL: %s", req.URL)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(body)
-	}))
-	defer server.Close()
-
-	url := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
-	client := server.Client()
-	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
-	got, err := fetchManifestWithClient(context.Background(), url, map[string]ed25519.PublicKey{"test-key-1": pub}, now, 7, client)
+		if req.Header.Get("Accept") != "application/json" {
+			t.Fatalf("missing JSON Accept header")
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{"Content-Type": []string{"application/json"}},
+			Body: io.NopCloser(strings.NewReader(string(body))),
+			ContentLength: int64(len(body)),
+			Request: req,
+		}, nil
+	})}
+	got, err := fetchManifestWithClient(context.Background(), "https://tunnel.example.com", map[string]ed25519.PublicKey{"test-key-1": pub}, now, 7, client)
 	if err != nil {
 		t.Fatalf("fetchManifestWithClient() error = %v", err)
 	}
-	if got.Host != "localhost" || got.Sequence != 7 {
+	if got.Host != "tunnel.example.com" || got.Sequence != 7 {
 		t.Fatalf("unexpected manifest: %+v", got)
 	}
 }
 
 func TestFetchManifestRejectsRedirect(t *testing.T) {
 	now := time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "https://other.example.com/.well-known/pg-core/transport.json", http.StatusFound)
-	}))
-	defer server.Close()
-	url := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
-	client := server.Client()
-	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
-	_, err := fetchManifestWithClient(context.Background(), url, nil, now, 0, client)
+	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Header: http.Header{"Location": []string{"https://other.example.com/.well-known/pg-core/transport.json"}},
+			Body: io.NopCloser(strings.NewReader("")),
+			Request: req,
+		}, nil
+	})}
+	_, err := fetchManifestWithClient(context.Background(), "https://tunnel.example.com", nil, now, 0, client)
 	if !errors.Is(err, ErrInvalidManifest) {
 		t.Fatalf("fetchManifestWithClient() error = %v, want ErrInvalidManifest", err)
 	}
