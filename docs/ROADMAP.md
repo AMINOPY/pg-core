@@ -39,7 +39,8 @@
 - [ ] Reject incompatible combinations during validation
 
 ## Phase E — Quality
-- [ ] Fuzz config parsing and policy normalization
+- [x] Add a fuzz target for strict config JSON decoding and schema validation
+- [ ] Fuzz policy normalization
 - [ ] Add benchmarks and long-running tests
 - [ ] Add dependency and license scanning
 - [ ] Publish support matrix by OS and engine version
