@@ -1,10 +1,13 @@
 package transportprofile
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -17,17 +20,19 @@ func signedFixture(t *testing.T, now time.Time) (Manifest, ed25519.PublicKey, ed
 		t.Fatal(err)
 	}
 	m := Manifest{
-		Version:  ManifestVersion,
-		KeyID:    "test-key-1",
-		Host:     "tunnel.example.com",
-		Sequence: 7,
-		IssuedAt: now.Add(-time.Minute),
+		Version:   ManifestVersion,
+		KeyID:     "test-key-1",
+		Host:      "tunnel.example.com",
+		Sequence:  7,
+		IssuedAt:  now.Add(-time.Minute),
 		ExpiresAt: now.Add(time.Hour),
 		Profiles: []Profile{{
-			Version: 1, Name: "primary",
-			Endpoint: "https://tunnel.example.com",
+			Version:    1,
+			Name:       "primary",
+			Endpoint:   "https://tunnel.example.com",
 			ServerName: "tunnel.example.com",
-			Kind: WebSocket, Path: "/transport",
+			Kind:       WebSocket,
+			Path:       "/transport",
 		}},
 	}
 	m, err = SignManifest(m, priv)
