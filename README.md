@@ -30,6 +30,8 @@ The adapter does **not** install or pin sing-box, configure OS routes, install s
 
 Optional `fronting` section with an SNI and a list of edge IPs, applied by the sing-box adapter. See [docs/CDN_SNI.md](docs/CDN_SNI.md).
 
+For a two-field, no-local-config UI using the native TLS/WebSocket tunnel, see [Quick Connect](docs/QUICK_CONNECT.md). Set `CHIMERA_TUNNEL_KEY` once, then run `go run ./cmd/chimera --quick-connect`; the UI asks only for SNI and CDN edge IPs. This requires a server/Worker already deployed with the matching key and only exposes a local SOCKS5 proxy, not system-wide VPN routing.
+
 ## Quick start
 
 Requires Go 1.22 or newer.

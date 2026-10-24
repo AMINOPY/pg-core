@@ -1,0 +1,5 @@
+{
+  "_comment": "Populate from your own authorized Network Checker results. TLS-clean means the SNI/IP certificate handshake passed from this device; it does not prove the CDN forwards to your configured tunnel origin.",
+  "sni": [],
+  "cdn_ips": []
+}

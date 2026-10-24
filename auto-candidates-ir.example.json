@@ -1,0 +1,5 @@
+{
+  "_comment": "Template only. Populate with SNI hostnames and public CDN edge IPs curated for Iran using Network Checker results you are authorized to test. Empty lists intentionally fail validation.",
+  "sni": [],
+  "cdn_ips": []
+}
