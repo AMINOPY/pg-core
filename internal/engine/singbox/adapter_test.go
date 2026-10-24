@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/AMINOPY/pg-core/internal/engine"
+	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
 func fakeBinary(t *testing.T, script string) string {
@@ -74,5 +75,35 @@ func TestRejectsInvalidInputBeforeExec(t *testing.T) {
 	}
 	if err := a.ValidateConfig(context.Background(), make([]byte, maxConfigBytes+1)); err == nil {
 		t.Fatal("expected oversized config error")
+	}
+}
+
+func TestFrontingAppliedToStartedProfile(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "seen.json")
+	binary := fakeBinary(t, "if [ \"$1\" = \"check\" ]; then cp \"$3\" '"+out+"'; exit 0; fi\nexec sleep 60")
+	a := New(binary)
+	a.Fronting = &fronting.Settings{SNI: "cdn.example.com", EdgeIPs: []string{"104.16.0.1"}}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	profile := `{"outbounds":[{"type":"trojan","tag":"p","server":"o.example.com","server_port":443,"password":"x","tls":{"enabled":true}}]}`
+	if err := a.Start(ctx, []byte(profile)); err != nil {
+		t.Fatal(err)
+	}
+	defer a.Stop(ctx)
+	seen, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(seen), `"server":"104.16.0.1"`) || !strings.Contains(string(seen), `"server_name":"cdn.example.com"`) {
+		t.Fatalf("profile not rewritten: %s", seen)
+	}
+}
+
+func TestFrontingErrorWithoutTLSOutbound(t *testing.T) {
+	a := New(fakeBinary(t, "exit 0"))
+	a.Fronting = &fronting.Settings{SNI: "cdn.example.com", EdgeIPs: []string{"104.16.0.1"}}
+	if err := a.ValidateConfig(context.Background(), []byte(`{"outbounds":[]}`)); err == nil {
+		t.Fatal("expected error")
 	}
 }

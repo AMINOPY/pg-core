@@ -26,6 +26,10 @@ See [docs/SING_BOX_ADAPTER.md](docs/SING_BOX_ADAPTER.md). The adapter wraps an a
 
 The adapter does **not** install or pin sing-box, configure OS routes, install system DNS settings, create a system TUN device itself, or guarantee end-to-end connectivity. A live process is not proof that routing or DNS works. Platform-specific route/DNS ownership, rollback, privilege design, and real-engine integration tests remain before production use.
 
+## CDN/SNI
+
+Optional `fronting` section with an SNI and a list of edge IPs, applied by the sing-box adapter. See [docs/CDN_SNI.md](docs/CDN_SNI.md).
+
 ## Quick start
 
 Requires Go 1.22 or newer.

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/AMINOPY/pg-core/internal/engine"
+	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
 const maxConfigBytes = 4 << 20
@@ -32,6 +33,9 @@ type processState struct {
 // diagnostics may contain sensitive configuration details.
 type Adapter struct {
 	Binary string
+	// Fronting is the optional CDN/SNI feature (SNI + edge IP list). When it is
+	// enabled it is applied to the profile before validation and start.
+	Fronting *fronting.Settings
 
 	mu   sync.Mutex
 	proc *processState
@@ -49,6 +53,26 @@ func (a *Adapter) ValidateConfig(ctx context.Context, cfg []byte) error {
 	if err := validateInput(ctx, a.Binary, cfg); err != nil {
 		return err
 	}
+	cfg, err := a.applyFronting(cfg)
+	if err != nil {
+		return err
+	}
+	return a.checkProfile(ctx, cfg)
+}
+
+func (a *Adapter) applyFronting(cfg []byte) ([]byte, error) {
+	if a.Fronting == nil || !a.Fronting.Enabled() {
+		return cfg, nil
+	}
+	out, err := fronting.Apply(cfg, *a.Fronting)
+	if err != nil {
+		return nil, fmt.Errorf("apply CDN/SNI: %w", err)
+	}
+	return out, nil
+}
+
+// checkProfile runs `sing-box check` on an already prepared profile.
+func (a *Adapter) checkProfile(ctx context.Context, cfg []byte) error {
 	dir, configPath, err := writePrivateConfig(cfg)
 	if err != nil {
 		return err
@@ -83,7 +107,11 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 	}
 	a.mu.Unlock()
 
-	if err := a.ValidateConfig(ctx, cfg); err != nil {
+	cfg, err := a.applyFronting(cfg)
+	if err != nil {
+		return err
+	}
+	if err := a.checkProfile(ctx, cfg); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {

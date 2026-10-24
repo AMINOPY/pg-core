@@ -62,5 +62,8 @@ func main() {
 	}
 
 	fmt.Printf("Configuration valid: schema_version=%d profile=%q engine=%q\n", cfg.SchemaVersion, cfg.Profile, cfg.ActiveEngine)
+	if cfg.Fronting != nil && cfg.Fronting.Enabled() {
+		fmt.Printf("CDN/SNI: sni=%q edge_ips=%d\n", cfg.Fronting.SNI, len(cfg.Fronting.EdgeIPs))
+	}
 	fmt.Println("Validation only: no network engine or tunnel was started.")
 }

@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
 type EngineID string
@@ -26,6 +28,8 @@ type Config struct {
 	Enabled       []EngineID `json:"enabled_engines"`
 	TUNOwner      string     `json:"tun_owner,omitempty"`
 	DNSOwner      string     `json:"dns_owner,omitempty"`
+	// Fronting is the CDN/SNI feature: an SNI host name plus a list of edge IPs.
+	Fronting *fronting.Settings `json:"fronting,omitempty"`
 }
 
 // Normalize applies safe, deterministic migrations for older schema versions.
@@ -97,6 +101,11 @@ func (c Config) Validate() error {
 	}
 	if c.DNSOwner != "" && !knownEngine(EngineID(c.DNSOwner)) {
 		return fmt.Errorf("dns_owner %q is unsupported", c.DNSOwner)
+	}
+	if c.Fronting != nil {
+		if err := c.Fronting.Validate(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
