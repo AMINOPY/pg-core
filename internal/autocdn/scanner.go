@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	MaxCandidates = 1000
-	MaxPairProbes = 10000
+	MaxCandidates  = 1000
+	MaxPairProbes  = 10000
 	defaultWorkers = 32
 	defaultTimeout = 1800 * time.Millisecond
 )
