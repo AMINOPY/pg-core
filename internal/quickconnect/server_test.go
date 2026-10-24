@@ -51,3 +51,16 @@ func TestConnectRejectsInvalidInputBeforeStarting(t *testing.T) {
 		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
 	}
 }
+
+func TestAutoSelectReportsMissingCatalogWithoutBreakingManualUI(t *testing.T) {
+	s := &Server{key: "a-secure-example-key-at-least-24"}
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/auto/select", strings.NewReader("{}"))
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Auto mode is not configured") {
+		t.Fatalf("unexpected response: %s", rec.Body.String())
+	}
+}
