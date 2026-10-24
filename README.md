@@ -15,7 +15,8 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - sing-box adapter: upstream config check, private temporary profile, process start/health/stop
 - Cross-platform network-policy contract (policy declaration only, not OS enforcement)
 - Transport-profile validator for explicit HTTPS/WebSocket/gRPC endpoints
-- Unit tests, transport-profile fuzz target, and GitHub Actions workflow
+- Unit tests and fuzz targets for transport profiles and signed discovery manifests
+- Ed25519-signed manifest verification, expiry/sequence checks, and bounded HTTPS discovery fetch
 
 ## Foundation (Phase A)
 
@@ -30,7 +31,7 @@ The adapter does **not** install or pin sing-box, configure OS routes, install s
 
 ## CDN and TLS transport
 
-See [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md). The `internal/transportprofile` package validates explicit TLS transport profiles while keeping the TLS server name aligned with the endpoint hostname. This is a validation contract only: automatic discovery, the actual transport dialer, CDN configuration, and OS-level tunneling are **not implemented yet**. A universal zero-config mode cannot work without a trusted bootstrap identity and a reachable service endpoint.
+See [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md). The `internal/transportprofile` package validates explicit TLS transport profiles, verifies Ed25519-signed manifests, and fetches a bounded well-known manifest over certificate-verified HTTPS. The caller must provision trusted public keys and persist the last accepted sequence to preserve rollback protection across restarts. The actual transport dialer, operator-side CDN configuration, and OS-level tunneling are **not implemented yet**. A universal zero-config mode cannot work without a trusted bootstrap identity and a reachable service endpoint.
 
 ## Language strategy
 
