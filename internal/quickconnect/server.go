@@ -204,11 +204,10 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 	defer cancel()
-	scanner := autocdn.Scanner{
-		Workers: autocdn.MaxWorkers,
-		Timeout: 800 * time.Millisecond,
-		Budget:  autocdn.MaxPairProbes,
-	}
+	scanner := autocdn.Scanner{}
+	scanner.Workers = autocdn.MaxWorkers
+	scanner.Timeout = 800 * time.Millisecond
+	scanner.Budget = autocdn.MaxPairProbes
 	routes, err := scanner.SelectCandidates(ctx, *catalog, nil)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
