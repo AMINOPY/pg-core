@@ -110,7 +110,7 @@ func TestVerifyRejectsUnknownFieldsAndTrailingJSON(t *testing.T) {
 }
 
 func TestSignManifestRejectsInvalidPrivateKey(t *testing.T) {
-	if _, err := SignManifest(Manifest{}, []byte("bad")); !errors.Is(err, ErrInvalidManifest) {
+	if _, err := SignManifest(Manifest{}, ed25519.PrivateKey("bad")); !errors.Is(err, ErrInvalidManifest) {
 		t.Fatalf("SignManifest() error = %v, want ErrInvalidManifest", err)
 	}
 }
