@@ -156,14 +156,17 @@ func TestFetchManifestUsesWellKnownPathAndVerifiesSignedResponse(t *testing.T) {
 
 func TestFetchManifestRejectsRedirect(t *testing.T) {
 	now := time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
-	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
+	client := &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
 			StatusCode: http.StatusFound,
 			Header:     http.Header{"Location": []string{"https://other.example.com/.well-known/pg-core/transport.json"}},
 			Body:       io.NopCloser(strings.NewReader("")),
 			Request:    req,
-		}, nil
-	})}
+			}, nil
+		}),
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+	}
 	_, err := fetchManifestWithClient(context.Background(), "https://tunnel.example.com", nil, now, 0, client)
 	if !errors.Is(err, ErrInvalidManifest) {
 		t.Fatalf("fetchManifestWithClient() error = %v, want ErrInvalidManifest", err)
