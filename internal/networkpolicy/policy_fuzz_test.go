@@ -11,12 +11,12 @@ func FuzzPolicyValidation(f *testing.F) {
 	f.Add("direct", "tunnel", "ipv6", true, 0, int64(0), int64(0))
 	f.Fuzz(func(t *testing.T, routing, dns, family string, failClosed bool, mtu int, connectNanos, healthNanos int64) {
 		p := Policy{
-			RoutingMode: RoutingMode(routing),
-			DNSMode: DNSMode(dns),
-			IPFamily: IPFamily(family),
-			FailClosed: failClosed,
-			TUNMTU: mtu,
-			ConnectTimeout: time.Duration(connectNanos),
+			RoutingMode:         RoutingMode(routing),
+			DNSMode:             DNSMode(dns),
+			IPFamily:            IPFamily(family),
+			FailClosed:          failClosed,
+			TUNMTU:              mtu,
+			ConnectTimeout:      time.Duration(connectNanos),
 			HealthCheckInterval: time.Duration(healthNanos),
 		}
 		err := p.Validate()
