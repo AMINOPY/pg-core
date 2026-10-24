@@ -48,10 +48,23 @@ type Server struct {
 
 func NewFromEnv() (*Server, error) {
 	key := strings.TrimSpace(os.Getenv("CHIMERA_TUNNEL_KEY"))
-	if len(key) < 24 || strings.ContainsAny(key, "/\\?# ") {
+	if !validServerKey(key) {
 		return nil, errors.New("CHIMERA_TUNNEL_KEY must be set to a server key of at least 24 URL-safe characters")
 	}
 	return &Server{key: key}, nil
+}
+
+func validServerKey(key string) bool {
+	if len(key) < 24 {
+		return false
+	}
+	for _, r := range key {
+		if !(r >= 'a' && r <= 'z') && !(r >= 'A' && r <= 'Z') &&
+			!(r >= '0' && r <= '9') && r != '-' && r != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 // Handler serves the UI and a small same-origin API. Run it only on loopback.
