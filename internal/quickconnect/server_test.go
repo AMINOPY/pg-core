@@ -1,0 +1,53 @@
+package quickconnect
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+)
+
+func TestNewFromEnvRequiresServerKey(t *testing.T) {
+	old, had := os.LookupEnv("CHIMERA_TUNNEL_KEY")
+	t.Cleanup(func() {
+		if had {
+			_ = os.Setenv("CHIMERA_TUNNEL_KEY", old)
+		} else {
+			_ = os.Unsetenv("CHIMERA_TUNNEL_KEY")
+		}
+	})
+	_ = os.Unsetenv("CHIMERA_TUNNEL_KEY")
+	if _, err := NewFromEnv(); err == nil {
+		t.Fatal("expected missing key to be rejected")
+	}
+	_ = os.Setenv("CHIMERA_TUNNEL_KEY", "short")
+	if _, err := NewFromEnv(); err == nil {
+		t.Fatal("expected short key to be rejected")
+	}
+	_ = os.Setenv("CHIMERA_TUNNEL_KEY", "a-secure-example-key-at-least-24")
+	if _, err := NewFromEnv(); err != nil {
+		t.Fatalf("valid key rejected: %v", err)
+	}
+}
+
+func TestHandlerRejectsNonLoopbackHost(t *testing.T) {
+	s := &Server{key: "a-secure-example-key-at-least-24"}
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestConnectRejectsInvalidInputBeforeStarting(t *testing.T) {
+	s := &Server{key: "a-secure-example-key-at-least-24"}
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/connect", strings.NewReader(`{"sni":"not a host","edge_ips":"not-an-ip"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
