@@ -40,8 +40,9 @@ type statusResponse struct {
 }
 
 type Server struct {
-	key     string
-	catalog *autocdn.Catalog
+	key        string
+	catalog    *autocdn.Catalog
+	catalogErr string
 
 	mu      sync.Mutex
 	adapter *native.Adapter
@@ -58,18 +59,19 @@ func NewFromEnv() (*Server, error) {
 	if catalogPath != "" {
 		data, err := os.ReadFile(catalogPath)
 		if err != nil {
-			return nil, fmt.Errorf("read Auto candidate catalog: %w", err)
+			s.catalogErr = "candidate catalog could not be read"
+		} else {
+			dec := json.NewDecoder(strings.NewReader(string(data)))
+			dec.DisallowUnknownFields()
+			var catalog autocdn.Catalog
+			if err := dec.Decode(&catalog); err != nil {
+				s.catalogErr = "candidate catalog is invalid JSON"
+			} else if err := catalog.Validate(); err != nil {
+				s.catalogErr = "candidate catalog failed validation: " + err.Error()
+			} else {
+				s.catalog = &catalog
+			}
 		}
-		dec := json.NewDecoder(strings.NewReader(string(data)))
-		dec.DisallowUnknownFields()
-		var catalog autocdn.Catalog
-		if err := dec.Decode(&catalog); err != nil {
-			return nil, fmt.Errorf("parse Auto candidate catalog: %w", err)
-		}
-		if err := catalog.Validate(); err != nil {
-			return nil, fmt.Errorf("validate Auto candidate catalog: %w", err)
-		}
-		s.catalog = &catalog
 	}
 	return s, nil
 }
@@ -157,9 +159,11 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.catalog == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"error": "Auto mode is not configured; set CHIMERA_AUTO_CANDIDATES to a trusted candidate catalog",
-		})
+		message := "Auto mode is not configured; set CHIMERA_AUTO_CANDIDATES to a trusted candidate catalog"
+		if s.catalogErr != "" {
+			message += " (" + s.catalogErr + ")"
+		}
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": message})
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
