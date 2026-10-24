@@ -1,6 +1,6 @@
 package quickconnect
 
-const indexHTML = \`<!doctype html>
+const indexHTML = `<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
@@ -48,4 +48,4 @@ disconnectBtn.addEventListener('click',async()=>{busy(true);try{await api('/api/
 api('/api/status').then(d=>{if(d.connected)show('اتصال برقرار است.\nSOCKS5: '+d.socks)}).catch(()=>show('رابط محلی در دسترس نیست.'));
 </script>
 </body>
-</html>\`
+</html>`
