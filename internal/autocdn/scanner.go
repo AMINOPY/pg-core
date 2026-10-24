@@ -119,7 +119,7 @@ func validateHostname(host string) error {
 }
 
 // Select performs a bounded set of TLS probes across the trusted candidate
-// catalog. It tests up to 10,000 SNI/IP pairs (rather than the full million-pair
+// catalog. It tests up to 1,000 SNI/IP pairs (rather than the full million-pair
 // cross product) and returns the lowest-latency pair with a valid TLS certificate.
 func (s Scanner) Select(ctx context.Context, catalog Catalog, probe ProbeFunc) (Route, error) {
 	routes, err := s.SelectCandidates(ctx, catalog, probe)
