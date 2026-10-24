@@ -28,14 +28,16 @@ small{display:block;color:#92a3c4;margin-top:18px;line-height:1.5}
 <div class="modes" role="radiogroup" aria-label="حالت اتصال">
 <label><input type="radio" name="mode" value="auto" checked> Auto</label>
 <label><input type="radio" name="mode" value="manual"> Fronting CDN</label>
+<label><input type="radio" name="mode" value="ir"> CDN IR</label>
+<label><input type="radio" name="mode" value="us"> CDN US</label>
 </div>
-<div id="manualFields" hidden>
-<label for="sni">SNI / نام میزبان سرور</label>
-<input id="sni" name="sni" autocomplete="url" placeholder="tunnel.example.com" maxlength="253">
-<div class="hint">نام میزبانی که برای اتصال امن سرور یا مسیر تونل تنظیم شده است.</div>
-<label for="ips">IPهای لبهٔ CDN</label>
-<input id="ips" name="ips" placeholder="IP اول، IP دوم" maxlength="4096">
-<div class="hint">IPها را با ویرگول یا فاصله جدا کن. فقط IP معتبر پذیرفته می‌شود.</div>
+<div id="manualFields">
+<label for="sni">SNI / نام میزبان</label>
+<textarea id="sni" name="sni" autocomplete="url" placeholder="پس از اسکن، تا ۲۰ گزینهٔ برتر نمایش داده می‌شود" maxlength="8192" rows="4"></textarea>
+<div class="hint" id="sniHint">در حالت خودکار، گزینه‌ها از فهرست معتبر و تنظیم‌شده انتخاب می‌شوند.</div>
+<label for="ips">CDN / IPهای لبه</label>
+<textarea id="ips" name="ips" placeholder="پس از اسکن، تا ۲۰ IP برتر نمایش داده می‌شود" maxlength="8192" rows="4"></textarea>
+<div class="hint" id="ipsHint">حداکثر ۱۰۰۰ SNI و ۱۰۰۰ IP در کاتالوگ ورودی؛ حداکثر ۱۰۰۰ جفت آزمایش می‌شود.</div>
 </div>
 <div class="actions">
 <button id="connect" type="submit">اتصال</button>
@@ -47,13 +49,41 @@ small{display:block;color:#92a3c4;margin-top:18px;line-height:1.5}
 </main>
 <script>
 const form=document.getElementById('form'),statusBox=document.getElementById('status'),connectBtn=document.getElementById('connect'),disconnectBtn=document.getElementById('disconnect'),manualFields=document.getElementById('manualFields'),sniInput=document.getElementById('sni'),ipsInput=document.getElementById('ips');
-document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener('change',()=>{const manual=r.value==='manual'&&r.checked;manualFields.hidden=!manual;sniInput.required=manual;ipsInput.required=manual;show(manual?'SNI و IP لبه را وارد کن.':'Auto از فهرست کاندیداهای تنظیم‌شده مسیر مناسب را پیدا می‌کند.')}));
-async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});let data={};try{data=await r.json()}catch{}if(!r.ok)throw new Error(data.error||data.message||'Request failed');return data}
+function currentMode(){return document.querySelector('input[name="mode"]:checked').value}
+function setMode(){const mode=currentMode(),manual=mode==='manual';sniInput.readOnly=!manual;ipsInput.readOnly=!manual;show(manual?'Fronting CDN: یک SNI و یک یا چند IP معتبر وارد کن.':mode==='ir'?'CDN IR: کاتالوگ منطقه‌ای تنظیم‌شده بررسی می‌شود.':mode==='us'?'CDN US: کاتالوگ منطقه‌ای تنظیم‌شده بررسی می‌شود.':'Auto: کاتالوگ معتبر بررسی می‌شود. برای انتخاب و پرکردن خودکار روی اتصال بزن.')}
+document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener('change',setMode));
+async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});let data={};try{data=await r.json()}catch{}if(!r.ok)throw new Error(data.error||data.message||'درخواست ناموفق بود');return data}
 function show(s){statusBox.textContent=s}
 function busy(v){connectBtn.disabled=v;disconnectBtn.disabled=v}
-form.addEventListener('submit',async e=>{e.preventDefault();busy(true);show('در حال بررسی مسیر و راه‌اندازی تونل…');try{if(document.querySelector('input[name="mode"]:checked').value==='auto'){show('در حال ارزیابی کاندیداهای Auto…');const selection=await api('/api/auto/select',{});const routes=selection.routes||[];let lastError=null;for(const route of routes){show('آزمایش مسیر '+route.sni+' / '+route.cdn_ip+' ('+Number(route.latency_ms).toFixed(1)+' ms)…');try{const d=await api('/api/connect',{sni:route.sni,edge_ips:route.cdn_ip});show('اتصال برقرار شد.\\nSNI: '+route.sni+'\\nCDN: '+route.cdn_ip+'\\nپراکسی SOCKS5: '+d.socks);return}catch(err){lastError=err}}throw lastError||new Error('هیچ مسیر TLS سالمی پیدا نشد.')}const d=await api('/api/connect',{sni:sniInput.value.trim(),edge_ips:ipsInput.value.trim()});show('اتصال برقرار شد.\\nپراکسی SOCKS5: '+d.socks)}catch(e){show('اتصال برقرار نشد. در Auto فهرست کاندیداها باید تنظیم شده باشد؛ در هر دو حالت، مسیر CDN و سرور سازگار باید سالم باشند.\\nجزئیات: '+e.message)}finally{busy(false)}});
+form.addEventListener('submit',async e=>{e.preventDefault();busy(true);try{
+ const mode=currentMode();
+ if(mode==='manual'){
+  show('در حال راه‌اندازی تونل با مقادیر واردشده…');
+  const d=await api('/api/connect',{sni:sniInput.value.trim(),edge_ips:ipsInput.value.trim()});
+  show('اتصال برقرار شد.\\nپراکسی SOCKS5: '+d.socks);
+  return;
+ }
+ show('در حال بررسی حداکثر ۱۰۰۰ جفت کاندیدا…');
+ const selection=await api('/api/auto/select',{mode});
+ const routes=selection.routes||[];
+ sniInput.value=(selection.sni_candidates||[]).join('\\n');
+ ipsInput.value=(selection.cdn_candidates||[]).join('\\n');
+ if(!routes.length)throw new Error('هیچ مسیر TLS سالمی پیدا نشد.');
+ show('آزمایش '+routes.length+' مسیر برتر؛ فهرست SNI و CDN تا ۲۰ گزینه در فیلدها قرار گرفت.');
+ let lastError=null;
+ for(const route of routes){
+  show('آزمایش مسیر '+route.sni+' / '+route.cdn_ip+' ('+Number(route.latency_ms).toFixed(1)+' ms)…');
+  try{
+   const d=await api('/api/connect',{sni:route.sni,edge_ips:route.cdn_ip});
+   show('اتصال برقرار شد و آزمون سلامت تونل موفق بود.\\nSNI: '+route.sni+'\\nCDN: '+route.cdn_ip+'\\nپراکسی SOCKS5: '+d.socks);
+   return;
+  }catch(err){lastError=err}
+ }
+ throw lastError||new Error('هیچ مسیر انتخاب‌شده‌ای از آزمون سلامت تونل عبور نکرد.');
+}catch(e){show('اتصال برقرار نشد. برای Auto/CDN IR/CDN US کاتالوگ معتبر باید تنظیم شده باشد؛ برچسب منطقه‌ای بر اساس کاتالوگ انتخابی است و به‌تنهایی کشور IP را اثبات نمی‌کند.\\nجزئیات: '+e.message)}finally{busy(false)}});
 disconnectBtn.addEventListener('click',async()=>{busy(true);try{await api('/api/disconnect',{});show('اتصال قطع شد.')}catch(e){show('قطع اتصال ناموفق بود: '+e.message)}finally{busy(false)}});
-api('/api/status').then(d=>{if(d.connected)show('اتصال برقرار است.\nSOCKS5: '+d.socks)}).catch(()=>show('رابط محلی در دسترس نیست.'));
+api('/api/status').then(d=>{if(d.connected)show('اتصال برقرار است.\\nSOCKS5: '+d.socks)}).catch(()=>show('رابط محلی در دسترس نیست.'));
+setMode();
 </script>
 </body>
 </html>`
