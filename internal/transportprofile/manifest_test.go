@@ -109,3 +109,67 @@ func TestSignManifestRejectsInvalidPrivateKey(t *testing.T) {
 		t.Fatalf("SignManifest() error = %v, want ErrInvalidManifest", err)
 	}
 }
+
+func TestFetchManifestUsesWellKnownPathAndVerifiesTLSResponse(t *testing.T) {
+	now := time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
+	m, pub, priv := signedFixture(t, now)
+	m.Host = "localhost"
+	m, err := SignManifest(m, priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := marshalManifest(t, m)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != discoveryPath {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+
+	url := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
+	client := server.Client()
+	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+	got, err := fetchManifestWithClient(context.Background(), url, map[string]ed25519.PublicKey{"test-key-1": pub}, now, 7, client)
+	if err != nil {
+		t.Fatalf("fetchManifestWithClient() error = %v", err)
+	}
+	if got.Host != "localhost" || got.Sequence != 7 {
+		t.Fatalf("unexpected manifest: %+v", got)
+	}
+}
+
+func TestFetchManifestRejectsRedirect(t *testing.T) {
+	now := time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://other.example.com/.well-known/pg-core/transport.json", http.StatusFound)
+	}))
+	defer server.Close()
+	url := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
+	client := server.Client()
+	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+	_, err := fetchManifestWithClient(context.Background(), url, nil, now, 0, client)
+	if !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("fetchManifestWithClient() error = %v, want ErrInvalidManifest", err)
+	}
+}
+
+func TestFetchManifestRejectsUnsafeURLs(t *testing.T) {
+	now := time.Now()
+	for _, url := range []string{
+		"http://example.com",
+		"https://user:pass@example.com",
+		"https://example.com/path",
+		"https://example.com:8443",
+		"https://example.com/?x=1",
+	} {
+		t.Run(url, func(t *testing.T) {
+			_, err := FetchManifest(context.Background(), url, nil, now, 0)
+			if !errors.Is(err, ErrInvalidManifest) {
+				t.Fatalf("FetchManifest() error = %v, want ErrInvalidManifest", err)
+			}
+		})
+	}
+}
