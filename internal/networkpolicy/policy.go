@@ -9,22 +9,25 @@ import (
 )
 
 type RoutingMode string
+
 const (
 	RoutingDirect RoutingMode = "direct"
 	RoutingTunnel RoutingMode = "tunnel"
 )
 
 type DNSMode string
+
 const (
 	DNSSystem DNSMode = "system"
 	DNSTunnel DNSMode = "tunnel"
 )
 
 type IPFamily string
+
 const (
 	IPDualStack IPFamily = "dual"
-	IPv4Only IPFamily = "ipv4"
-	IPv6Only IPFamily = "ipv6"
+	IPv4Only    IPFamily = "ipv4"
+	IPv6Only    IPFamily = "ipv6"
 )
 
 var ErrInvalidPolicy = errors.New("invalid network policy")
@@ -33,12 +36,12 @@ var ErrInvalidPolicy = errors.New("invalid network policy")
 // FailClosed means traffic must not fall back to direct routing if tunnel
 // enforcement is available; it is not a guarantee until an adapter enforces it.
 type Policy struct {
-	RoutingMode RoutingMode `json:"routing_mode"`
-	DNSMode DNSMode `json:"dns_mode"`
-	IPFamily IPFamily `json:"ip_family"`
-	FailClosed bool `json:"fail_closed"`
-	TUNMTU int `json:"tun_mtu"`
-	ConnectTimeout time.Duration `json:"connect_timeout"`
+	RoutingMode         RoutingMode   `json:"routing_mode"`
+	DNSMode             DNSMode       `json:"dns_mode"`
+	IPFamily            IPFamily      `json:"ip_family"`
+	FailClosed          bool          `json:"fail_closed"`
+	TUNMTU              int           `json:"tun_mtu"`
+	ConnectTimeout      time.Duration `json:"connect_timeout"`
 	HealthCheckInterval time.Duration `json:"health_check_interval"`
 }
 
@@ -46,12 +49,12 @@ type Policy struct {
 // not an applied OS configuration.
 func Default() Policy {
 	return Policy{
-		RoutingMode: RoutingTunnel,
-		DNSMode: DNSTunnel,
-		IPFamily: IPDualStack,
-		FailClosed: true,
-		TUNMTU: 1500,
-		ConnectTimeout: 10 * time.Second,
+		RoutingMode:         RoutingTunnel,
+		DNSMode:             DNSTunnel,
+		IPFamily:            IPDualStack,
+		FailClosed:          true,
+		TUNMTU:              1500,
+		ConnectTimeout:      10 * time.Second,
 		HealthCheckInterval: 30 * time.Second,
 	}
 }
