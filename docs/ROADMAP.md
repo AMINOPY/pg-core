@@ -26,11 +26,13 @@
 - [ ] Add platform-specific integration tests for DNS/routes and rollback
 
 ## Phase C — Network correctness
+- [x] Add bounded HTTPS transfer diagnostics with timing breakdown and byte caps
 - [ ] Define DNS ownership and leak-test strategy
 - [ ] Define IPv4/IPv6 policy
 - [ ] Verify system routes are restored after crash/stop
-- [ ] Add controlled end-to-end health checks
+- [ ] Add controlled end-to-end health checks through the active tunnel
 - [ ] Define fail-closed behavior and test it on supported platforms
+- [ ] Measure reconnect, packet loss, latency, and throughput on controlled endpoints
 
 ## Phase D — Additional engines
 - [ ] Add Xray adapter behind the common contract
@@ -44,6 +46,14 @@
 - [ ] Add benchmarks and long-running tests
 - [ ] Add dependency and license scanning
 - [ ] Publish support matrix by OS and engine version
+- [ ] Compile-check Linux, Windows, and Android targets in CI
+
+## DPI resistance and performance
+- [ ] Define a documented, user-configurable transport strategy supported by the selected engine
+- [ ] Add controlled tests for transport compatibility, latency, packet loss, and reconnect behavior
+- [ ] Test IPv4/IPv6, DNS behavior, MTU, and mobile-network transitions
+- [ ] Document that no single obfuscation or transport strategy defeats all DPI systems
+- [ ] Use benchmark data to inform endpoint choice; do not claim automatic speed improvements without measurements
 
 ## Non-goals
 - Guaranteeing resistance to every DPI or filtering system
