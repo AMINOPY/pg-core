@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	MaxCandidates  = 1000
-	MaxPairProbes  = 1000
-	defaultWorkers = 32
+	MaxCandidates   = 1000
+	MaxPairProbes   = 1000
+	defaultWorkers  = 32
 	MaxRankedRoutes = 20
-	defaultTimeout = 1800 * time.Millisecond
+	defaultTimeout  = 1800 * time.Millisecond
 )
 
 type Catalog struct {
