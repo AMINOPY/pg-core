@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/AMINOPY/pg-core/internal/transportprofile"
 )
 
 type EngineID string
@@ -26,6 +28,7 @@ type Config struct {
 	Enabled       []EngineID `json:"enabled_engines"`
 	TUNOwner      string     `json:"tun_owner,omitempty"`
 	DNSOwner      string     `json:"dns_owner,omitempty"`
+	Connection    *transportprofile.ConnectionConfig `json:"connection,omitempty"`
 }
 
 // Normalize applies safe, deterministic migrations for older schema versions.
@@ -97,6 +100,11 @@ func (c Config) Validate() error {
 	}
 	if c.DNSOwner != "" && !knownEngine(EngineID(c.DNSOwner)) {
 		return fmt.Errorf("dns_owner %q is unsupported", c.DNSOwner)
+	}
+	if c.Connection != nil {
+		if err := c.Connection.Validate(); err != nil {
+			return fmt.Errorf("connection: %w", err)
+		}
 	}
 	return nil
 }
