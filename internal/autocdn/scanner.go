@@ -180,8 +180,11 @@ func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe Pr
 				cancel()
 				if err == nil {
 					results <- Route{
-						SNI: pair.SNI, CDNIP: pair.CDNIP, Latency: latency,
-						Weight: catalog.weightForSNI(pair.SNI), CheckedAt: time.Now().UTC(),
+						SNI:       pair.SNI,
+						CDNIP:     pair.CDNIP,
+						Latency:   latency,
+						Weight:    catalog.weightForSNI(pair.SNI),
+						CheckedAt: time.Now().UTC(),
 					}
 				}
 			}
@@ -292,13 +295,16 @@ func probeHTTPSHead(ctx context.Context, sni, ip string) error {
 		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 			return (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort(ip, "443"))
 		},
-		TLSClientConfig: &tls.Config{ServerName: sni, MinVersion: tls.VersionTLS12},
+		TLSClientConfig:   &tls.Config{ServerName: sni, MinVersion: tls.VersionTLS12},
 		DisableKeepAlives: true,
 	}
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-		return http.ErrUseLastResponse
-	}}
+	client := &http.Client{
+		Transport: transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, "https://"+sni+"/", nil)
 	if err != nil {
 		return err
