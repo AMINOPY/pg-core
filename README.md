@@ -15,7 +15,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - sing-box adapter: upstream config check, private temporary profile, process start/health/stop
 - Cross-platform network-policy contract (policy declaration only, not OS enforcement)
 - Transport-profile validator for explicit HTTPS/WebSocket/gRPC endpoints
-- Unit tests and GitHub Actions workflow
+- Unit tests, transport-profile fuzz target, and GitHub Actions workflow
 
 ## Foundation (Phase A)
 
@@ -30,7 +30,11 @@ The adapter does **not** install or pin sing-box, configure OS routes, install s
 
 ## CDN and TLS transport
 
-See [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md). The new `internal/transportprofile` package validates explicit TLS transport profiles while keeping the TLS server name aligned with the endpoint hostname. This is a validation contract only: automatic discovery, the actual transport dialer, CDN configuration, and OS-level tunneling are **not implemented yet**. A universal zero-config mode cannot work without a trusted bootstrap identity and a reachable service endpoint.
+See [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md). The `internal/transportprofile` package validates explicit TLS transport profiles while keeping the TLS server name aligned with the endpoint hostname. This is a validation contract only: automatic discovery, the actual transport dialer, CDN configuration, and OS-level tunneling are **not implemented yet**. A universal zero-config mode cannot work without a trusted bootstrap identity and a reachable service endpoint.
+
+## Language strategy
+
+See [docs/LANGUAGE_STRATEGY.md](docs/LANGUAGE_STRATEGY.md) for the proposed component-level split: Go for the existing coordinator, Rust only if profiling justifies a low-level transport, Kotlin for Android, C# for Windows, TypeScript for a potential UI, and Python for test tooling. The project will not add languages without a concrete requirement.
 
 ## Quick start
 
@@ -60,7 +64,7 @@ Do not run multiple engines as competing owners of the same traffic path without
 
 No implementation can guarantee connectivity on every network or defeat every DPI system. TLS fingerprint rotation and imitation of named third-party apps are not implemented. Synthetic traffic may be used in controlled performance tests, not to impersonate real services.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md), [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md), and [SECURITY.md](SECURITY.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md), [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md), [docs/LANGUAGE_STRATEGY.md](docs/LANGUAGE_STRATEGY.md), and [SECURITY.md](SECURITY.md).
 
 ## Development
 
