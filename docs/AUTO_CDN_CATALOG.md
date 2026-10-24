@@ -10,9 +10,8 @@ Auto mode reads an operator-supplied JSON catalog selected by
 }
 ```
 
-The example address above is documentation-only and will not be accepted as a
-usable route. Supply only domains and CDN edge IPs that you own, administer, or
-are authorized to test. Network Checker is a Flutter desktop/mobile application,
+Replace the placeholders with domains and CDN edge IPs that you own, administer,
+or are authorized to test. Network Checker is a Flutter desktop/mobile application,
 not a Go library or a documented command-line/API service; use its Domain
 Checker and Edge IP Checker/CDN Xray Scanner results as an operator-controlled
 input rather than copying its GPL-3.0 application code into this repository.
