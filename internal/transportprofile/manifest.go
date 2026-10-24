@@ -16,12 +16,12 @@ import (
 )
 
 const (
-	ManifestVersion = 1
+	ManifestVersion  = 1
 	MaxManifestBytes = 256 << 10
-	MaxProfiles = 32
-	MaxManifestTTL = 24 * time.Hour
-	maxClockSkew = 5 * time.Minute
-	discoveryPath = "/.well-known/pg-core/transport.json"
+	MaxProfiles      = 32
+	MaxManifestTTL   = 24 * time.Hour
+	maxClockSkew     = 5 * time.Minute
+	discoveryPath    = "/.well-known/pg-core/transport.json"
 )
 
 var ErrInvalidManifest = errors.New("invalid transport manifest")
