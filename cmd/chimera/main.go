@@ -36,10 +36,10 @@ func main() {
 		}
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
-		fmt.Printf("Chimera Quick Connect UI: http://%s\\n", *quickConnectListen)
+		fmt.Printf("Chimera Quick Connect UI: http://%s\n", *quickConnectListen)
 		fmt.Println("Press Ctrl+C to stop the UI and tunnel.")
 		if err := quickconnect.Serve(ctx, *quickConnectListen, server); err != nil {
-			fmt.Fprintf(os.Stderr, "quick-connect: %v\\n", err)
+			fmt.Fprintf(os.Stderr, "quick-connect: %v\n", err)
 			os.Exit(1)
 		}
 		return
