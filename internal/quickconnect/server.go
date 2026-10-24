@@ -190,8 +190,15 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 	catalog := s.catalogs[mode]
 	if catalog == nil {
 		message := "candidate catalog is not configured for " + mode
+		if mode == "auto" {
+			message = "Auto mode is not configured; set CHIMERA_AUTO_CANDIDATES to a trusted candidate catalog"
+		} else if mode == "ir" {
+			message = "CDN IR is not configured; set CHIMERA_CDN_IR_CANDIDATES to a trusted region catalog"
+		} else if mode == "us" {
+			message = "CDN US is not configured; set CHIMERA_CDN_US_CANDIDATES to a trusted region catalog"
+		}
 		if s.catalogErr[mode] != "" {
-			message += ": " + s.catalogErr[mode]
+			message += " (" + s.catalogErr[mode] + ")"
 		}
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": message})
 		return
