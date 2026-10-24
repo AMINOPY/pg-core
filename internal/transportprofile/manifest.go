@@ -149,6 +149,16 @@ func normalizeHost(host string) string {
 // FetchManifest downloads the standard well-known document using verified HTTPS.
 // Redirects are rejected to prevent discovery from silently changing authority.
 func FetchManifest(ctx context.Context, discoveryURL string, trustedKeys map[string]ed25519.PublicKey, now time.Time, minSequence uint64) (Manifest, error) {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	return fetchManifestWithClient(ctx, discoveryURL, trustedKeys, now, minSequence, client)
+}
+
+func fetchManifestWithClient(ctx context.Context, discoveryURL string, trustedKeys map[string]ed25519.PublicKey, now time.Time, minSequence uint64, client *http.Client) (Manifest, error) {
 	var zero Manifest
 	u, err := url.Parse(discoveryURL)
 	if err != nil || u == nil || u.Scheme != "https" || u.Hostname() == "" ||
@@ -165,12 +175,6 @@ func FetchManifest(ctx context.Context, discoveryURL string, trustedKeys map[str
 	}
 	u.Path = discoveryPath
 	u.RawPath = ""
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return zero, fmt.Errorf("%w: request: %v", ErrInvalidManifest, err)
