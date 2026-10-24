@@ -1,28 +1,34 @@
 # Xray integration and low-latency tunnel design
 
-## Product boundary
+## Product requirement: two-field, no-manual-config connection
 
-Chimera Core is the coordinator; Xray is a pluggable data-plane engine. The core must not pretend that its native WebSocket tunnel is Xray, and must not require Cloudflare. A user may run an authorized Xray server on a VPS or another supported host. CDN/SNI is an optional transport/deployment choice, not the engine itself.
+The intended user experience is deliberately simple:
 
-The existing `engine.Adapter` contract is the integration point:
+1. The user enters an **SNI hostname**.
+2. The user enters one or more **CDN edge IPs** (or the configured edge addresses for the selected deployment).
+3. The user presses **Connect**. Chimera validates inputs, selects a healthy candidate route, starts the configured engine, waits for an actual data-path health check, and only then reports Connected.
 
-- `ValidateConfig(ctx, profile)`: validate without starting processes or exposing secrets.
-- `Start(ctx, profile)`: start the selected engine and report startup errors.
-- `Health(ctx)`: test the active engine/data path, not merely whether a local process exists.
-- `Stop(ctx)`: terminate child processes and local listeners and honor cancellation.
-- `Capabilities()`: declare TUN, DNS, routing and health support truthfully.
+The user should not have to create or edit a JSON file, type a UUID, or manually assemble a VLESS/VMess/Trojan profile. Those are implementation details, not additional UI fields.
 
-The Xray adapter should implement this contract in a separate package such as `internal/engine/xray`. It should invoke a user-installed or explicitly configured Xray binary (never silently download or execute an untrusted binary), write a temporary least-privilege configuration with restrictive file permissions, avoid logging UUIDs/keys, wait for a local inbound listener, and stop the child process on cancellation. The adapter must not claim TUN support unless the platform-specific TUN integration exists.
+This is **no manual configuration**, not **no configuration exists anywhere**. Before the button can connect, the installation/deployment must have a trusted server profile containing the endpoint, protocol, authentication material, and transport requirements. That profile may be provisioned by the installer, an administrator, or a trusted app-managed profile store. Secrets must not be hard-coded into source code, committed to Git, exposed in the UI, or logged. If no usable profile or engine exists, show an explicit “engine/profile not configured” state rather than inventing credentials or reporting a false connection.
 
-## No-config user experience
+SNI and CDN edge IPs have distinct roles: SNI is a TLS name and an edge IP is a network destination. They do not, by themselves, identify an Xray user, protocol, origin, or authentication credentials. The implementation must use the selected deployment's known profile to map those two user inputs to a valid connection. Do not scan unrelated third-party hosts or imply that arbitrary SNI/IP combinations will work.
 
-“No config file” means the UI builds a validated in-memory profile or imports a share link; it does not mean a connection can be inferred from only SNI and an IP address. An Xray connection generally needs a real server endpoint, protocol, and authentication material. SNI only selects the TLS name. Do not invent credentials or auto-scan third-party servers.
+## Engine boundary
 
-Recommended compact UI:
-1. **Server link / profile** — accept a user-provided VLESS/VMess/Trojan share link or a server profile from a trusted source.
-2. **SNI override (optional)** — an override only when the server configuration supports it.
+Chimera Core is the coordinator; Xray is a pluggable data-plane engine. The core must not pretend that its native WebSocket tunnel is Xray, and must not require Cloudflare. CDN/SNI is an optional transport/deployment choice, not the engine itself.
 
-If the product requirement strictly demands exactly two plain fields, the server must be pre-provisioned in the app; the two fields can then be SNI and a server/edge address. The UI should display which engine is active and explain when Xray is not installed/configured rather than falling back silently to the native engine.
+The existing \`engine.Adapter\` contract is the integration point:
+
+- \`ValidateConfig(ctx, profile)\`: validate without starting processes or exposing secrets.
+- \`Start(ctx, profile)\`: start the selected engine and report startup errors.
+- \`Health(ctx)\`: test the active engine/data path, not merely whether a local process exists.
+- \`Stop(ctx)\`: terminate child processes and local listeners and honor cancellation.
+- \`Capabilities()\`: declare TUN, DNS, routing and health support truthfully.
+
+The future Xray adapter should implement this contract in a separate package such as \`internal/engine/xray\`. It should invoke a user-installed or explicitly configured Xray binary (never silently download or execute an untrusted binary), build a temporary app-managed profile with restrictive permissions for any temporary files, avoid logging UUIDs/keys, wait for a local inbound listener, and stop the child process on cancellation. The adapter must not claim TUN support unless the platform-specific TUN integration exists.
+
+The UI remains SNI + CDN edge IPs only. Engine choice and credentials belong to trusted app/deployment configuration, not extra mandatory user fields. If multiple trusted profiles exist, the app may select the intended profile through an installation setting or a safe internal rule; it must not guess authentication material.
 
 ## “Wormhole” routing analogy
 
@@ -40,4 +46,4 @@ There is no guaranteed “faster than direct” route. The target is lower measu
 
 ## Current implementation status
 
-The quick-connect PR currently starts Chimera's **native TLS/WebSocket protocol**, not Xray. It requires the matching secret and a compatible server endpoint, and exposes a local SOCKS5 proxy. It does not implement an Xray adapter, TUN routing, system-wide VPN behavior, or a physical wormhole. Those claims must remain explicit until corresponding code and end-to-end tests exist.
+The current quick-connect implementation starts Chimera's **native TLS/WebSocket protocol**, not Xray. It requires the matching secret and a compatible server endpoint, and exposes a local SOCKS5 proxy. It does not yet implement an Xray adapter, TUN routing, system-wide VPN behavior, or a physical wormhole. Keep those limitations explicit until the corresponding code and end-to-end tests exist.
