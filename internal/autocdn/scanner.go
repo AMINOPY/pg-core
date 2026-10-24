@@ -62,6 +62,9 @@ func (c Catalog) Validate() error {
 	seenSNI := make(map[string]bool, len(c.SNIs))
 	for _, raw := range c.SNIs {
 		host := strings.TrimSpace(raw)
+		if host != raw {
+			return fmt.Errorf("invalid SNI candidate %q: surrounding whitespace is not allowed", raw)
+		}
 		if err := validateHostname(host); err != nil {
 			return fmt.Errorf("invalid SNI candidate %q: %w", raw, err)
 		}
@@ -73,7 +76,11 @@ func (c Catalog) Validate() error {
 	}
 	seenIP := make(map[netip.Addr]bool, len(c.CDNIPs))
 	for _, raw := range c.CDNIPs {
-		addr, err := netip.ParseAddr(strings.TrimSpace(raw))
+		trimmed := strings.TrimSpace(raw)
+		if trimmed != raw {
+			return fmt.Errorf("invalid CDN IP candidate %q: surrounding whitespace is not allowed", raw)
+		}
+		addr, err := netip.ParseAddr(trimmed)
 		if err != nil {
 			return fmt.Errorf("invalid CDN IP candidate %q", raw)
 		}
