@@ -98,6 +98,48 @@ func (c ConnectionConfig) Validate() error {
 	return nil
 }
 
+// ConnectionAttempt is one ordered candidate produced by PlanConnections.
+// Address is a hostname for direct mode and a literal IP for CDN-fronting mode.
+type ConnectionAttempt struct {
+	Mode       ConnectionMode `json:"mode"`
+	Address    string         `json:"address"`
+	ServerName string         `json:"server_name"`
+	HTTPHost   string         `json:"http_host"`
+}
+
+// PlanConnections returns deterministic candidates for the selected mode.
+// Auto tries direct first, then each explicitly configured CDN IP. The caller
+// remains responsible for attempting candidates and checking end-to-end traffic.
+func PlanConnections(cfg ConnectionConfig) ([]ConnectionAttempt, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	u, _ := url.Parse(cfg.Endpoint)
+	host := normalizeHost(u.Hostname())
+	direct := ConnectionAttempt{Mode: ModeDirect, Address: host, ServerName: host, HTTPHost: host}
+	fronting := func(ip string) ConnectionAttempt {
+		return ConnectionAttempt{Mode: ModeCDNFronting, Address: ip, ServerName: normalizeHost(cfg.ServerName), HTTPHost: host}
+	}
+	switch cfg.Mode {
+	case ModeDirect:
+		return []ConnectionAttempt{direct}, nil
+	case ModeCDNFronting:
+		out := make([]ConnectionAttempt, 0, len(cfg.CDNIPs))
+		for _, ip := range cfg.CDNIPs {
+			out = append(out, fronting(net.ParseIP(strings.TrimSpace(ip)).String()))
+		}
+		return out, nil
+	case ModeAuto:
+		out := []ConnectionAttempt{direct}
+		for _, ip := range cfg.CDNIPs {
+			out = append(out, fronting(net.ParseIP(strings.TrimSpace(ip)).String()))
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("%w: unsupported mode %q", ErrInvalidConnectionConfig, cfg.Mode)
+	}
+}
+
 // ProbeResult reports whether an explicitly supplied IP accepts a verified TLS
 // handshake for ServerName. Reachable means TLS succeeded, not that a tunnel,
 // HTTP route, or CDN origin mapping works.
