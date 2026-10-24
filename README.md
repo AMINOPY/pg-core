@@ -2,7 +2,7 @@
 
 **Status: early scaffold / not production-ready.**
 
-Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. A first sing-box subprocess adapter is now available, but Chimera is not yet a production-ready VPN client.
+Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. A first sing-box subprocess adapter is available, but Chimera is not yet a production-ready VPN client.
 
 ## Current implementation
 
@@ -13,6 +13,8 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Deterministic route-candidate selection based on health and latency
 - Bounded DNS/HTTPS diagnostics for explicitly supplied hostnames
 - sing-box adapter: upstream config check, private temporary profile, process start/health/stop
+- Cross-platform network-policy contract (policy declaration only, not OS enforcement)
+- Transport-profile validator for explicit HTTPS/WebSocket/gRPC endpoints
 - Unit tests and GitHub Actions workflow
 
 ## Foundation (Phase A)
@@ -25,6 +27,10 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 See [docs/SING_BOX_ADAPTER.md](docs/SING_BOX_ADAPTER.md). The adapter wraps an already installed sing-box executable. It validates a complete JSON profile with `sing-box check`, writes it with restrictive permissions, starts the child process, checks process liveness, and stops/cleans up the process.
 
 The adapter does **not** install or pin sing-box, configure OS routes, install system DNS settings, create a system TUN device itself, or guarantee end-to-end connectivity. A live process is not proof that routing or DNS works. Platform-specific route/DNS ownership, rollback, privilege design, and real-engine integration tests remain before production use.
+
+## CDN and TLS transport
+
+See [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md). The new `internal/transportprofile` package validates explicit TLS transport profiles while keeping the TLS server name aligned with the endpoint hostname. This is a validation contract only: automatic discovery, the actual transport dialer, CDN configuration, and OS-level tunneling are **not implemented yet**. A universal zero-config mode cannot work without a trusted bootstrap identity and a reachable service endpoint.
 
 ## Quick start
 
@@ -54,7 +60,7 @@ Do not run multiple engines as competing owners of the same traffic path without
 
 No implementation can guarantee connectivity on every network or defeat every DPI system. TLS fingerprint rotation and imitation of named third-party apps are not implemented. Synthetic traffic may be used in controlled performance tests, not to impersonate real services.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md), and [SECURITY.md](SECURITY.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md), [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md), and [SECURITY.md](SECURITY.md).
 
 ## Development
 
