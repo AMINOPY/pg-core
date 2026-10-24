@@ -114,8 +114,18 @@ func validateHostname(host string) error {
 // catalog. It tests up to 10,000 SNI/IP pairs (rather than the full million-pair
 // cross product) and returns the lowest-latency pair with a valid TLS certificate.
 func (s Scanner) Select(ctx context.Context, catalog Catalog, probe ProbeFunc) (Route, error) {
-	if err := catalog.Validate(); err != nil {
+	routes, err := s.SelectCandidates(ctx, catalog, probe)
+	if err != nil {
 		return Route{}, err
+	}
+	return routes[0], nil
+}
+
+// SelectCandidates returns up to ten healthy TLS pairs, ordered by measured
+// latency. The caller must still verify each route with the actual tunnel engine.
+func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe ProbeFunc) ([]Route, error) {
+	if err := catalog.Validate(); err != nil {
+		return nil, err
 	}
 	if probe == nil {
 		probe = ProbeTLS
@@ -164,20 +174,21 @@ func (s Scanner) Select(ctx context.Context, catalog Catalog, probe ProbeFunc) (
 		wg.Wait()
 		close(results)
 	}()
-	var best Route
-	found := false
+	routes := make([]Route, 0, 10)
 	for route := range results {
-		if !found || route.Latency < best.Latency {
-			best, found = route, true
-		}
+		routes = append(routes, route)
 	}
 	if err := ctx.Err(); err != nil {
-		return Route{}, err
+		return nil, err
 	}
-	if !found {
-		return Route{}, errors.New("no candidate pair passed TLS validation; TLS success alone also does not prove the tunnel's origin routing works")
+	if len(routes) == 0 {
+		return nil, errors.New("no candidate pair passed TLS validation; TLS success alone also does not prove the tunnel's origin routing works")
 	}
-	return best, nil
+	Rank(routes)
+	if len(routes) > 10 {
+		routes = routes[:10]
+	}
+	return routes, nil
 }
 
 func makePairs(c Catalog, budget int) []Pair {
