@@ -34,3 +34,14 @@ jobs:
         run: go test ./...
       - name: Race detector
         run: go test -race ./...
+      - name: Cross-compile Windows
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        run: go build ./...
+      - name: Cross-compile Android core
+        env:
+          GOOS: android
+          GOARCH: arm64
+          CGO_ENABLED: 0
+        run: go build ./...
