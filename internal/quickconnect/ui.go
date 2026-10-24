@@ -11,7 +11,8 @@ const indexHTML = `<!doctype html>
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px}
 main{width:min(100%,520px);background:#141c30;border:1px solid #2a3857;border-radius:20px;padding:26px;box-shadow:0 18px 60px #0005}
 h1{font-size:1.65rem;margin:0 0 8px}.sub{color:#aab8d4;margin:0 0 24px;line-height:1.5}
-label{display:block;font-weight:650;margin:18px 0 8px}input{width:100%;padding:13px 14px;border-radius:10px;border:1px solid #405174;background:#0c1426;color:#fff;font:inherit}
+label{display:block;font-weight:650;margin:18px 0 8px}input,textarea{width:100%;padding:13px 14px;border-radius:10px;border:1px solid #405174;background:#0c1426;color:#fff;font:inherit}
+textarea{width:100%;resize:vertical;line-height:1.5}
 .modes{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0 20px}.modes label{display:flex;align-items:center;gap:8px;margin:0}.modes input{width:auto;padding:0}#manualFields[hidden]{display:none}
 .hint{font-size:.85rem;color:#aab8d4;margin-top:7px;line-height:1.45}.actions{display:flex;gap:10px;margin-top:22px}
 button{flex:1;padding:12px;border:0;border-radius:10px;font:inherit;font-weight:750;cursor:pointer}
@@ -44,7 +45,7 @@ small{display:block;color:#92a3c4;margin-top:18px;line-height:1.5}
 <button id="disconnect" type="button">قطع اتصال</button>
 </div>
 </form>
-<div id="status" role="status" aria-live="polite">حالت Auto انتخاب شده است. برای استفاده، فهرست کاندیداهای Auto باید تنظیم شده باشد.</div>
+<div id="status" role="status" aria-live="polite">Auto آمادهٔ بررسی است. برای استفاده، کاتالوگ معتبر همان حالت باید از قبل تنظیم شده باشد.</div>
 <small>نسخهٔ فعلی از موتور داخلی Chimera و پراکسی محلی SOCKS5 روی 127.0.0.1:1080 استفاده می‌کند؛ هنوز موتور Xray یا تونل کل‌دستگاه را پیاده‌سازی نمی‌کند. کلید و سرور سازگار باید از قبل تنظیم شده باشند. Auto فقط TLS را بررسی می‌کند؛ تونل باید جداگانه از آزمون سلامت عبور کند. نسخهٔ فعلی همچنان از موتور داخلی Chimera استفاده می‌کند، نه Xray.</small>
 </main>
 <script>
@@ -60,14 +61,14 @@ form.addEventListener('submit',async e=>{e.preventDefault();busy(true);try{
  if(mode==='manual'){
   show('در حال راه‌اندازی تونل با مقادیر واردشده…');
   const d=await api('/api/connect',{sni:sniInput.value.trim(),edge_ips:ipsInput.value.trim()});
-  show('اتصال برقرار شد.\\nپراکسی SOCKS5: '+d.socks);
+  show('اتصال برقرار شد.\nپراکسی SOCKS5: '+d.socks);
   return;
  }
  show('در حال بررسی حداکثر ۱۰۰۰ جفت کاندیدا…');
  const selection=await api('/api/auto/select',{mode});
  const routes=selection.routes||[];
- sniInput.value=(selection.sni_candidates||[]).join('\\n');
- ipsInput.value=(selection.cdn_candidates||[]).join('\\n');
+ sniInput.value=(selection.sni_candidates||[]).join('\n');
+ ipsInput.value=(selection.cdn_candidates||[]).join('\n');
  if(!routes.length)throw new Error('هیچ مسیر TLS سالمی پیدا نشد.');
  show('آزمایش '+routes.length+' مسیر برتر؛ فهرست SNI و CDN تا ۲۰ گزینه در فیلدها قرار گرفت.');
  let lastError=null;
@@ -75,14 +76,14 @@ form.addEventListener('submit',async e=>{e.preventDefault();busy(true);try{
   show('آزمایش مسیر '+route.sni+' / '+route.cdn_ip+' ('+Number(route.latency_ms).toFixed(1)+' ms)…');
   try{
    const d=await api('/api/connect',{sni:route.sni,edge_ips:route.cdn_ip});
-   show('اتصال برقرار شد و آزمون سلامت تونل موفق بود.\\nSNI: '+route.sni+'\\nCDN: '+route.cdn_ip+'\\nپراکسی SOCKS5: '+d.socks);
+   show('اتصال برقرار شد و آزمون سلامت تونل موفق بود.\nSNI: '+route.sni+'\nCDN: '+route.cdn_ip+'\nپراکسی SOCKS5: '+d.socks);
    return;
   }catch(err){lastError=err}
  }
  throw lastError||new Error('هیچ مسیر انتخاب‌شده‌ای از آزمون سلامت تونل عبور نکرد.');
-}catch(e){show('اتصال برقرار نشد. برای Auto/CDN IR/CDN US کاتالوگ معتبر باید تنظیم شده باشد؛ برچسب منطقه‌ای بر اساس کاتالوگ انتخابی است و به‌تنهایی کشور IP را اثبات نمی‌کند.\\nجزئیات: '+e.message)}finally{busy(false)}});
+}catch(e){show('اتصال برقرار نشد. برای Auto/CDN IR/CDN US کاتالوگ معتبر باید تنظیم شده باشد؛ برچسب منطقه‌ای بر اساس کاتالوگ انتخابی است و به‌تنهایی کشور IP را اثبات نمی‌کند.\nجزئیات: '+e.message)}finally{busy(false)}});
 disconnectBtn.addEventListener('click',async()=>{busy(true);try{await api('/api/disconnect',{});show('اتصال قطع شد.')}catch(e){show('قطع اتصال ناموفق بود: '+e.message)}finally{busy(false)}});
-api('/api/status').then(d=>{if(d.connected)show('اتصال برقرار است.\\nSOCKS5: '+d.socks)}).catch(()=>show('رابط محلی در دسترس نیست.'));
+api('/api/status').then(d=>{if(d.connected)show('اتصال برقرار است.\nSOCKS5: '+d.socks)}).catch(()=>show('رابط محلی در دسترس نیست.'));
 setMode();
 </script>
 </body>
