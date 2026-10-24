@@ -67,8 +67,8 @@ func (p Profile) Validate() error {
 	if host != serverName {
 		return fmt.Errorf("%w: server_name must match endpoint hostname", ErrInvalidProfile)
 	}
-	if p.Path == "" || !strings.HasPrefix(p.Path, "/") || len(p.Path) > 1024 ||
-		strings.ContainsAny(p.Path, "\r\n") {
+	if p.Path == "" || !strings.HasPrefix(p.Path, "/") || strings.HasPrefix(p.Path, "//") ||
+		len(p.Path) > 1024 || strings.ContainsAny(p.Path, "\r\n\\?#") {
 		return fmt.Errorf("%w: path must be an absolute path of at most 1024 bytes", ErrInvalidProfile)
 	}
 	if p.AuthRef != "" && !envReference.MatchString(p.AuthRef) {
