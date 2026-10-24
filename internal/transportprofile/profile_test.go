@@ -9,7 +9,7 @@ func validProfile() Profile {
 	return Profile{
 		Version:    1,
 		Name:       "primary",
-		Endpoint:   "https://tunnel.example.com/transport",
+		Endpoint:   "https://tunnel.example.com",
 		ServerName: "tunnel.example.com",
 		Kind:       WebSocket,
 		Path:       "/transport",
@@ -36,12 +36,13 @@ func TestRejectsInsecureOrAmbiguousEndpoint(t *testing.T) {
 		name     string
 		endpoint string
 	}{
-		{"plain HTTP", "http://tunnel.example.com/transport"},
-		{"user info", "https://user:pass@tunnel.example.com/transport"},
-		{"query", "https://tunnel.example.com/transport?next=example.org"},
-		{"fragment", "https://tunnel.example.com/transport#fragment"},
-		{"nonstandard port", "https://tunnel.example.com:8443/transport"},
-		{"IP literal", "https://192.0.2.1/transport"},
+		{"plain HTTP", "http://tunnel.example.com"},
+		{"user info", "https://user:pass@tunnel.example.com"},
+		{"query", "https://tunnel.example.com?next=example.org"},
+		{"fragment", "https://tunnel.example.com#fragment"},
+		{"nonstandard port", "https://tunnel.example.com:8443"},
+		{"IP literal", "https://192.0.2.1"},
+		{"path must be separate", "https://tunnel.example.com/transport"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -79,7 +80,7 @@ func TestRejectsInvalidKindPathAndAuthReference(t *testing.T) {
 
 func TestEndpointHostComparisonIsCaseInsensitive(t *testing.T) {
 	p := validProfile()
-	p.Endpoint = "https://Tunnel.Example.Com/transport"
+	p.Endpoint = "https://Tunnel.Example.Com"
 	if err := p.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
