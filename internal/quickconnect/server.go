@@ -164,17 +164,21 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 	defer cancel()
-	route, err := (autocdn.Scanner{Workers: 32, Timeout: 1800 * time.Millisecond, Budget: autocdn.MaxPairProbes}).Select(ctx, *s.catalog, nil)
+	routes, err := (autocdn.Scanner{Workers: 64, Timeout: 800 * time.Millisecond, Budget: autocdn.MaxPairProbes}).SelectCandidates(ctx, *s.catalog, nil)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"sni": route.SNI,
-		"cdn_ip": route.CDNIP,
-		"latency_ms": float64(route.Latency) / float64(time.Millisecond),
-		"checked_at": route.CheckedAt,
-	})
+	items := make([]map[string]any, 0, len(routes))
+	for _, route := range routes {
+		items = append(items, map[string]any{
+			"sni": route.SNI,
+			"cdn_ip": route.CDNIP,
+			"latency_ms": float64(route.Latency) / float64(time.Millisecond),
+			"checked_at": route.CheckedAt,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"routes": items})
 }
 
 func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
