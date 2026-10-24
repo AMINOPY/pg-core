@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/netip"
@@ -41,8 +42,8 @@ type statusResponse struct {
 
 type Server struct {
 	key        string
-	catalog    *autocdn.Catalog
-	catalogErr string
+	catalogs   map[string]*autocdn.Catalog
+	catalogErr map[string]string
 
 	mu      sync.Mutex
 	adapter *native.Adapter
@@ -54,23 +55,35 @@ func NewFromEnv() (*Server, error) {
 	if !validServerKey(key) {
 		return nil, errors.New("CHIMERA_TUNNEL_KEY must be set to a server key of at least 24 URL-safe characters")
 	}
-	s := &Server{key: key}
-	catalogPath := strings.TrimSpace(os.Getenv("CHIMERA_AUTO_CANDIDATES"))
-	if catalogPath != "" {
+	s := &Server{
+		key:        key,
+		catalogs:   make(map[string]*autocdn.Catalog),
+		catalogErr: make(map[string]string),
+	}
+	for mode, envName := range map[string]string{
+		"auto": "CHIMERA_AUTO_CANDIDATES",
+		"ir":   "CHIMERA_CDN_IR_CANDIDATES",
+		"us":   "CHIMERA_CDN_US_CANDIDATES",
+	} {
+		catalogPath := strings.TrimSpace(os.Getenv(envName))
+		if catalogPath == "" {
+			s.catalogErr[mode] = "candidate catalog is not configured (" + envName + ")"
+			continue
+		}
 		data, err := os.ReadFile(catalogPath)
 		if err != nil {
-			s.catalogErr = "candidate catalog could not be read"
+			s.catalogErr[mode] = "candidate catalog could not be read"
+			continue
+		}
+		dec := json.NewDecoder(strings.NewReader(string(data)))
+		dec.DisallowUnknownFields()
+		var catalog autocdn.Catalog
+		if err := dec.Decode(&catalog); err != nil {
+			s.catalogErr[mode] = "candidate catalog is invalid JSON"
+		} else if err := catalog.Validate(); err != nil {
+			s.catalogErr[mode] = "candidate catalog failed validation: " + err.Error()
 		} else {
-			dec := json.NewDecoder(strings.NewReader(string(data)))
-			dec.DisallowUnknownFields()
-			var catalog autocdn.Catalog
-			if err := dec.Decode(&catalog); err != nil {
-				s.catalogErr = "candidate catalog is invalid JSON"
-			} else if err := catalog.Validate(); err != nil {
-				s.catalogErr = "candidate catalog failed validation: " + err.Error()
-			} else {
-				s.catalog = &catalog
-			}
+			s.catalogs[mode] = &catalog
 		}
 	}
 	return s, nil
@@ -158,22 +171,42 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if s.catalog == nil {
-		message := "Auto mode is not configured; set CHIMERA_AUTO_CANDIDATES to a trusted candidate catalog"
-		if s.catalogErr != "" {
-			message += " (" + s.catalogErr + ")"
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	var req struct {
+		Mode string `json:"mode"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid selection request"})
+		return
+	}
+	mode := strings.ToLower(strings.TrimSpace(req.Mode))
+	if mode == "" {
+		mode = "auto"
+	}
+	if mode != "auto" && mode != "ir" && mode != "us" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "mode must be auto, ir, or us"})
+		return
+	}
+	catalog := s.catalogs[mode]
+	if catalog == nil {
+		message := "candidate catalog is not configured for " + mode
+		if s.catalogErr[mode] != "" {
+			message += ": " + s.catalogErr[mode]
 		}
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": message})
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 	defer cancel()
-	routes, err := (autocdn.Scanner{Workers: 64, Timeout: 800 * time.Millisecond, Budget: autocdn.MaxPairProbes}).SelectCandidates(ctx, *s.catalog, nil)
+	routes, err := (autocdn.Scanner{Workers: 64, Timeout: 800 * time.Millisecond, Budget: autocdn.MaxPairProbes}).SelectCandidates(ctx, *catalog, nil)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
 	}
 	items := make([]map[string]any, 0, len(routes))
+	sniCandidates := make([]string, 0, autocdn.MaxRankedRoutes)
+	cdnCandidates := make([]string, 0, autocdn.MaxRankedRoutes)
+	seenSNI, seenCDN := map[string]bool{}, map[string]bool{}
 	for _, route := range routes {
 		items = append(items, map[string]any{
 			"sni": route.SNI,
@@ -181,8 +214,22 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 			"latency_ms": float64(route.Latency) / float64(time.Millisecond),
 			"checked_at": route.CheckedAt,
 		})
+		if !seenSNI[route.SNI] && len(sniCandidates) < autocdn.MaxRankedRoutes {
+			seenSNI[route.SNI] = true
+			sniCandidates = append(sniCandidates, route.SNI)
+		}
+		if !seenCDN[route.CDNIP] && len(cdnCandidates) < autocdn.MaxRankedRoutes {
+			seenCDN[route.CDNIP] = true
+			cdnCandidates = append(cdnCandidates, route.CDNIP)
+		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"routes": items})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"mode": mode, "routes": items,
+		"sni_candidates": sniCandidates, "cdn_candidates": cdnCandidates,
+		"max_sni_candidates": autocdn.MaxCandidates,
+		"max_cdn_candidates": autocdn.MaxCandidates,
+		"max_pair_probes": autocdn.MaxPairProbes,
+	})
 }
 
 func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
