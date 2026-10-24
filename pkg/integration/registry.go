@@ -16,7 +16,7 @@ import (
 type EntryPoint string
 
 const (
-	EntrySettings     EntryPoint = "settings"
+	EntrySettings      EntryPoint = "settings"
 	EntryAddConnection EntryPoint = "add_connection"
 )
 
@@ -41,8 +41,8 @@ type Action struct {
 // HostContext contains non-secret runtime context supplied by the host. Do not
 // put credentials, tokens, private keys, or full configuration blobs here.
 type HostContext struct {
-	AppID             string
-	ActiveEngineID    string
+	AppID              string
+	ActiveEngineID     string
 	AvailableEngineIDs []string
 }
 
@@ -60,8 +60,8 @@ type Registry interface {
 }
 
 var (
-	ErrNilRegistry = errors.New("integration: registry is required")
-	ErrNilModule   = errors.New("integration: module is required")
+	ErrNilRegistry       = errors.New("integration: registry is required")
+	ErrNilModule         = errors.New("integration: module is required")
 	ErrUnknownEntryPoint = errors.New("integration: unsupported entry point")
 )
 
@@ -108,6 +108,9 @@ func Register(registry Registry, module Module) error {
 func Invoke(ctx context.Context, module Module, entry EntryPoint, host HostContext) error {
 	if module == nil {
 		return ErrNilModule
+	}
+	if ctx == nil {
+		return errors.New("integration: context is required")
 	}
 	if err := ctx.Err(); err != nil {
 		return err
