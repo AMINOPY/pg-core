@@ -24,7 +24,7 @@ const (
 var ErrInvalidConnectionConfig = errors.New("invalid connection config")
 
 const (
-	MaxCDNIPs          = 32
+	MaxCDNIPs           = 32
 	MaxProbeConcurrency = 8
 	defaultProbeTimeout = 4 * time.Second
 )
