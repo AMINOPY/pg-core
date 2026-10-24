@@ -19,8 +19,9 @@ import (
 
 const (
 	MaxCandidates  = 1000
-	MaxPairProbes  = 10000
+	MaxPairProbes  = 1000
 	defaultWorkers = 32
+	MaxRankedRoutes = 20
 	defaultTimeout = 1800 * time.Millisecond
 )
 
@@ -128,7 +129,7 @@ func (s Scanner) Select(ctx context.Context, catalog Catalog, probe ProbeFunc) (
 	return routes[0], nil
 }
 
-// SelectCandidates returns up to ten healthy TLS pairs, ordered by measured
+// SelectCandidates returns up to twenty healthy TLS pairs, ordered by measured
 // latency. The caller must still verify each route with the actual tunnel engine.
 func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe ProbeFunc) ([]Route, error) {
 	if err := catalog.Validate(); err != nil {
@@ -181,7 +182,7 @@ func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe Pr
 		wg.Wait()
 		close(results)
 	}()
-	routes := make([]Route, 0, 10)
+	routes := make([]Route, 0, MaxRankedRoutes)
 	for route := range results {
 		routes = append(routes, route)
 	}
@@ -192,8 +193,8 @@ func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe Pr
 		return nil, errors.New("no candidate pair passed TLS validation; TLS success alone also does not prove the tunnel's origin routing works")
 	}
 	Rank(routes)
-	if len(routes) > 10 {
-		routes = routes[:10]
+	if len(routes) > MaxRankedRoutes {
+		routes = routes[:MaxRankedRoutes]
 	}
 	return routes, nil
 }
