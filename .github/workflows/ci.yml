@@ -39,9 +39,3 @@ jobs:
           GOOS: windows
           GOARCH: amd64
         run: go build ./...
-      - name: Cross-compile Android core
-        env:
-          GOOS: android
-          GOARCH: arm64
-          CGO_ENABLED: 0
-        run: go build ./...
