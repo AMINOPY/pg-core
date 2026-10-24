@@ -27,7 +27,7 @@
 
 ## Phase C — Network correctness
 - [ ] Define DNS ownership and leak-test strategy
-- [ ] Define IPv4/IPv6 policy
+- [x] Define platform-neutral IPv4/IPv6 and routing policy contract (enforcement still pending)
 - [ ] Verify system routes are restored after crash/stop
 - [ ] Add controlled end-to-end health checks
 - [ ] Define fail-closed behavior and test it on supported platforms
