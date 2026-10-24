@@ -4,7 +4,6 @@ package diagnostics
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -75,11 +74,6 @@ func (b Benchmarker) Benchmark(parent context.Context, rawURL string) BenchmarkR
 		result.Error = "expected an HTTPS URL without userinfo or fragment"
 		return result
 	}
-	if u.Port() != "" && u.Port() != "443" {
-		result.Error = "custom HTTPS ports are not supported"
-		return result
-	}
-
 	ctx, cancel := context.WithTimeout(parent, b.timeout())
 	defer cancel()
 	started := time.Now()
@@ -151,9 +145,6 @@ func (b Benchmarker) Benchmark(parent context.Context, rawURL string) BenchmarkR
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		result.Error = fmt.Sprintf("unexpected HTTP status %d", resp.StatusCode)
-	}
-	if result.TotalLatency <= 0 {
-		result.Error = errors.New("invalid timing measurement").Error()
 	}
 	return result
 }
