@@ -38,7 +38,19 @@
 - [ ] Evaluate Aether integration surface and license
 - [ ] Reject incompatible combinations during validation
 
-## Phase E — Quality
+## Phase E — Transport resilience
+- [x] Add strict validation contract for explicit HTTPS/WebSocket/gRPC transport profiles
+- [x] Add unit and fuzz tests for transport-profile validation
+- [x] Verify Ed25519-signed transport manifests with host binding, expiry, and sequence checks
+- [x] Fetch well-known manifests over bounded, certificate-verified HTTPS; reject redirects
+- [x] Document customer-controlled CDN/TLS transport requirements and discovery design
+- [ ] Persist accepted manifest sequence for rollback protection across client restarts
+- [ ] Add operator-side signed manifest publishing and key rotation workflow
+- [ ] Implement transport dialer and bounded reconnect/health checks
+- [ ] Test CDN provider compatibility and end-to-end TLS identity validation
+- [ ] Add transport benchmarks before selecting a performance-sensitive implementation language
+
+## Phase F — Quality
 - [x] Add a fuzz target for strict config JSON decoding and schema validation
 - [ ] Fuzz policy normalization
 - [ ] Add benchmarks and long-running tests
