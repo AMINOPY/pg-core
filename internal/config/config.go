@@ -19,6 +19,7 @@ const (
 	EngineSingBox        EngineID = "sing-box"
 	EngineMihomo         EngineID = "mihomo"
 	EngineAether         EngineID = "aether"
+	EngineNative         EngineID = "native"
 )
 
 type Config struct {
@@ -112,7 +113,7 @@ func (c Config) Validate() error {
 
 func knownEngine(id EngineID) bool {
 	switch id {
-	case EngineXray, EngineSingBox, EngineMihomo, EngineAether:
+	case EngineXray, EngineSingBox, EngineMihomo, EngineAether, EngineNative:
 		return true
 	default:
 		return false

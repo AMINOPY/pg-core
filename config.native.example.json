@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "profile": "native",
+  "active_engine": "native",
+  "enabled_engines": ["native"],
+  "fronting": {
+    "sni": "your-worker.your-name.workers.dev",
+    "edge_ips": "104.16.0.1, 104.17.0.1\n104.18.0.1"
+  }
+}

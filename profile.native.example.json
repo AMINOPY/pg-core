@@ -1,0 +1,4 @@
+{
+  "key": "PUT-A-LONG-RANDOM-SECRET-HERE",
+  "listen": "127.0.0.1:1080"
+}

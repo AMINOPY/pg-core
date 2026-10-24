@@ -47,6 +47,7 @@ See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use syste
 
 | Engine | Status |
 |---|---|
+| native    | Own engine: TLS+WebSocket tunnel, local SOCKS5, CDN/SNI. See [docs/NATIVE_ENGINE.md](docs/NATIVE_ENGINE.md) |
 | sing-box | Initial subprocess adapter implemented; platform networking validation remains |
 | Xray-core | Planned |
 | Mihomo | Planned |

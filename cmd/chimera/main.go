@@ -6,14 +6,19 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/AMINOPY/pg-core/internal/config"
 	"github.com/AMINOPY/pg-core/internal/diagnostics"
+	"github.com/AMINOPY/pg-core/internal/engine/native"
+	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
 func main() {
 	configPath := flag.String("config", "", "path to a Chimera JSON configuration file (validation only)")
+	run := flag.Bool("run", false, "run the native engine (local SOCKS5) using --config and --profile")
+	profilePath := flag.String("profile", "", "path to a native engine profile (JSON), used with --run")
 	diagnose := flag.String("diagnose", "", "run bounded DNS + HTTPS checks for a hostname")
 	listEngines := flag.Bool("list-engines", false, "list known engine IDs and implementation status")
 	status := flag.Bool("status", false, "show local CLI status (no daemon is currently available)")
@@ -61,9 +66,44 @@ func main() {
 		os.Exit(2)
 	}
 
+	if *run {
+		runNative(cfg, *profilePath)
+		return
+	}
+
 	fmt.Printf("Configuration valid: schema_version=%d profile=%q engine=%q\n", cfg.SchemaVersion, cfg.Profile, cfg.ActiveEngine)
 	if cfg.Fronting != nil && cfg.Fronting.Enabled() {
-		fmt.Printf("CDN/SNI: sni=%q edge_ips=%d\n", cfg.Fronting.SNI, len(cfg.Fronting.EdgeIPs))
+		ips, skipped := fronting.ParseIPs(cfg.Fronting.EdgeIPs)
+		fmt.Printf("CDN/SNI: sni=%q edge_ips=%d skipped=%d\n", cfg.Fronting.SNI, len(ips), len(skipped))
 	}
 	fmt.Println("Validation only: no network engine or tunnel was started.")
+}
+
+func runNative(cfg config.Config, profilePath string) {
+	if cfg.ActiveEngine != config.EngineNative {
+		fmt.Fprintln(os.Stderr, "--run needs active_engine \"native\"")
+		os.Exit(2)
+	}
+	if profilePath == "" {
+		fmt.Fprintln(os.Stderr, "--run needs --profile")
+		os.Exit(2)
+	}
+	profile, err := os.ReadFile(profilePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "read profile: %v\n", err)
+		os.Exit(2)
+	}
+	a := native.New()
+	a.Fronting = cfg.Fronting
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := a.Start(ctx, profile); err != nil {
+		fmt.Fprintf(os.Stderr, "start: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("SOCKS5 proxy listening on %s (Ctrl+C to stop)\n", a.Addr())
+	rep, _ := a.Health(ctx)
+	fmt.Printf("edge check: %s %s\n", rep.Status, rep.ErrorCode)
+	<-ctx.Done()
+	_ = a.Stop(context.Background())
 }
