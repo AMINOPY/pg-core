@@ -1,11 +1,11 @@
 package quickconnect
 
 const indexHTML = `<!doctype html>
-<html lang="en">
+<html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chimera Quick Connect</title>
+<title>اتصال سریع Chimera</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0b1020;color:#edf2ff}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px}
@@ -21,31 +21,31 @@ small{display:block;color:#92a3c4;margin-top:18px;line-height:1.5}
 </head>
 <body>
 <main>
-<h1>Chimera Quick Connect</h1>
-<p class="sub">Connect using two values. No JSON config file is needed for this local session.</p>
+<h1>اتصال سریع Chimera</h1>
+<p class="sub">فقط دو مقدار وارد کن؛ برای این اتصال به فایل کانفیگ محلی نیاز نیست.</p>
 <form id="form">
-<label for="sni">SNI / server hostname</label>
+<label for="sni">SNI / نام میزبان سرور</label>
 <input id="sni" name="sni" autocomplete="url" placeholder="your-worker.workers.dev" required maxlength="253">
-<div class="hint">Use a hostname configured for your own tunnel server.</div>
-<label for="ips">CDN edge IPs</label>
+<div class="hint">نام میزبانی را وارد کن که برای سرور تونل خودت تنظیم شده است.</div>
+<label for="ips">IPهای لبهٔ CDN</label>
 <input id="ips" name="ips" placeholder="203.0.113.10, 203.0.113.11" required maxlength="4096">
-<div class="hint">Enter IP addresses for your CDN, separated by commas or spaces. Invalid entries are rejected by validation.</div>
+<div class="hint">IPهای CDN را با ویرگول یا فاصله جدا کن. فقط IP معتبر پذیرفته می‌شود.</div>
 <div class="actions">
-<button id="connect" type="submit">Connect tunnel</button>
-<button id="disconnect" type="button">Disconnect</button>
+<button id="connect" type="submit">اتصال از طریق تونل</button>
+<button id="disconnect" type="button">قطع اتصال</button>
 </div>
 </form>
-<div id="status" role="status" aria-live="polite">Disconnected. Enter SNI and edge IPs to begin.</div>
-<small>This starts a local SOCKS5 proxy at 127.0.0.1:1080. It does not change system-wide routing; configure an app to use that proxy. A valid server key and a working server/CDN route must already be set up on this device/server.</small>
+<div id="status" role="status" aria-live="polite">اتصال برقرار نیست. برای شروع، SNI و IPهای CDN را وارد کن.</div>
+<small>این کار پراکسی محلی SOCKS5 را روی 127.0.0.1:1080 فعال می‌کند؛ مسیر کل دستگاه را تغییر نمی‌دهد. برنامه‌ای را که می‌خواهی از تونل استفاده کند، روی همین پراکسی تنظیم کن. کلید سرور و مسیر فعال CDN باید از قبل تنظیم شده باشند.</small>
 </main>
 <script>
 const form=document.getElementById('form'),statusBox=document.getElementById('status'),connectBtn=document.getElementById('connect'),disconnectBtn=document.getElementById('disconnect');
 async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});let data={};try{data=await r.json()}catch{}if(!r.ok)throw new Error(data.error||data.message||'Request failed');return data}
 function show(s){statusBox.textContent=s}
 function busy(v){connectBtn.disabled=v;disconnectBtn.disabled=v}
-form.addEventListener('submit',async e=>{e.preventDefault();busy(true);show('Checking TLS/WebSocket endpoint and starting local SOCKS5…');try{const d=await api('/api/connect',{sni:document.getElementById('sni').value.trim(),edge_ips:document.getElementById('ips').value.trim()});show((d.message||'Connected')+'\nSOCKS5: '+d.socks)}catch(e){show('Connection failed: '+e.message)}finally{busy(false)}});
-disconnectBtn.addEventListener('click',async()=>{busy(true);try{const d=await api('/api/disconnect',{});show(d.message||'Disconnected')}catch(e){show('Disconnect failed: '+e.message)}finally{busy(false)}});
-api('/api/status').then(d=>{if(d.connected)show('Connected\nSOCKS5: '+d.socks)}).catch(()=>show('Local API unavailable.'));
+form.addEventListener('submit',async e=>{e.preventDefault();busy(true);show('در حال بررسی TLS/WebSocket و راه‌اندازی پراکسی محلی…');try{const d=await api('/api/connect',{sni:document.getElementById('sni').value.trim(),edge_ips:document.getElementById('ips').value.trim()});show((d.message||'Connected')+'\nSOCKS5: '+d.socks)}catch(e){show('اتصال برقرار نشد. SNI، IPها، کلید سرور و تنظیمات CDN را بررسی کن.\\nجزئیات: '+e.message)}finally{busy(false)}});
+disconnectBtn.addEventListener('click',async()=>{busy(true);try{const d=await api('/api/disconnect',{});show('اتصال قطع شد.')}catch(e){show('قطع اتصال ناموفق بود: '+e.message)}finally{busy(false)}});
+api('/api/status').then(d=>{if(d.connected)show('Connected\nSOCKS5: '+d.socks)}).catch(()=>show('رابط محلی در دسترس نیست.'));
 </script>
 </body>
 </html>`
