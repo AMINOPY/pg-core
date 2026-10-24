@@ -3,6 +3,7 @@ package autocdn
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -68,5 +69,30 @@ func TestSelectReturnsErrorWhenNoPairWorks(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected no-route error")
+	}
+}
+
+func TestSelectCandidatesReturnsAtMostTwentyRoutes(t *testing.T) {
+	snis := make([]string, 30)
+	ips := make([]string, 30)
+	for i := range snis {
+		snis[i] = fmt.Sprintf("sni-%02d.example.com", i)
+		ips[i] = fmt.Sprintf("1.1.1.%d", i+1)
+	}
+	c := Catalog{SNIs: snis, CDNIPs: ips}
+	routes, err := (Scanner{Workers: 8, Budget: MaxPairProbes}).SelectCandidates(context.Background(), c,
+		func(_ context.Context, sni, ip string) (time.Duration, error) {
+			return time.Duration(len(sni)+len(ip)) * time.Millisecond, nil
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != MaxRankedRoutes {
+		t.Fatalf("got %d routes, want %d", len(routes), MaxRankedRoutes)
+	}
+	for i := 1; i < len(routes); i++ {
+		if routes[i].Latency < routes[i-1].Latency {
+			t.Fatalf("routes are not ranked: %v then %v", routes[i-1], routes[i])
+		}
 	}
 }
