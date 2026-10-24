@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/AMINOPY/pg-core/internal/transportprofile"
+)
 
 func TestValidateAcceptsKnownEngine(t *testing.T) {
 	cfg := Config{
@@ -39,5 +43,25 @@ func TestValidateRejectsDuplicateEngines(t *testing.T) {
 	}
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected duplicate engine to be rejected")
+	}
+}
+
+func TestValidateConnectionModes(t *testing.T) {
+	cfg := Config{
+		Profile:      "development",
+		ActiveEngine: EngineSingBox,
+		Connection: &transportprofile.ConnectionConfig{
+			Mode:       transportprofile.ModeCDNFronting,
+			Endpoint:   "https://origin.example.com",
+			ServerName: "edge.example.net",
+			CDNIPs:     []string{"192.0.2.10"},
+		},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected valid CDN-fronting config, got %v", err)
+	}
+	cfg.Connection.CDNIPs = nil
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected CDN-fronting config without IPs to be rejected")
 	}
 }
