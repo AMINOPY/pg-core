@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/netip"
 	"sort"
 	"strings"
@@ -20,20 +21,23 @@ import (
 const (
 	MaxCandidates   = 1000
 	MaxPairProbes   = 1000
-	defaultWorkers  = 32
+	MaxWorkers      = 32
+	defaultWorkers  = 8
 	MaxRankedRoutes = 20
 	defaultTimeout  = 1800 * time.Millisecond
 )
 
 type Catalog struct {
-	SNIs   []string `json:"sni"`
-	CDNIPs []string `json:"cdn_ips"`
+	SNIs       []string       `json:"sni"`
+	CDNIPs     []string       `json:"cdn_ips"`
+	SNIWeights map[string]int `json:"sni_weights,omitempty"`
 }
 
 type Route struct {
 	SNI       string        `json:"sni"`
 	CDNIP     string        `json:"cdn_ip"`
 	Latency   time.Duration `json:"latency_ns"`
+	Weight    int           `json:"weight,omitempty"`
 	CheckedAt time.Time     `json:"checked_at"`
 }
 
@@ -71,9 +75,18 @@ func (c Catalog) Validate() error {
 		}
 		key := strings.ToLower(strings.TrimSuffix(host, "."))
 		if seenSNI[key] {
-			return fmt.Errorf("duplicate SNI candidate %q", host)
+			return fmt.Errorf("duplicate SNI candidate %q", raw)
 		}
 		seenSNI[key] = true
+	}
+	for raw, weight := range c.SNIWeights {
+		key := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(raw), "."))
+		if !seenSNI[key] {
+			return fmt.Errorf("weight configured for unknown SNI %q", raw)
+		}
+		if strings.TrimSpace(raw) != raw || weight < -1000 || weight > 1000 {
+			return fmt.Errorf("SNI weight for %q must be between -1000 and 1000", raw)
+		}
 	}
 	seenIP := make(map[netip.Addr]bool, len(c.CDNIPs))
 	for _, raw := range c.CDNIPs {
@@ -119,8 +132,7 @@ func validateHostname(host string) error {
 }
 
 // Select performs a bounded set of TLS probes across the trusted candidate
-// catalog. It tests up to 1,000 SNI/IP pairs (rather than the full million-pair
-// cross product) and returns the lowest-latency pair with a valid TLS certificate.
+// catalog and returns the lowest-latency pair with a valid TLS certificate.
 func (s Scanner) Select(ctx context.Context, catalog Catalog, probe ProbeFunc) (Route, error) {
 	routes, err := s.SelectCandidates(ctx, catalog, probe)
 	if err != nil {
@@ -130,7 +142,8 @@ func (s Scanner) Select(ctx context.Context, catalog Catalog, probe ProbeFunc) (
 }
 
 // SelectCandidates returns up to twenty healthy TLS pairs, ordered by measured
-// latency. The caller must still verify each route with the actual tunnel engine.
+// latency, then by optional static SNI weight. The caller must still verify
+// each route with the actual tunnel engine.
 func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe ProbeFunc) ([]Route, error) {
 	if err := catalog.Validate(); err != nil {
 		return nil, err
@@ -139,8 +152,11 @@ func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe Pr
 		probe = ProbeTLS
 	}
 	workers := s.Workers
-	if workers <= 0 || workers > 64 {
+	if workers <= 0 {
 		workers = defaultWorkers
+	}
+	if workers > MaxWorkers {
+		workers = MaxWorkers
 	}
 	timeout := s.Timeout
 	if timeout <= 0 {
@@ -163,7 +179,10 @@ func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe Pr
 				latency, err := probe(probeCtx, pair.SNI, pair.CDNIP)
 				cancel()
 				if err == nil {
-					results <- Route{SNI: pair.SNI, CDNIP: pair.CDNIP, Latency: latency, CheckedAt: time.Now().UTC()}
+					results <- Route{
+						SNI: pair.SNI, CDNIP: pair.CDNIP, Latency: latency,
+						Weight: catalog.weightForSNI(pair.SNI), CheckedAt: time.Now().UTC(),
+					}
 				}
 			}
 		}()
@@ -199,6 +218,15 @@ func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe Pr
 	return routes, nil
 }
 
+func (c Catalog) weightForSNI(sni string) int {
+	for host, weight := range c.SNIWeights {
+		if strings.EqualFold(strings.TrimSuffix(host, "."), strings.TrimSuffix(sni, ".")) {
+			return weight
+		}
+	}
+	return 0
+}
+
 func makePairs(c Catalog, budget int) []Pair {
 	maxPairs := len(c.SNIs) * len(c.CDNIPs)
 	if budget > maxPairs {
@@ -206,9 +234,6 @@ func makePairs(c Catalog, budget int) []Pair {
 	}
 	pairs := make([]Pair, 0, budget)
 	seen := make(map[string]bool, budget)
-	// The first sweep includes every SNI and every IP when both lists contain
-	// at most 1000 entries. Further sweeps vary pairings without scanning the
-	// entire Cartesian product.
 	for round := 0; len(pairs) < budget; round++ {
 		before := len(pairs)
 		for i, sni := range c.SNIs {
@@ -231,9 +256,11 @@ func makePairs(c Catalog, budget int) []Pair {
 	return pairs
 }
 
-// ProbeTLS checks a public CDN IP with the candidate SNI and normal certificate
-// verification. It does not disable TLS verification or claim that the origin
-// tunnel is healthy; the selected route must pass the engine's own health check.
+// ProbeTLS validates the certificate for the requested SNI and performs a
+// lightweight HTTPS HEAD check through the same edge IP. An HTTP failure is
+// treated as a soft signal, not proof that the TLS route is unusable, because
+// some valid fronting endpoints do not support HEAD. Certificate validation
+// is never disabled.
 func ProbeTLS(ctx context.Context, sni, ip string) (time.Duration, error) {
 	start := time.Now()
 	dialer := &net.Dialer{}
@@ -241,23 +268,58 @@ func ProbeTLS(ctx context.Context, sni, ip string) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer raw.Close()
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = raw.SetDeadline(deadline)
 	}
 	conn := tls.Client(raw, &tls.Config{ServerName: sni, MinVersion: tls.VersionTLS12})
 	if err := conn.HandshakeContext(ctx); err != nil {
+		_ = raw.Close()
 		return 0, err
+	}
+	_ = conn.Close()
+	tlsLatency := time.Since(start)
+
+	if err := probeHTTPSHead(ctx, sni, ip); err != nil {
+		// Preserve a successful, certificate-validated TLS candidate but nudge
+		// routes with a working HTTPS response ahead of otherwise equal routes.
+		return tlsLatency + 50*time.Millisecond, nil
 	}
 	return time.Since(start), nil
 }
 
-// Rank sorts already-validated route results by latency, with stable SNI/IP
-// tie-breaking for reproducible displays and tests.
+func probeHTTPSHead(ctx context.Context, sni, ip string) error {
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort(ip, "443"))
+		},
+		TLSClientConfig: &tls.Config{ServerName: sni, MinVersion: tls.VersionTLS12},
+		DisableKeepAlives: true,
+	}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Transport: transport, CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, "https://"+sni+"/", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	return nil
+}
+
+// Rank sorts validated routes by latency ascending, static SNI weight descending,
+// then SNI/IP for reproducible displays and tests.
 func Rank(routes []Route) {
 	sort.SliceStable(routes, func(i, j int) bool {
 		if routes[i].Latency != routes[j].Latency {
 			return routes[i].Latency < routes[j].Latency
+		}
+		if routes[i].Weight != routes[j].Weight {
+			return routes[i].Weight > routes[j].Weight
 		}
 		if routes[i].SNI != routes[j].SNI {
 			return routes[i].SNI < routes[j].SNI
