@@ -17,6 +17,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Transport-profile validator for explicit HTTPS/WebSocket/gRPC endpoints
 - Unit tests and fuzz targets for transport profiles and signed discovery manifests
 - Ed25519-signed manifest verification, expiry/sequence checks, and bounded HTTPS discovery fetch
+- Validated Auto/Direct/CDN Fronting connection modes and bounded TLS probes for explicitly listed CDN IPs (not yet connected to the traffic engine)
 
 ## Foundation (Phase A)
 
