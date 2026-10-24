@@ -51,7 +51,10 @@ func (p Profile) Validate() error {
 		return fmt.Errorf("%w: endpoint URL: %v", ErrInvalidProfile, err)
 	}
 	if u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return fmt.Errorf("%w: endpoint must be an https URL without user info, query, or fragment", ErrInvalidProfile)
+		return fmt.Errorf("%w: endpoint must be an https origin without user info, query, or fragment", ErrInvalidProfile)
+	}
+	if u.Path != "" && u.Path != "/" {
+		return fmt.Errorf("%w: endpoint must contain only the origin; use path for the transport path", ErrInvalidProfile)
 	}
 	if port := u.Port(); port != "" && port != "443" {
 		return fmt.Errorf("%w: endpoint must use HTTPS port 443", ErrInvalidProfile)
