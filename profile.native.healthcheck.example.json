@@ -1,0 +1,6 @@
+{
+  "key": "PUT-A-LONG-RANDOM-SECRET-HERE",
+  "listen": "127.0.0.1:1080",
+  "timeout_ms": 10000,
+  "health_url": "https://example.com/"
+}
