@@ -362,13 +362,23 @@ func Serve(ctx context.Context, listen string, s *Server) error {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = httpServer.Shutdown(shutdownCtx)
+		shutdownErr := httpServer.Shutdown(shutdownCtx)
+
+		// Do not clear the adapter state until cleanup succeeds. Returning nil
+		// while a tunnel may still own its listener/resources hides a shutdown
+		// failure from the caller.
 		s.mu.Lock()
 		a := s.adapter
+		if a != nil {
+			if err := a.Stop(context.Background()); err != nil {
+				s.mu.Unlock()
+				return fmt.Errorf("stop quick-connect tunnel during shutdown: %w", err)
+			}
+		}
 		s.adapter, s.addr = nil, ""
 		s.mu.Unlock()
-		if a != nil {
-			_ = a.Stop(context.Background())
+		if shutdownErr != nil {
+			return fmt.Errorf("shutdown quick-connect UI: %w", shutdownErr)
 		}
 		return nil
 	case err := <-done:
