@@ -16,11 +16,16 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - sing-box and Xray adapters: config validation, private temporary profiles, process start/health/stop
 - Native TLS+WebSocket tunnel, local SOCKS5, and CDN/SNI support
 - Native tunnel WebSocket framing tuned to 64 KiB chunks, with a reproducible framing/masking benchmark
+- Versioned PGF1 framing codec implemented in Go, C11, and Kotlin with a 64 KiB payload bound (framing contract only; not authenticated multi-path bonding)
 - Platform-neutral network-policy contract for routing mode, DNS ownership intent, IP-family policy, MTU and deadlines
 - Explicit HTTPS transport-profile validation and bounded discovery of Ed25519-signed manifests
 - Persistent monotonic manifest-sequence storage to reject rollback across restarts, when the host persists and uses the store
 - Validated Auto/Direct/CDN Fronting and regional auto-ir/auto-us candidate modes with bounded TLS probes and stable latency ranking (planning/probing, not a complete tunnel)
 - Unit tests, fuzz targets, and GitHub Actions workflow
+
+## Multi-language fusion foundation
+
+See [docs/MULTILANG_FUSION.md](docs/MULTILANG_FUSION.md). Go owns control-plane policy, C exposes a bounded native frame ABI, and Kotlin provides a matching Android-side codec. All three share a versioned 16-byte PGF1 header and reject malformed or oversized frames. This is a foundation for a future authenticated client/server protocol, **not yet a production traffic-fusion data plane**: no authenticated session, replay protection, packet reordering, TUN wiring, or cooperating multi-path server is included.
 
 ## Engine lifecycle and coexistence
 
