@@ -222,7 +222,6 @@ func probeOne(ctx context.Context, rawIP, serverName string, timeout time.Durati
 	return result
 }
 
-
 // RankProbeResults returns a stable best-first copy of probe results. Reachable
 // TLS endpoints rank ahead of failures; ties retain input order. This is a
 // candidate ranking signal only and does not prove that a tunnel works.
