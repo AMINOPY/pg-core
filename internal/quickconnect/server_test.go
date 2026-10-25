@@ -8,6 +8,31 @@ import (
 	"testing"
 )
 
+func TestReadCatalogFileRejectsOversizedInput(t *testing.T) {
+	path := t.TempDir() + "/oversized.json"
+	if err := os.WriteFile(path, make([]byte, maxCatalogBytes+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readCatalogFile(path); err == nil || !strings.Contains(err.Error(), "exceeds 1 MiB") {
+		t.Fatalf("expected oversized catalog rejection, got %v", err)
+	}
+}
+
+func TestReadCatalogFileAcceptsSmallInput(t *testing.T) {
+	path := t.TempDir() + "/catalog.json"
+	want := []byte(`{"sni":["example.com"],"cdn_ips":["1.1.1.1"]}`)
+	if err := os.WriteFile(path, want, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readCatalogFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("readCatalogFile() = %q, want %q", got, want)
+	}
+}
+
 func TestNewFromEnvRequiresServerKey(t *testing.T) {
 	old, had := os.LookupEnv("CHIMERA_TUNNEL_KEY")
 	t.Cleanup(func() {
