@@ -22,6 +22,7 @@ var (
 type fleetEntry struct {
 	manager *Manager
 	claims  map[string]struct{}
+	active  bool
 }
 
 // Fleet manages independent engine lifecycles. Claims describe exclusive host
@@ -86,8 +87,9 @@ func (f *Fleet) Start(ctx context.Context, id string, cfg []byte, claims ...stri
 		if otherID == id {
 			continue
 		}
-		status, _ := other.manager.Status()
-		if status != engine.StatusHealthy && status != engine.StatusDegraded && status != engine.StatusStarting {
+		// Keep claims reserved until Fleet.Stop succeeds. A failed health check
+		// does not prove that external TUN, DNS, or route state was released.
+		if !other.active {
 			continue
 		}
 		for claim := range normalized {
@@ -104,6 +106,7 @@ func (f *Fleet) Start(ctx context.Context, id string, cfg []byte, claims ...stri
 	}
 	f.mu.Lock()
 	entry.claims = normalized
+	entry.active = true
 	f.mu.Unlock()
 	return nil
 }
@@ -129,6 +132,7 @@ func (f *Fleet) Stop(ctx context.Context, id string) error {
 	}
 	f.mu.Lock()
 	entry.claims = make(map[string]struct{})
+	entry.active = false
 	f.mu.Unlock()
 	return nil
 }
