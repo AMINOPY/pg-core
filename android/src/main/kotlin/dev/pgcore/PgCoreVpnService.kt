@@ -58,7 +58,7 @@ class PgCoreVpnService : VpnService() {
                     builder.addAddress("fd42:7067:636f:7265::1", 128)
                     builder.addRoute("::", 0)
                 }
-                config.dnsServers.map(InetAddress::getByName).forEach(builder::addDnsServer)
+                config.dnsServers.map { InetAddress.getByName(it) }.forEach(builder::addDnsServer)
                 localTun = builder.establish() ?: throw IOException("Android denied VPN establishment")
                 if (stopping.get()) throw IOException("VPN start cancelled")
 
