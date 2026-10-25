@@ -57,8 +57,8 @@ func TestLifecycle(t *testing.T) {
 		t.Fatalf("second start: %v", err)
 	}
 	report, err := a.Health(ctx)
-	if err != nil || report.Status != engine.StatusHealthy {
-		t.Fatalf("health report=%+v err=%v", report, err)
+	if err != nil || report.Status != engine.StatusDegraded || report.ErrorCode != "process_liveness_only" {
+		t.Fatalf("liveness-only health should be degraded: report=%+v err=%v", report, err)
 	}
 	if err := a.Stop(ctx); err != nil {
 		t.Fatal(err)
