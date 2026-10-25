@@ -310,9 +310,10 @@ func TestSOCKS5RejectsMalformedRequestFields(t *testing.T) {
 			if reply != [2]byte{5, 0} {
 				t.Fatalf("method reply = %v, want [5 0]", reply)
 			}
-			if _, err := client.Write(tc.req); err != nil {
-				t.Fatal(err)
-			}
+			// net.Pipe writes block until the peer reads every byte. The
+			// server intentionally returns after the malformed four-byte header,
+			// so send asynchronously to avoid blocking the test on trailing bytes.
+			go func() { _, _ = client.Write(tc.req) }()
 			if err := <-done; err == nil {
 				t.Fatal("accepted malformed SOCKS5 request")
 			}
