@@ -69,7 +69,6 @@ func TestLifecycle(t *testing.T) {
 	}
 }
 
-
 func TestProxyAddressRequiresLoopbackUnauthenticatedSOCKS(t *testing.T) {
 	good := []byte(`{"inbounds":[{"type":"socks","listen":"127.0.0.1","listen_port":1080} ]}`)
 	addr, err := proxyAddress(good)
