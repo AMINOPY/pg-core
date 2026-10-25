@@ -15,16 +15,16 @@ const (
 )
 
 var (
-	ErrMalformedFrame = errors.New("malformed fusion frame")
+	ErrMalformedFrame  = errors.New("malformed fusion frame")
 	ErrPayloadTooLarge = errors.New("fusion payload exceeds limit")
 )
 
 type Type uint8
 
 const (
-	TypeData Type = 1
-	TypePing Type = 2
-	TypePong Type = 3
+	TypeData  Type = 1
+	TypePing  Type = 2
+	TypePong  Type = 3
 	TypeClose Type = 4
 )
 
