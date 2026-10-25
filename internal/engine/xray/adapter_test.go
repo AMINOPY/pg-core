@@ -120,6 +120,24 @@ func TestProbeViaSOCKSRejectsUnavailableProxy(t *testing.T) {
 	}
 }
 
+
+func TestLifecycleMethodsRejectNilContext(t *testing.T) {
+	a := New("xray")
+	cfg := []byte(`{"outbounds":[{"protocol":"freedom"}]}`)
+	if err := a.ValidateConfig(nil, cfg); err == nil {
+		t.Fatal("ValidateConfig should reject a nil context")
+	}
+	if err := a.Start(nil, cfg); err == nil {
+		t.Fatal("Start should reject a nil context")
+	}
+	if _, err := a.Health(nil); err == nil {
+		t.Fatal("Health should reject a nil context")
+	}
+	if err := a.Stop(nil); err == nil {
+		t.Fatal("Stop should reject a nil context")
+	}
+}
+
 func TestStartRejectsDuplicateProcessAndStopCleansUp(t *testing.T) {
 	binary := fakeBinary(t, `if [ "$2" = "-test" ]; then exit 0; fi
 trap 'exit 0' INT TERM
