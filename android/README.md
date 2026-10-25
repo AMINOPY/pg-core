@@ -12,6 +12,12 @@ cleanup. The host must first call VpnService.prepare(context) and obtain
 consent, then start the service with ACTION_START. To disconnect, send
 ACTION_STOP.
 
+Android-specific options can be passed as intent extras defined in VpnServiceOptions:
+MTU, numeric DNS server addresses, an allowed-app list, or a disallowed-app
+list. App allowlisting and denylisting are mutually exclusive and bounded;
+an empty list means Android's default all-app behavior. Unknown package names
+fail startup rather than silently changing the requested policy.
+
 The service deliberately fails closed by default. UnavailableVpnBackend is
 registered unless the host explicitly installs a real PgCoreVpnBackend. This
 prevents claiming success while silently blackholing traffic. A backend must
