@@ -107,3 +107,19 @@ func TestFrontingErrorWithoutTLSOutbound(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestAdapterRejectsNilContexts(t *testing.T) {
+	a := New("/does/not/exist")
+	if err := a.ValidateConfig(nil, []byte("{}")); err == nil {
+		t.Fatal("ValidateConfig should reject nil context")
+	}
+	if err := a.Start(nil, []byte("{}")); err == nil {
+		t.Fatal("Start should reject nil context")
+	}
+	if _, err := a.Health(nil); err == nil {
+		t.Fatal("Health should reject nil context")
+	}
+	if err := a.Stop(nil); err == nil {
+		t.Fatal("Stop should reject nil context")
+	}
+}
