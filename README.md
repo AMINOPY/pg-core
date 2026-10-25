@@ -24,7 +24,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 
 ## Remote control API
 
-See [docs/REMOTE_CONTROL_API.md](docs/REMOTE_CONTROL_API.md) for the tenant-scoped HTTP/JSON API foundation for app announcements, release metadata, and app-local user status. This package is not yet a hosted service: the included memory store is demo-only, and durable storage, operator authentication, rate limiting, and deployment hardening remain required before production.
+See [docs/REMOTE_CONTROL_API.md](docs/REMOTE_CONTROL_API.md) for the tenant-scoped HTTP/JSON API foundation for app announcements, release metadata, and app-local user status. The `cmd/controlplane` service supports a durable single-instance file store and loopback-only serving. Multi-instance database storage, operator login/MFA, rate limiting, key rotation, audit persistence, and production deployment hardening remain before production.
 
 ## Traffic fusion
 

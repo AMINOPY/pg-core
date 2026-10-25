@@ -5,7 +5,7 @@ This package defines a tenant-scoped HTTP/JSON control API that app developers c
 ## Current status and limits
 
 - Implemented: bearer-key authentication, per-key application tenant binding, capability scopes, strict JSON decoding, bounded request bodies, announcement publication/read, release metadata, and app-local user status flags.
-- The API uses a `Store` interface. `MemoryStore` is for tests and demos only; its contents disappear on restart. A durable database-backed Store, deployment CLI, operator identity/login, rate limiting, key rotation/revocation, audit persistence, and production hosting are still required before exposing this to real users.
+- The API uses a `Store` interface. `FileStore` persists records to an owner-only JSON file using atomic replacement and is suitable for a single service instance; `MemoryStore` is for tests only. Multi-instance production deployments should use a transactional database-backed Store. Operator identity/login, MFA, rate limiting, key rotation/revocation, persistent audit logs, and production hosting are still required before exposing this to real users.
 - The API does not remotely inspect a user's device, read private app data, execute arbitrary code, silently install updates, or bypass platform permissions. User IDs must be IDs owned by the integrating app; this service only stores status metadata.
 - A published release is metadata only. The client must validate the release and use the platform's normal, consent-based update mechanism.
 
@@ -38,10 +38,25 @@ All responses are JSON. Send `Authorization: Bearer <key>`.
 
 Errors use `{"error":"stable_code"}`; 401 means missing/invalid key, 403 means missing scope. Request bodies are capped at 1 MiB and reject unknown JSON fields and trailing JSON values. Announcement text is capped at 4,000 bytes; release links must use HTTPS.
 
+## Run the local API service
+
+The `cmd/controlplane` service uses the durable single-process FileStore, listens on loopback only, sets HTTP timeouts, and supports graceful shutdown. It intentionally refuses non-loopback bind addresses; expose it to remote clients through a TLS reverse proxy.
+
+Generate separate random keys for each app and role, then pass credentials as JSON through the environment. Do not commit real credentials:
+
+```sh
+export PGCORE_CONTROL_PLANE_CREDENTIALS='[{"key":"REPLACE_WITH_32_PLUS_RANDOM_CHARS_FOR_READ","app_id":"app-a","scopes":["public:read"]},{"key":"REPLACE_WITH_A_DIFFERENT_32_PLUS_RANDOM_ADMIN_SECRET","app_id":"app-a","scopes":["public:read","users:write","announcements:write","releases:write"]}]'
+export PGCORE_CONTROL_PLANE_DB="$HOME/.local/share/pgcore/controlplane.json"
+export PGCORE_CONTROL_PLANE_ADDR="127.0.0.1:8788"
+go run ./cmd/controlplane
+```
+
+The strings above are placeholders, not valid secrets to reuse. Replace them with unique, randomly generated values of at least 32 characters. Restrict access to the environment and state file. FileStore serializes writes within one process, not across multiple service instances.
+
 ## Start the API in an embedding Go service
 
 ```go
-store := controlplane.NewMemoryStore() // demo/test only; not durable
+store := controlplane.NewMemoryStore() // demo/test only; use NewFileStore for a single-instance service
 api, err := controlplane.NewServer(store, []controlplane.Credential{
     {Key: os.Getenv("APP_A_READ_KEY"), AppID: "app-a", Scopes: []string{controlplane.ScopeRead}},
     {Key: os.Getenv("APP_A_ADMIN_KEY"), AppID: "app-a", Scopes: []string{
@@ -54,7 +69,7 @@ srv := &http.Server{Addr: "127.0.0.1:8788", Handler: api, ReadHeaderTimeout: 5 *
 log.Fatal(srv.ListenAndServe())
 ```
 
-Use a durable Store, TLS termination, request/read/write/idle timeouts, rate limiting, and graceful shutdown before production. Do not expose this example directly to the public internet.
+Use TLS termination, rate limiting, operator authentication, key rotation/revocation, and persistent audit logging before production. Do not expose this embedding example directly to the public internet.
 
 ## Python client (standard library)
 
