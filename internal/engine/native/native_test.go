@@ -178,6 +178,38 @@ func TestAdapterLifecycleAndHealth(t *testing.T) {
 	}
 }
 
+func TestAdapterRejectsNilAndCancelledContexts(t *testing.T) {
+	a := New()
+	profile := []byte(`{"key":"k","server":"edge.example.com:443"}`)
+	if err := a.ValidateConfig(nil, profile); err == nil {
+		t.Fatal("ValidateConfig should reject nil context")
+	}
+	if err := a.Start(nil, profile); err == nil {
+		t.Fatal("Start should reject nil context")
+	}
+	if _, err := a.Health(nil); err == nil {
+		t.Fatal("Health should reject nil context")
+	}
+	if err := a.Stop(nil); err == nil {
+		t.Fatal("Stop should reject nil context")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := a.ValidateConfig(ctx, profile); err != context.Canceled {
+		t.Fatalf("ValidateConfig error = %v, want context.Canceled", err)
+	}
+	if err := a.Start(ctx, profile); err != context.Canceled {
+		t.Fatalf("Start error = %v, want context.Canceled", err)
+	}
+	if _, err := a.Health(ctx); err != context.Canceled {
+		t.Fatalf("Health error = %v, want context.Canceled", err)
+	}
+	if a.Addr() != "" {
+		t.Fatal("cancelled Start must not open a listener")
+	}
+}
+
 func TestProfileValidation(t *testing.T) {
 	a := New()
 	for _, bad := range []string{
