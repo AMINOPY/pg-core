@@ -33,7 +33,8 @@ This roadmap distinguishes implemented contracts from platform behavior that has
 - [ ] Implement OS-specific policy enforcement on Android, Linux and Windows
 - [ ] Define DNS ownership and leak-test strategy for each supported platform
 - [ ] Verify system routes are restored after normal stop, crash and forced termination
-- [ ] Add controlled end-to-end health checks through the active tunnel (not merely process liveness)
+- [x] Add optional native-engine end-to-end HTTP health checks through its SOCKS5 data path (configured `health_url`)
+- [ ] Add controlled end-to-end health checks for sing-box/Xray and each platform's active system tunnel (not merely process liveness)
 - [ ] Define fail-closed behavior and test it on supported platforms
 - [ ] Add platform-specific TUN/VpnService integration and permission lifecycle tests
 - [ ] Verify UDP behavior and DNS/IPv4/IPv6 leak prevention on real devices
