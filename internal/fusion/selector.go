@@ -63,9 +63,10 @@ func Select(paths []Path) (Path, error) {
 	}
 
 	score := func(path Path) float64 {
+		// Convert before adding to avoid integer overflow at extreme counters.
 		// A 1 ms floor prevents a zero-latency sample from dominating forever.
 		qualityCost := 1 + float64(path.RTT)/float64(time.Millisecond) + 1000*path.Loss
-		return qualityCost * float64(path.ActiveFlows+1) / float64(path.Weight)
+		return qualityCost * (float64(path.ActiveFlows) + 1) / float64(path.Weight)
 	}
 	sort.Slice(eligible, func(i, j int) bool {
 		a, b := score(eligible[i]), score(eligible[j])
