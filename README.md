@@ -14,6 +14,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Deterministic route-candidate selection based on health and latency
 - Bounded DNS/HTTPS diagnostics for explicitly supplied hostnames
 - sing-box and Xray adapters: config validation, private temporary profiles, process start/health/stop
+- Native tunnel WebSocket framing tuned to 64 KiB chunks, with a reproducible framing/masking benchmark
 - Unit tests and GitHub Actions workflow
 
 ## Foundation (Phase A)
@@ -49,6 +50,10 @@ Requires Go 1.22 or newer.
     go vet ./...
     go run ./cmd/chimera
     go run ./cmd/chimera --config config.example.json
+
+## Tunnel performance
+
+See [docs/TUNNEL_PERFORMANCE.md](docs/TUNNEL_PERFORMANCE.md) for the 64 KiB WebSocket frame default, benchmark commands, and limitations. No internet throughput improvement is claimed until measured on representative devices and network paths.
 
 ## Network diagnostics
 
