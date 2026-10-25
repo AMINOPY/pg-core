@@ -316,15 +316,18 @@ func (s *Server) handleDisconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	a := s.adapter
-	s.adapter, s.addr = nil, ""
-	s.mu.Unlock()
 	if a != nil {
+		// Keep the adapter registered until Stop succeeds. Clearing it first can
+		// report a false disconnected state and permit a second start while the
+		// old adapter still owns the SOCKS listener or other resources.
 		if err := a.Stop(context.Background()); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not stop tunnel cleanly"})
 			return
 		}
 	}
+	s.adapter, s.addr = nil, ""
 	writeJSON(w, http.StatusOK, statusResponse{Connected: false, Message: "disconnected"})
 }
 
