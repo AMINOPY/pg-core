@@ -32,6 +32,10 @@ Optional `fronting` section with an SNI and a list of edge IPs, applied by the s
 
 For a two-field, no-local-config UI using the native TLS/WebSocket tunnel, see [Quick Connect](docs/QUICK_CONNECT.md). Set `CHIMERA_TUNNEL_KEY` once, then run `go run ./cmd/chimera --quick-connect`; the UI asks only for SNI and CDN edge IPs. This requires a server/Worker already deployed with the matching key and only exposes a local SOCKS5 proxy, not system-wide VPN routing.
 
+## Multilanguage core
+
+The staged Go/C/Python/Kotlin plan is documented in [docs/MULTILANGUAGE_CORE.md](docs/MULTILANGUAGE_CORE.md). Go remains the single lifecycle owner; C is conditional on profiling, Python is for diagnostics/benchmarks, and Kotlin belongs at the Android platform boundary. No duplicate core or empty language scaffolds are introduced before the existing Go core is stable.
+
 ## Quick start
 
 Requires Go 1.22 or newer.
@@ -49,7 +53,7 @@ See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use syste
 
 | Engine | Status |
 |---|---|
-| native    | Own engine: TLS+WebSocket tunnel, local SOCKS5, CDN/SNI. See [docs/NATIVE_ENGINE.md](docs/NATIVE_ENGINE.md) |
+| native | Own engine: TLS+WebSocket tunnel, local SOCKS5, CDN/SNI. See [docs/NATIVE_ENGINE.md](docs/NATIVE_ENGINE.md) |
 | sing-box | Initial subprocess adapter implemented; platform networking validation remains |
 | Xray-core | Planned |
 | Mihomo | Planned |
