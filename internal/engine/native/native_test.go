@@ -256,3 +256,67 @@ func BenchmarkWebSocketTunnelWrite(b *testing.B) {
 	_ = serverConn.Close()
 	<-done
 }
+
+func TestSOCKS5RejectsUnofferedAuthenticationMethod(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := socksHandshake(server)
+		done <- err
+	}()
+	if _, err := client.Write([]byte{5, 1, 2}); err != nil {
+		t.Fatal(err)
+	}
+	var reply [2]byte
+	if _, err := io.ReadFull(client, reply[:]); err != nil {
+		t.Fatal(err)
+	}
+	if reply != [2]byte{5, 0xff} {
+		t.Fatalf("method reply = %v, want [5 255]", reply)
+	}
+	if err := <-done; err == nil {
+		t.Fatal("handshake accepted a client that did not offer no-auth")
+	}
+}
+
+func TestSOCKS5RejectsMalformedRequestFields(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		req  []byte
+	}{
+		{name: "nonzero reserved byte", req: []byte{5, 1, 1, 1, 127, 0, 0, 1, 0, 80}},
+		{name: "zero port", req: []byte{5, 1, 0, 1, 127, 0, 0, 1, 0, 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server, client := net.Pipe()
+			defer server.Close()
+			defer client.Close()
+
+			done := make(chan error, 1)
+			go func() {
+				_, _, err := socksHandshake(server)
+				done <- err
+			}()
+			if _, err := client.Write([]byte{5, 1, 0}); err != nil {
+				t.Fatal(err)
+			}
+			var reply [2]byte
+			if _, err := io.ReadFull(client, reply[:]); err != nil {
+				t.Fatal(err)
+			}
+			if reply != [2]byte{5, 0} {
+				t.Fatalf("method reply = %v, want [5 0]", reply)
+			}
+			// net.Pipe writes block until the peer reads every byte. The
+			// server intentionally returns after the malformed four-byte header,
+			// so send asynchronously to avoid blocking the test on trailing bytes.
+			go func() { _, _ = client.Write(tc.req) }()
+			if err := <-done; err == nil {
+				t.Fatal("accepted malformed SOCKS5 request")
+			}
+		})
+	}
+}
