@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -125,9 +126,10 @@ func TestRouterRejectsMissingDialerAndReleasesIfMissing(t *testing.T) {
 }
 
 func TestRouterConcurrentCapacityNeverOverbooks(t *testing.T) {
-	const cap = 4
+	const capacity = 4
+	const workers = 32
 	router, err := NewRouter([]Route{{
-		Path: Path{ID: "capacity", Healthy: true, Weight: 1, MaxConcurrent: cap},
+		Path: Path{ID: "capacity", Healthy: true, Weight: 1, MaxConcurrent: capacity},
 		Dialer: testDialer{dial: func(context.Context, string, string) (net.Conn, error) {
 			client, peer := net.Pipe()
 			go func() { _ = peer.Close() }()
@@ -137,23 +139,39 @@ func TestRouterConcurrentCapacityNeverOverbooks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	var success atomic.Int32
-	var done = make(chan struct{}, 32)
-	for i := 0; i < cap*8; i++ {
+	var mu sync.Mutex
+	var conns []net.Conn
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			conn, err := router.DialContext(context.Background(), "tcp", "ignored:1")
-			if err == nil {
-				success.Add(1)
-				_ = conn.Close()
+			if err != nil {
+				if !errors.Is(err, ErrNoEligiblePath) {
+					t.Errorf("DialContext error = %v", err)
+				}
+				return
 			}
-			done <- struct{}{}
+			success.Add(1)
+			mu.Lock()
+			conns = append(conns, conn)
+			mu.Unlock()
 		}()
 	}
-	for i := 0; i < cap*8; i++ {
-		<-done
+	wg.Wait()
+	if got := success.Load(); got != capacity {
+		t.Fatalf("successful concurrent dials = %d, want exactly %d", got, capacity)
 	}
-	if got := success.Load(); got < cap || got > cap*8 {
-		t.Fatalf("successful dials = %d, want at least %d", got, cap)
+	if got := router.Snapshot()[0].ActiveFlows; got != capacity {
+		t.Fatalf("active flows while connections are held = %d, want %d", got, capacity)
+	}
+	for _, conn := range conns {
+		if err := conn.Close(); err != nil {
+			t.Errorf("close connection: %v", err)
+		}
 	}
 	if got := router.Snapshot()[0].ActiveFlows; got != 0 {
 		t.Fatalf("active flows after all closes = %d, want 0", got)
