@@ -65,12 +65,12 @@ type UserStatus struct {
 }
 
 type Store interface {
-	GetAnnouncement(appID string, now time.Time) (Announcement, bool)
-	PutAnnouncement(appID string, value Announcement)
-	GetRelease(appID, platform string) (Release, bool)
-	PutRelease(appID string, value Release)
-	GetUserStatus(appID, userID string) (UserStatus, bool)
-	PutUserStatus(appID string, value UserStatus)
+	GetAnnouncement(appID string, now time.Time) (Announcement, bool, error)
+	PutAnnouncement(appID string, value Announcement) error
+	GetRelease(appID, platform string) (Release, bool, error)
+	PutRelease(appID string, value Release) error
+	GetUserStatus(appID, userID string) (UserStatus, bool, error)
+	PutUserStatus(appID string, value UserStatus) error
 }
 
 // MemoryStore is useful for tests and single-process demos. It is not durable:
@@ -90,52 +90,55 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
-func (s *MemoryStore) GetAnnouncement(appID string, now time.Time) (Announcement, bool) {
+func (s *MemoryStore) GetAnnouncement(appID string, now time.Time) (Announcement, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	v, ok := s.announcements[appID]
 	if ok && !v.ExpiresAt.IsZero() && !now.Before(v.ExpiresAt) {
-		return Announcement{}, false
+		return Announcement{}, false, nil
 	}
-	return v, ok
+	return v, ok, nil
 }
 
-func (s *MemoryStore) PutAnnouncement(appID string, v Announcement) {
+func (s *MemoryStore) PutAnnouncement(appID string, v Announcement) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.announcements[appID] = v
+	return nil
 }
 
-func (s *MemoryStore) GetRelease(appID, platform string) (Release, bool) {
+func (s *MemoryStore) GetRelease(appID, platform string) (Release, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	v, ok := s.releases[appID][platform]
-	return v, ok
+	return v, ok, nil
 }
 
-func (s *MemoryStore) PutRelease(appID string, v Release) {
+func (s *MemoryStore) PutRelease(appID string, v Release) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.releases[appID] == nil {
 		s.releases[appID] = make(map[string]Release)
 	}
 	s.releases[appID][v.Platform] = v
+	return nil
 }
 
-func (s *MemoryStore) GetUserStatus(appID, userID string) (UserStatus, bool) {
+func (s *MemoryStore) GetUserStatus(appID, userID string) (UserStatus, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	v, ok := s.users[appID][userID]
-	return v, ok
+	return v, ok, nil
 }
 
-func (s *MemoryStore) PutUserStatus(appID string, v UserStatus) {
+func (s *MemoryStore) PutUserStatus(appID string, v UserStatus) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.users[appID] == nil {
 		s.users[appID] = make(map[string]UserStatus)
 	}
 	s.users[appID][v.UserID] = v
+	return nil
 }
 
 type credentialRecord struct {
@@ -194,7 +197,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !s.require(w, cred, ScopeRead) {
 			return
 		}
-		v, found := s.store.GetAnnouncement(cred.appID, s.now())
+		v, found, err := s.store.GetAnnouncement(cred.appID, s.now())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "store_unavailable")
+			return
+		}
 		if !found {
 			writeJSON(w, http.StatusOK, map[string]any{"announcement": nil})
 			return
@@ -209,7 +216,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "invalid_platform")
 			return
 		}
-		v, found := s.store.GetRelease(cred.appID, platform)
+		v, found, err := s.store.GetRelease(cred.appID, platform)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "store_unavailable")
+			return
+		}
 		if !found {
 			writeJSON(w, http.StatusOK, map[string]any{"release": nil})
 			return
@@ -239,7 +250,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if req.ExpiresAt != nil {
 			v.ExpiresAt = *req.ExpiresAt
 		}
-		s.store.PutAnnouncement(cred.appID, v)
+		if err := s.store.PutAnnouncement(cred.appID, v); err != nil {
+			writeError(w, http.StatusInternalServerError, "store_unavailable")
+			return
+		}
 		writeJSON(w, http.StatusCreated, map[string]any{"announcement": v})
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/releases":
 		if !s.require(w, cred, ScopeManageReleases) {
@@ -262,7 +276,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		v := Release{Platform: req.Platform, Version: req.Version, URL: req.URL, Notes: req.Notes, Force: req.Force, CreatedAt: s.now()}
-		s.store.PutRelease(cred.appID, v)
+		if err := s.store.PutRelease(cred.appID, v); err != nil {
+			writeError(w, http.StatusInternalServerError, "store_unavailable")
+			return
+		}
 		writeJSON(w, http.StatusCreated, map[string]any{"release": v})
 	case strings.HasPrefix(r.URL.Path, "/v1/admin/users/"):
 		if r.Method != http.MethodGet && r.Method != http.MethodPut {
@@ -278,7 +295,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if r.Method == http.MethodGet {
-			v, found := s.store.GetUserStatus(cred.appID, userID)
+			v, found, err := s.store.GetUserStatus(cred.appID, userID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "store_unavailable")
+				return
+			}
 			if !found {
 				writeError(w, http.StatusNotFound, "user_not_found")
 				return
@@ -297,7 +318,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		v := UserStatus{UserID: userID, Status: req.Status, UpdatedAt: s.now()}
-		s.store.PutUserStatus(cred.appID, v)
+		if err := s.store.PutUserStatus(cred.appID, v); err != nil {
+			writeError(w, http.StatusInternalServerError, "store_unavailable")
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"user": v})
 	default:
 		writeError(w, http.StatusNotFound, "not_found")
