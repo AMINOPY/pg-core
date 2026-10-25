@@ -83,6 +83,12 @@ func (f *Fleet) Start(ctx context.Context, id string, cfg []byte, claims ...stri
 		f.mu.RUnlock()
 		return fmt.Errorf("%w: %s", ErrEngineNotRegistered, id)
 	}
+	// A failed health check or failed Stop does not release the engine's
+	// resources. Never call Start again until Stop succeeds and clears active.
+	if entry.active {
+		f.mu.RUnlock()
+		return fmt.Errorf("%w: %s still owns its resource claims; stop it successfully before restarting", ErrAlreadyRunning, id)
+	}
 	for otherID, other := range f.byID {
 		if otherID == id {
 			continue
