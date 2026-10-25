@@ -22,6 +22,10 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Validated Auto/Direct/CDN Fronting and regional auto-ir/auto-us candidate modes with bounded TLS probes and stable latency ranking (planning/probing, not a complete tunnel)
 - Unit tests, fuzz targets, and GitHub Actions workflow
 
+## Traffic fusion
+
+See [docs/TRAFFIC_FUSION.md](docs/TRAFFIC_FUSION.md). The first-stage `internal/fusion` package provides deterministic flow-level path selection using health, RTT, loss, weight, and active-flow limits. This spreads new flows across eligible paths; it does **not** yet bond multiple paths into one flow or implement packet-level aggregation.
+
 ## Engine lifecycle and coexistence
 
 The `internal/orchestrator.Fleet` can manage independent engine processes when the host app supplies accurate exclusive-resource claims. Duplicate claims (for example, `tun:default`) are rejected. This is process/lifecycle coordination, not traffic multiplexing or automatic route/DNS isolation. The host must define a single owner for each TUN device, route table, DNS configuration, and listener. Never start competing engines against the same system resources without an explicit, tested network design.
