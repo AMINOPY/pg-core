@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -101,8 +102,12 @@ func (a *Adapter) applyFronting(cfg []byte) ([]byte, error) {
 	dec := json.NewDecoder(bytes.NewReader(cfg))
 	dec.UseNumber()
 	var root map[string]any
-	if err := dec.Decode(&root); err != nil {
+	if err := dec.Decode(&root); err != nil || root == nil {
 		return nil, errors.New("xray profile is not a valid JSON object")
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		return nil, errors.New("xray profile contains trailing JSON data")
 	}
 	outbounds, ok := root["outbounds"].([]any)
 	if !ok {
