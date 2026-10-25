@@ -41,8 +41,8 @@ func TestComposeHelperChainRejectsUnsafeOrAmbiguousProfiles(t *testing.T) {
 	valid := []byte(`{"outbounds":[{"tag":"main","protocol":"freedom"}]}`)
 	helper := []byte(`{"outbounds":[{"tag":"helper","protocol":"freedom"}]}`)
 	cases := []struct {
-		name                string
-		primary, helper     []byte
+		name               string
+		primary, helper    []byte
 		mainTag, helperTag string
 	}{
 		{"missing primary", valid, helper, "missing", "helper"},
