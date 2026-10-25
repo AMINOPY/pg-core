@@ -96,9 +96,13 @@ func TestProxyAddressRequiresLoopbackSOCKS(t *testing.T) {
 	if err != nil || addr != "127.0.0.1:1080" {
 		t.Fatalf("addr=%q err=%v", addr, err)
 	}
-	bad := []byte(`{"inbounds":[{"listen":"0.0.0.0","port":1080,"protocol":"socks"}]}`)
-	if _, err := proxyAddress(bad); err == nil {
-		t.Fatal("expected non-loopback listener to be rejected")
+	for _, bad := range [][]byte{
+		[]byte(`{"inbounds":[{"listen":"0.0.0.0","port":1080,"protocol":"socks","settings":{"auth":"noauth"}}]}`),
+		[]byte(`{"inbounds":[{"listen":"127.0.0.1","port":1080,"protocol":"socks","settings":{"auth":"password","accounts":[{"user":"u","pass":"p"}]}}]}`),
+	} {
+		if _, err := proxyAddress(bad); err == nil {
+			t.Fatalf("expected unsafe probe listener to be rejected: %s", bad)
+		}
 	}
 }
 
