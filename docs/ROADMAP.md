@@ -26,10 +26,12 @@
 - [ ] Add platform-specific integration tests for DNS/routes and rollback
 
 ## Phase C — Network correctness
+- [x] Add bounded HTTPS transfer diagnostics with timing breakdown and byte caps
 - [ ] Define DNS ownership and leak-test strategy
 - [ ] Define IPv4/IPv6 policy
 - [ ] Verify system routes are restored after crash/stop
-- [ ] Add controlled end-to-end health checks
+- [ ] Add controlled end-to-end health checks through the active tunnel
+- [ ] Measure reconnect, packet loss, latency, and throughput on controlled endpoints
 - [ ] Define fail-closed behavior and test it on supported platforms
 
 ## Phase D — Additional engines
@@ -41,7 +43,8 @@
 ## Phase E — Quality
 - [x] Add a fuzz target for strict config JSON decoding and schema validation
 - [x] Add a fuzz target for deterministic policy selection and eligibility
-- [ ] Add benchmarks and long-running tests
+- [x] Add a bounded HTTPS transfer benchmark with cancellation, redirect, and byte-limit tests
+- [ ] Add tunnel-level benchmarks and long-running tests
 - [ ] Add dependency and license scanning
 - [ ] Publish support matrix by OS and engine version
 

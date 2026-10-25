@@ -12,7 +12,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Multi-engine fleet coordinator with independent per-engine lifecycle and explicit exclusive-resource claims
 - Start validation, health checks, failure cleanup, and serialized lifecycle operations
 - Deterministic route-candidate selection based on health and latency
-- Bounded DNS/HTTPS diagnostics for explicitly supplied hostnames
+- Bounded DNS/HTTPS diagnostics for explicitly supplied hostnames and HTTPS transfer samples with timing breakdown and strict byte/time limits
 - sing-box and Xray adapters: config validation, private temporary profiles, process start/health/stop
 - Native tunnel WebSocket framing tuned to 64 KiB chunks, with a reproducible framing/masking benchmark
 - Unit tests and GitHub Actions workflow
@@ -57,7 +57,7 @@ See [docs/TUNNEL_PERFORMANCE.md](docs/TUNNEL_PERFORMANCE.md) for the 64 KiB WebS
 
 ## Network diagnostics
 
-See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use system DNS and certificate-verified HTTPS, and are limited to explicitly supplied hostnames. They do not scan IP ranges or impersonate third-party services.
+See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use system DNS and certificate-verified HTTPS, and are limited to explicitly supplied hostnames or HTTPS endpoints. The bounded transfer sample reports endpoint-specific timing and payload throughput, caps data at 8 MiB and duration at 60 seconds, disables redirects, and omits URL paths/query strings from returned diagnostics. It is not a tunnel health guarantee or ISP line-speed test. These tools do not scan IP ranges or impersonate third-party services.
 
 ## Engine roadmap
 
