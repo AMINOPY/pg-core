@@ -21,7 +21,7 @@ func TestFleetRejectsRestartUntilFailedStopSucceeds(t *testing.T) {
 	adapter := &startCountingAdapter{
 		fleetFakeAdapter: &fleetFakeAdapter{
 			fakeAdapter: healthyFake(),
-			id:           "native",
+			id:          "native",
 		},
 	}
 	if err := fleet.Register(adapter); err != nil {
