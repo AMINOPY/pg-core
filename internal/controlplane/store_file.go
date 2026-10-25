@@ -12,9 +12,9 @@ import (
 )
 
 type persistedState struct {
-	Announcements map[string]Announcement            `json:"announcements"`
-	Releases      map[string]map[string]Release      `json:"releases"`
-	Users         map[string]map[string]UserStatus   `json:"users"`
+	Announcements\tmap[string]Announcement\t\t`json:"announcements"`
+	Releases\t\tmap[string]map[string]Release\t`json:"releases"`
+	Users\t\t\tmap[string]map[string]UserStatus\t`json:"users"`
 }
 
 // FileStore is a single-process durable store. It atomically replaces a JSON
