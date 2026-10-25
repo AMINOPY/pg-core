@@ -66,6 +66,15 @@ func TestApplyFrontingPreservesCredentialsAndSetsSNI(t *testing.T) {
 	}
 }
 
+func TestApplyFrontingRejectsTrailingJSON(t *testing.T) {
+	a := New("xray")
+	a.Fronting = &fronting.Settings{SNI: "cdn.example.com", EdgeIPs: []string{"104.16.0.1"}}
+	cfg := []byte(`{"outbounds":[{"protocol":"vless","settings":{"vnext":[{"address":"origin.example.com"}]},"streamSettings":{"security":"tls"}}]} { "unexpected": true }`)
+	if _, err := a.applyFronting(cfg); err == nil {
+		t.Fatal("expected trailing JSON data to be rejected")
+	}
+}
+
 func TestApplyFrontingRequiresTLSOutboundAndSingleIP(t *testing.T) {
 	a := New("xray")
 	a.Fronting = &fronting.Settings{SNI: "cdn.example.com", EdgeIPs: []string{"104.16.0.1"}}
