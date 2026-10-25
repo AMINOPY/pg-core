@@ -131,7 +131,13 @@ func (a *Adapter) dialer(p Profile) (*Dialer, error) {
 	return d, nil
 }
 
-func (a *Adapter) ValidateConfig(_ context.Context, raw []byte) error {
+func (a *Adapter) ValidateConfig(ctx context.Context, raw []byte) error {
+	if ctx == nil {
+		return errors.New("context is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	p, err := parseProfile(raw)
 	if err != nil {
 		return err
@@ -141,6 +147,9 @@ func (a *Adapter) ValidateConfig(_ context.Context, raw []byte) error {
 }
 
 func (a *Adapter) Start(ctx context.Context, raw []byte) error {
+	if ctx == nil {
+		return errors.New("context is required")
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -181,6 +190,9 @@ func (a *Adapter) Addr() string {
 func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 	start := time.Now()
 	rep := engine.HealthReport{EngineID: "native", CheckedAt: time.Now().UTC()}
+	if ctx == nil {
+		return rep, errors.New("context is required")
+	}
 	if err := ctx.Err(); err != nil {
 		return rep, err
 	}
@@ -203,7 +215,10 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 	return rep, nil
 }
 
-func (a *Adapter) Stop(context.Context) error {
+func (a *Adapter) Stop(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("context is required")
+	}
 	a.mu.Lock()
 	r := a.run
 	a.run = nil
