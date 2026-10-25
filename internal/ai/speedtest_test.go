@@ -63,6 +63,20 @@ func TestSpeedTesterRejectsCredentials(t *testing.T) {
 	}
 }
 
+func TestSpeedTesterDoesNotExposeURLPathOrQueryInRequestErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	rawURL := server.URL + "/private/path?token=secret-value"
+	server.Close()
+
+	report := (SpeedTester{Timeout: time.Second}).Run(context.Background(), rawURL, "")
+	if report.DownloadError == "" {
+		t.Fatal("expected request failure")
+	}
+	if strings.Contains(report.DownloadError, "/private/path") || strings.Contains(report.DownloadError, "secret-value") {
+		t.Fatalf("request error leaked URL details: %q", report.DownloadError)
+	}
+}
+
 func TestSpeedTesterBoundsPayload(t *testing.T) {
 	s := SpeedTester{MaxDownloadBytes: 100 << 20, MaxUploadBytes: 100 << 20}
 	if got := s.downloadLimit(); got != 50<<20 {
