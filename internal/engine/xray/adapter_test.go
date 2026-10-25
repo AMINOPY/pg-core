@@ -120,7 +120,6 @@ func TestProbeViaSOCKSRejectsUnavailableProxy(t *testing.T) {
 	}
 }
 
-
 func TestLifecycleMethodsRejectNilContext(t *testing.T) {
 	a := New("xray")
 	cfg := []byte(`{"outbounds":[{"protocol":"freedom"}]}`)
