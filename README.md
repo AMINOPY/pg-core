@@ -22,6 +22,10 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Validated Auto/Direct/CDN Fronting and regional auto-ir/auto-us candidate modes with bounded TLS probes and stable latency ranking (planning/probing, not a complete tunnel)
 - Unit tests, fuzz targets, and GitHub Actions workflow
 
+## Remote control API
+
+See [docs/REMOTE_CONTROL_API.md](docs/REMOTE_CONTROL_API.md) for the tenant-scoped HTTP/JSON API foundation for app announcements, release metadata, and app-local user status. This package is not yet a hosted service: the included memory store is demo-only, and durable storage, operator authentication, rate limiting, and deployment hardening remain required before production.
+
 ## Traffic fusion
 
 See [docs/TRAFFIC_FUSION.md](docs/TRAFFIC_FUSION.md). The `internal/fusion` package provides deterministic path selection, concurrency-safe active-flow reservations, and a `Router` that invokes path-specific context-aware dialers for new outbound connections. It releases leases on dial failure or connection close and refuses to remove routes while they still have active connections.
