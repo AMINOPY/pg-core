@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var ErrConcurrentRouteUpdate = errors.New("fusion route snapshot changed during probe refresh")
+
 const (
 	maxProbeRouteCount = 256
 	maxProbeWorkers    = 32
@@ -62,6 +64,9 @@ func RefreshRoutes(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	router.mu.Lock()
+	revision := router.revision
+	router.mu.Unlock()
 
 	updated := append([]Route(nil), routes...)
 	probeErrors := make([]error, len(routes))
@@ -112,7 +117,7 @@ func RefreshRoutes(
 			failures[updated[i].Path.ID] = err
 		}
 	}
-	if err := router.Update(updated); err != nil {
+	if err := router.updateIfRevision(updated, revision); err != nil {
 		return nil, err
 	}
 	return failures, nil
