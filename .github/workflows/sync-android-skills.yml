@@ -1,0 +1,40 @@
+name: Sync upstream Android skills
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/install-android-skills.sh'
+      - '.github/workflows/sync-android-skills.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-android-skills
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: true
+      - name: Download all upstream Android skills
+        run: bash scripts/install-android-skills.sh
+      - name: Open a pull request for upstream changes
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/sync-android-upstream-skills
+          delete-branch: true
+          commit-message: 'chore: sync upstream Android agent skills'
+          title: 'chore: sync upstream Android agent skills'
+          body: |
+            Automated update of the managed Android agent skills from https://github.com/android/skills.
+
+            Review the upstream changes before merging. These files are agent guidance/resources, not compiled runtime VPN features.
