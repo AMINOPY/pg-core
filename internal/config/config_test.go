@@ -65,18 +65,18 @@ func TestValidateConnectionModes(t *testing.T) {
 	base := Config{SchemaVersion: 1, Profile: "p", ActiveEngine: EngineSingBox}
 	good := base
 	good.Connection = &transportprofile.ConnectionConfig{
-		Mode: transportprofile.ModeCDNFronting,
-		Endpoint: "https://origin.example.com",
+		Mode:       transportprofile.ModeCDNFronting,
+		Endpoint:   "https://origin.example.com",
 		ServerName: "edge.example.net",
-		CDNIPs: []string{"192.0.2.10"},
+		CDNIPs:     []string{"192.0.2.10"},
 	}
 	if err := good.Validate(); err != nil {
 		t.Fatalf("valid CDN-fronting config rejected: %v", err)
 	}
 	bad := base
 	bad.Connection = &transportprofile.ConnectionConfig{
-		Mode: transportprofile.ModeCDNFronting,
-		Endpoint: "https://origin.example.com",
+		Mode:       transportprofile.ModeCDNFronting,
+		Endpoint:   "https://origin.example.com",
 		ServerName: "edge.example.net",
 	}
 	if err := bad.Validate(); err == nil {
