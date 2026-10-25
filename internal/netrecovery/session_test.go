@@ -8,15 +8,15 @@ import (
 )
 
 type fakeBackend struct {
-	state       []byte
-	captureErr  error
-	applyErr    error
-	restoreErr  error
-	verifyErr   error
-	captures    int
-	applies     int
-	restores    int
-	verifies    int
+	state      []byte
+	captureErr error
+	applyErr   error
+	restoreErr error
+	verifyErr  error
+	captures   int
+	applies    int
+	restores   int
+	verifies   int
 }
 
 func (b *fakeBackend) Capture(context.Context) (Snapshot, error) {
