@@ -19,6 +19,8 @@ jobs:
         with:
           go-version: "1.22.x"
           cache: false
+      - name: Format diagnostic
+        run: gofmt -d internal/quickconnect/server.go
       - name: Format check
         shell: bash
         run: |
