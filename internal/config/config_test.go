@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/AMINOPY/pg-core/internal/fronting"
+	"github.com/AMINOPY/pg-core/internal/transportprofile"
 )
 
 func TestValidateAcceptsKnownEngine(t *testing.T) {
@@ -57,5 +58,28 @@ func TestFrontingValidation(t *testing.T) {
 	bad.Fronting = &fronting.Settings{SNI: "cdn.example.com"}
 	if err := bad.Validate(); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestValidateConnectionModes(t *testing.T) {
+	base := Config{SchemaVersion: 1, Profile: "p", ActiveEngine: EngineSingBox}
+	good := base
+	good.Connection = &transportprofile.ConnectionConfig{
+		Mode: transportprofile.ModeCDNFronting,
+		Endpoint: "https://origin.example.com",
+		ServerName: "edge.example.net",
+		CDNIPs: []string{"192.0.2.10"},
+	}
+	if err := good.Validate(); err != nil {
+		t.Fatalf("valid CDN-fronting config rejected: %v", err)
+	}
+	bad := base
+	bad.Connection = &transportprofile.ConnectionConfig{
+		Mode: transportprofile.ModeCDNFronting,
+		Endpoint: "https://origin.example.com",
+		ServerName: "edge.example.net",
+	}
+	if err := bad.Validate(); err == nil {
+		t.Fatal("expected CDN-fronting config without explicit IPs to be rejected")
 	}
 }
