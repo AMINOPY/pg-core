@@ -51,8 +51,8 @@ func checkDataPlane(ctx context.Context, socksAddr, rawURL string) error {
 	}
 	defer tr.CloseIdleConnections()
 	client := &http.Client{
-		Transport: tr,
-		Timeout:   8 * time.Second,
+		Transport:     tr,
+		Timeout:       8 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
