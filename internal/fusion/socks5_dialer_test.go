@@ -13,9 +13,9 @@ import (
 
 func TestSOCKS5DialerEncodesDomainIPv4AndIPv6Targets(t *testing.T) {
 	cases := []struct {
-		name    string
-		target  string
-		wantAT  byte
+		name     string
+		target   string
+		wantAT   byte
 		wantHost []byte
 	}{
 		{name: "domain", target: "example.com:443", wantAT: 3, wantHost: []byte("example.com")},
