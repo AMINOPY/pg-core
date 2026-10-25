@@ -2,6 +2,7 @@ package native
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"io"
 	"net"
@@ -43,15 +44,29 @@ func socksHandshake(c net.Conn) (string, int, error) {
 	if _, err := io.ReadFull(c, h[:]); err != nil || h[0] != 5 {
 		return "", 0, errors.New("not socks5")
 	}
-	methods := make([]byte, h[1])
+	methods := make([]byte, int(h[1]))
 	if _, err := io.ReadFull(c, methods); err != nil {
 		return "", 0, err
+	}
+	noAuth := false
+	for _, method := range methods {
+		if method == 0 {
+			noAuth = true
+			break
+		}
+	}
+	if !noAuth {
+		_, writeErr := c.Write([]byte{5, 0xff})
+		if writeErr != nil {
+			return "", 0, writeErr
+		}
+		return "", 0, errors.New("client does not offer SOCKS5 no-auth method")
 	}
 	if _, err := c.Write([]byte{5, 0}); err != nil {
 		return "", 0, err
 	}
 	var r [4]byte
-	if _, err := io.ReadFull(c, r[:]); err != nil || r[0] != 5 {
+	if _, err := io.ReadFull(c, r[:]); err != nil || r[0] != 5 || r[2] != 0 {
 		return "", 0, errors.New("bad request")
 	}
 	if r[1] != 1 {
@@ -77,7 +92,7 @@ func socksHandshake(c net.Conn) (string, int, error) {
 		if _, err := io.ReadFull(c, l[:]); err != nil || l[0] == 0 {
 			return "", 0, errors.New("bad domain")
 		}
-		n := make([]byte, l[0])
+		n := make([]byte, int(l[0]))
 		if _, err := io.ReadFull(c, n); err != nil {
 			return "", 0, err
 		}
@@ -89,5 +104,9 @@ func socksHandshake(c net.Conn) (string, int, error) {
 	if _, err := io.ReadFull(c, p[:]); err != nil {
 		return "", 0, err
 	}
-	return host, int(p[0])<<8 | int(p[1]), nil
+	port := int(binary.BigEndian.Uint16(p[:]))
+	if port == 0 {
+		return "", 0, errors.New("invalid target port")
+	}
+	return host, port, nil
 }
