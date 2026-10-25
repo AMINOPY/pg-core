@@ -24,6 +24,7 @@ type Route struct {
 // not merge bytes across routes; each connection uses exactly one dialer.
 type Router struct {
 	mu        sync.Mutex
+	revision  uint64
 	allocator *Allocator
 	dialers   map[string]ContextDialer
 }
@@ -47,6 +48,16 @@ func NewRouter(routes []Route) (*Router, error) {
 // Update replaces path snapshots and dialers atomically from the router caller's
 // perspective. Paths with active connection leases cannot be removed.
 func (r *Router) Update(routes []Route) error {
+	return r.updateRoutes(routes, nil)
+}
+
+// updateIfRevision prevents a slower probe cycle from overwriting a newer
+// route snapshot supplied by another caller.
+func (r *Router) updateIfRevision(routes []Route, expected uint64) error {
+	return r.updateRoutes(routes, &expected)
+}
+
+func (r *Router) updateRoutes(routes []Route, expected *uint64) error {
 	if r == nil {
 		return errors.New("fusion router is required")
 	}
@@ -56,10 +67,14 @@ func (r *Router) Update(routes []Route) error {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if expected != nil && r.revision != *expected {
+		return ErrConcurrentRouteUpdate
+	}
 	if err := r.allocator.Update(paths); err != nil {
 		return err
 	}
 	r.dialers = dialers
+	r.revision++
 	return nil
 }
 

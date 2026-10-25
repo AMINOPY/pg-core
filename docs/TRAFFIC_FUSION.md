@@ -10,10 +10,15 @@ PG CORE now provides three related primitives:
 - `fusion.Allocator`: concurrency-safe selection and active-flow slot reservation, with idempotent release leases.
 - `fusion.Router`: selects one route for each outbound connection, calls that route's context-aware dialer, and releases the lease when dialing fails or the returned connection closes.
 - `fusion.SOCKS5Dialer`: opens a TCP connection through an existing no-auth SOCKS5 listener, with domain/IPv4/IPv6 target encoding and cancellation-aware handshakes.
+- `fusion.RefreshRoutes`: runs bounded, context-aware probes and atomically updates route health/RTT snapshots. Probe failures mark only their route unhealthy and are returned by route ID. It does not invent packet-loss measurements or equate a TCP connect with end-to-end VPN health.
 
 The allocator/router counters represent reservations made through this API, not kernel socket state. The host supplies path health/quality snapshots and path-specific dialers. `SOCKS5Dialer` does not start or configure the proxy process. Existing engine adapters and OS-wide VPN routing are not automatically wired into this router.
 
 The integration test `TestRouterUsesSOCKS5PathAndUpdatesAfterPathFailure` exercises route selection, a SOCKS5 handshake, and a health update using local test proxies. These proxies validate the code path only; they do not emulate real engines, OS VPN routing, or Internet reachability.
+
+## Bounded route health refresh
+
+The host can call `RefreshRoutes` with a probe appropriate to its use case. It limits the route count, worker concurrency, and per-route timeout; cancellation leaves the existing router snapshot untouched. A probe must honor its context. Failed probes are exposed to the caller for diagnostics and remove that path from future allocation until a later refresh succeeds. Choose an application-level probe when end-to-end DNS/HTTPS behavior matters; a successful socket connection alone is not proof of full tunnel health.
 
 ## Selection and lifecycle guarantees
 
