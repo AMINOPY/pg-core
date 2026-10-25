@@ -119,6 +119,18 @@ func TestValidateConfigUsesInstalledBinaryAndDoesNotLeakConfig(t *testing.T) {
 	}
 }
 
+func TestHealthWithoutDataPathTargetIsDegraded(t *testing.T) {
+	a := New("unused")
+	a.proc = &processState{done: make(chan struct{})}
+	report, err := a.Health(context.Background())
+	if err != nil {
+		t.Fatalf("Health returned error: %v", err)
+	}
+	if report.Status != engine.StatusDegraded || report.ErrorCode != "process_liveness_only" {
+		t.Fatalf("process liveness must not imply connectivity: %+v", report)
+	}
+}
+
 func TestHealthCanVerifyTCPDataPathThroughSOCKS(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
