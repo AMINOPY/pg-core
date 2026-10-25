@@ -1,0 +1,32 @@
+name: Android skills installer validation
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/install-android-skills.sh'
+      - 'docs/ANDROID_SKILLS_INTEGRATION.md'
+      - '.agents/skills/**'
+      - '.github/workflows/android-skills.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/install-android-skills.sh'
+      - 'docs/ANDROID_SKILLS_INTEGRATION.md'
+      - '.agents/skills/**'
+      - '.github/workflows/android-skills.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: bash -n scripts/install-android-skills.sh
+      - name: Check installer safety boundaries
+        run: |
+          grep -F 'DEST="$ROOT/.agents/skills/android-upstream"' scripts/install-android-skills.sh
+          grep -F 'https://github.com/android/skills.git' scripts/install-android-skills.sh
+          grep -F 'find "$UPSTREAM" -type f -name SKILL.md' scripts/install-android-skills.sh
