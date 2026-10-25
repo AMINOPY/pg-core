@@ -223,6 +223,9 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 
 func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 	start := time.Now()
+	if ctx == nil {
+		return engine.HealthReport{}, errors.New("context is required")
+	}
 	report := engine.HealthReport{EngineID: a.ID(), CheckedAt: time.Now().UTC()}
 	if err := ctx.Err(); err != nil {
 		return report, err
@@ -250,6 +253,9 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 }
 
 func (a *Adapter) Stop(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("context is required")
+	}
 	a.lifecycle.Lock()
 	defer a.lifecycle.Unlock()
 
@@ -295,6 +301,9 @@ func (a *Adapter) clearProcess(state *processState) {
 }
 
 func validateInput(ctx context.Context, binary string, cfg []byte) error {
+	if ctx == nil {
+		return errors.New("context is required")
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
