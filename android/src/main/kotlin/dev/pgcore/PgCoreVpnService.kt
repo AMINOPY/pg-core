@@ -62,7 +62,7 @@ class PgCoreVpnService : VpnService() {
                 if (stopping.get()) throw IOException("VPN start cancelled")
 
                 localBackend = PgCoreVpnBackendRegistry.create()
-                val started = localBackend.start(localTun.fd, config)
+                val started = localBackend.start(localTun.fd, config) { socketFd -> protect(socketFd) }
                 if (!started.ok) throw IOException(started.message ?: started.code)
                 val healthy = localBackend.healthCheck()
                 if (!healthy.ok) throw IOException(healthy.message ?: healthy.code)
