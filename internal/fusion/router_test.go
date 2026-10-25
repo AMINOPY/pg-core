@@ -36,7 +36,7 @@ func TestRouterHoldsLeaseUntilConnectionClose(t *testing.T) {
 	}()
 
 	router, err := NewRouter([]Route{{
-		Path: Path{ID: "local", Healthy: true, Weight: 1, MaxConcurrent: 1},
+		Path:   Path{ID: "local", Healthy: true, Weight: 1, MaxConcurrent: 1},
 		Dialer: &net.Dialer{Timeout: time.Second},
 	}})
 	if err != nil {
