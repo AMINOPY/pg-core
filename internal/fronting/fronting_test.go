@@ -169,7 +169,6 @@ func TestJSONStringOrArray(t *testing.T) {
 	}
 }
 
-
 func TestApplyRejectsTrailingJSON(t *testing.T) {
 	_, err := Apply([]byte(profile+` {}`), Settings{
 		SNI:     "cdn.example.com",
