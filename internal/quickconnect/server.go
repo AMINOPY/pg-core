@@ -27,6 +27,7 @@ import (
 const (
 	defaultSOCKSAddress = "127.0.0.1:1080"
 	maxRequestBytes     = 16 << 10
+	maxCatalogBytes     = 1 << 20
 )
 
 type connectRequest struct {
@@ -70,9 +71,9 @@ func NewFromEnv() (*Server, error) {
 			s.catalogErr[mode] = "candidate catalog is not configured (" + envName + ")"
 			continue
 		}
-		data, err := os.ReadFile(catalogPath)
+		data, err := readCatalogFile(catalogPath)
 		if err != nil {
-			s.catalogErr[mode] = "candidate catalog could not be read"
+			s.catalogErr[mode] = err.Error()
 			continue
 		}
 		dec := json.NewDecoder(strings.NewReader(string(data)))
@@ -89,6 +90,24 @@ func NewFromEnv() (*Server, error) {
 		}
 	}
 	return s, nil
+}
+
+// readCatalogFile bounds memory use when loading operator-supplied candidate
+// catalogs. Valid catalogs are small because their candidate counts are capped.
+func readCatalogFile(path string) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, errors.New("candidate catalog could not be read")
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxCatalogBytes+1))
+	if err != nil {
+		return nil, errors.New("candidate catalog could not be read")
+	}
+	if len(data) > maxCatalogBytes {
+		return nil, errors.New("candidate catalog exceeds 1 MiB")
+	}
+	return data, nil
 }
 
 func validServerKey(key string) bool {
