@@ -66,6 +66,20 @@ func TestConnectionModesValidate(t *testing.T) {
 	}
 }
 
+func TestConnectionModesRejectNonPublicCDNIPs(t *testing.T) {
+	for _, ip := range []string{"127.0.0.1", "10.0.0.1", "169.254.1.1", "224.0.0.1", "::", "fc00::1", "fe80::1"} {
+		t.Run(ip, func(t *testing.T) {
+			cfg := validConnectionConfig()
+			cfg.Mode = ModeCDNFronting
+			cfg.ServerName = "edge.example.net"
+			cfg.CDNIPs = []string{ip}
+			if err := cfg.Validate(); !errors.Is(err, ErrInvalidConnectionConfig) {
+				t.Fatalf("Validate() error = %v, want invalid config for %q", err, ip)
+			}
+		})
+	}
+}
+
 func TestRejectsUnsafeEndpointAndProbeBounds(t *testing.T) {
 	cfg := validConnectionConfig()
 	cfg.Endpoint = "http://tunnel.example.com"
