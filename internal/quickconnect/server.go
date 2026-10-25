@@ -215,8 +215,8 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 	seenSNI, seenCDN := map[string]bool{}, map[string]bool{}
 	for _, route := range routes {
 		items = append(items, map[string]any{
-			"sni": route.SNI,
-			"cdn_ip": route.CDNIP,
+			"sni":        route.SNI,
+			"cdn_ip":     route.CDNIP,
 			"latency_ms": float64(route.Latency) / float64(time.Millisecond),
 			"checked_at": route.CheckedAt,
 		})
@@ -234,7 +234,7 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 		"sni_candidates": sniCandidates, "cdn_candidates": cdnCandidates,
 		"max_sni_candidates": autocdn.MaxCandidates,
 		"max_cdn_candidates": autocdn.MaxCandidates,
-		"max_pair_probes": autocdn.MaxPairProbes,
+		"max_pair_probes":    autocdn.MaxPairProbes,
 	})
 }
 
