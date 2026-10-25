@@ -12,6 +12,8 @@ bash scripts/install-android-skills.sh
 
 The script clones the current upstream default branch and copies every directory containing a `SKILL.md`—including that skill's local references and resources—into `.agents/skills/android-upstream/`. It also copies the upstream Apache-2.0 license. Re-running it refreshes only this managed destination; it does not modify the Go/Kotlin/C/Python implementation or delete other agent skills.
 
+After this integration is merged, the `Sync upstream Android skills` workflow can run manually, on a weekly schedule, or after changes to the installer. It opens a reviewable pull request with upstream skill updates instead of committing third-party content directly to `main`.
+
 Review upstream changes before relying on them in production. The upstream repository evolves independently, so the installed content is a snapshot of the branch at installation time. For reproducible team builds, pin a reviewed upstream commit before making the sync part of a release workflow.
 
 ## Skills most relevant to this repository
