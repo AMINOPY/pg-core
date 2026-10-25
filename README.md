@@ -112,6 +112,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP
 Contributions should include tests and document supported platforms and engine versions.
 
 
+
+## Android agent skills
+
+The project can sync all upstream Android development skills (33 at the time of writing) into `.agents/skills/android-upstream/` with `bash scripts/install-android-skills.sh`. These are agent instructions and supporting resources, not compiled VPN features. See [docs/ANDROID_SKILLS_INTEGRATION.md](docs/ANDROID_SKILLS_INTEGRATION.md); repository-specific instructions are in [AGENTS.md](AGENTS.md).
+
 ## Explainable network diagnostics
 
 The optional `--ai-scan` CLI runs a bounded series of DNS/HTTPS checks and reports latency summaries, failed-sample ratio, timing variation, and evidence-backed rule findings. It is a deterministic diagnostics module, **not a trained AI model** and not a system-VPN health check.
