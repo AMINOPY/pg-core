@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	maxEdgeIPs = 64
-	maxInputOutbounds = 256
+	maxEdgeIPs           = 64
+	maxInputOutbounds    = 256
 	maxExpandedOutbounds = 512
 )
 
