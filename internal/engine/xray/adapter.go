@@ -265,7 +265,12 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 		report.Status = engine.StatusFailed
 		report.ErrorCode = "process_exited"
 	default:
-		report.Status = engine.StatusHealthy
+		if state.healthTarget == "" {
+			report.Status = engine.StatusDegraded
+			report.ErrorCode = "process_liveness_only"
+		} else {
+			report.Status = engine.StatusHealthy
+		}
 	}
 	if report.Status == engine.StatusHealthy && state.healthTarget != "" {
 		if err := probeViaSOCKS(ctx, state.proxyAddr, state.healthTarget); err != nil {
