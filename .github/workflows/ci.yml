@@ -36,7 +36,6 @@ jobs:
           if [[ -n "$files" ]]; then
             echo "These Go files need gofmt:"
             echo "$files"
-            gofmt -d $files
             exit 1
           fi
       - name: Integration package tests
