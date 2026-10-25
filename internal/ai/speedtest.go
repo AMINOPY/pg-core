@@ -138,13 +138,13 @@ func (s SpeedTester) download(ctx context.Context, u *url.URL) (int64, time.Dura
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return 0, 0, 0, err.Error()
+		return 0, 0, 0, "download request could not be created"
 	}
 	start := time.Now()
 	resp, err := s.client().Do(req)
 	elapsed := time.Since(start)
 	if err != nil {
-		return 0, elapsed, 0, err.Error()
+		return 0, elapsed, 0, "download request failed"
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -153,7 +153,7 @@ func (s SpeedTester) download(ctx context.Context, u *url.URL) (int64, time.Dura
 	n, readErr := io.Copy(io.Discard, io.LimitReader(resp.Body, s.downloadLimit()))
 	elapsed = time.Since(start)
 	if readErr != nil {
-		return n, elapsed, 0, readErr.Error()
+		return n, elapsed, 0, "download response read failed"
 	}
 	if elapsed <= 0 {
 		elapsed = time.Nanosecond
@@ -168,7 +168,7 @@ func (s SpeedTester) upload(ctx context.Context, u *url.URL) (int64, time.Durati
 	payload := bytes.Repeat([]byte("c"), int(s.uploadLimit()))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(payload))
 	if err != nil {
-		return 0, 0, 0, err.Error()
+		return 0, 0, 0, "upload request could not be created"
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Content-Length", fmt.Sprint(len(payload)))
@@ -176,7 +176,7 @@ func (s SpeedTester) upload(ctx context.Context, u *url.URL) (int64, time.Durati
 	resp, err := s.client().Do(req)
 	elapsed := time.Since(start)
 	if err != nil {
-		return 0, elapsed, 0, err.Error()
+		return 0, elapsed, 0, "upload request failed"
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
