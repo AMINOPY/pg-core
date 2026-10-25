@@ -194,3 +194,34 @@ func TestProfileValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+
+// BenchmarkWebSocketTunnelWrite measures the WebSocket framing and masking
+// overhead on a local in-memory full-duplex connection. It is a regression
+// baseline, not a substitute for real network throughput measurements.
+func BenchmarkWebSocketTunnelWrite(b *testing.B) {
+	clientConn, serverConn := net.Pipe()
+	client := newWS(clientConn, nil, true)
+	server := newWS(serverConn, nil, false)
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(io.Discard, server)
+		close(done)
+	}()
+	payload := make([]byte, 256<<10)
+	for i := range payload {
+		payload[i] = byte(i)
+	}
+	b.SetBytes(int64(len(payload)))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := client.Write(payload); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.StopTimer()
+	_ = client.Close()
+	_ = serverConn.Close()
+	<-done
+}
