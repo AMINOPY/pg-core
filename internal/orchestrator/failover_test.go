@@ -119,3 +119,67 @@ func TestStartFirstAvailableStopsOnResourceConflict(t *testing.T) {
 		t.Fatal("candidate must not start while resource is held by another engine")
 	}
 }
+
+type cancelDuringStartAdapter struct {
+	*fakeAdapter
+	id         string
+	cancel     context.CancelFunc
+	stopCalls  int
+	cleanupCtx error
+}
+
+func (a *cancelDuringStartAdapter) ID() string { return a.id }
+
+func (a *cancelDuringStartAdapter) Start(context.Context, []byte) error {
+	a.cancel()
+	return errors.New("startup failed after cancellation")
+}
+
+func (a *cancelDuringStartAdapter) Stop(ctx context.Context) error {
+	a.stopCalls++
+	if a.stopCalls == 1 {
+		return errors.New("initial cleanup failed")
+	}
+	a.cleanupCtx = ctx.Err()
+	return nil
+}
+
+func TestStartFirstAvailableCleansUncertainCandidateAfterCallerCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	fleet := NewFleet()
+	first := &cancelDuringStartAdapter{
+		fakeAdapter: healthyFake(),
+		id:          "primary",
+		cancel:      cancel,
+	}
+	backup := &fleetFakeAdapter{fakeAdapter: healthyFake(), id: "backup"}
+	for _, adapter := range []interface {
+		ID() string
+		Capabilities() engine.Capabilities
+		ValidateConfig(context.Context, []byte) error
+		Start(context.Context, []byte) error
+		Health(context.Context) (engine.HealthReport, error)
+		Stop(context.Context) error
+	}{first, backup} {
+		if err := fleet.Register(adapter); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, err := fleet.StartFirstAvailable(ctx, []Candidate{
+		{EngineID: "primary", Claims: []string{"tun:default"}},
+		{EngineID: "backup", Claims: []string{"tun:default"}},
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error=%v, want caller cancellation after cleanup", err)
+	}
+	if first.stopCalls != 2 {
+		t.Fatalf("stop calls=%d, want initial cleanup plus independent recovery cleanup", first.stopCalls)
+	}
+	if first.cleanupCtx != nil {
+		t.Fatalf("recovery cleanup inherited cancelled context: %v", first.cleanupCtx)
+	}
+	if backup.started {
+		t.Fatal("backup must not start after caller cancellation")
+	}
+}

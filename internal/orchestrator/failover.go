@@ -72,7 +72,10 @@ func (f *Fleet) StartFirstAvailable(ctx context.Context, candidates []Candidate)
 		// listeners. Retry cleanup explicitly; never advance while ownership is
 		// uncertain.
 		if errors.Is(err, ErrResourceStateUncertain) {
-			if stopErr := f.Stop(ctx, candidate.EngineID); stopErr != nil {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
+			stopErr := f.Stop(cleanupCtx, candidate.EngineID)
+			cancel()
+			if stopErr != nil {
 				return "", fmt.Errorf("candidate %q failed and cleanup could not be confirmed: %w", candidate.EngineID, errors.Join(err, stopErr))
 			}
 		}
