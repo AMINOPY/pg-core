@@ -3,6 +3,9 @@ package xray
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -109,6 +112,104 @@ func TestValidateConfigUsesInstalledBinaryAndDoesNotLeakConfig(t *testing.T) {
 	err := bad.ValidateConfig(context.Background(), []byte(`{"secret":"dont-leak-this"}`))
 	if err == nil || strings.Contains(err.Error(), "dont-leak-this") {
 		t.Fatalf("unsafe error: %v", err)
+	}
+}
+
+func TestHealthCanVerifyTCPDataPathThroughSOCKS(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		defer conn.Close()
+		greeting := make([]byte, 3)
+		if _, err := io.ReadFull(conn, greeting); err != nil {
+			serverErr <- err
+			return
+		}
+		if _, err := conn.Write([]byte{5, 0}); err != nil {
+			serverErr <- err
+			return
+		}
+		head := make([]byte, 5)
+		if _, err := io.ReadFull(conn, head[:4]); err != nil {
+			serverErr <- err
+			return
+		}
+		if head[3] == 3 {
+			if _, err := io.ReadFull(conn, head[4:5]); err != nil {
+				serverErr <- err
+				return
+			}
+			nameAndPort := make([]byte, int(head[4])+2)
+			if _, err := io.ReadFull(conn, nameAndPort); err != nil {
+				serverErr <- err
+				return
+			}
+		} else {
+			serverErr <- errors.New("expected domain-name SOCKS request")
+			return
+		}
+		_, err = conn.Write([]byte{5, 0, 0, 1, 127, 0, 0, 1, 0, 0})
+		serverErr <- err
+	}()
+
+	a := New("unused")
+	a.proc = &processState{
+		done:         make(chan struct{}),
+		proxyAddr:    listener.Addr().String(),
+		healthTarget: "example.com:443",
+	}
+	report, err := a.Health(context.Background())
+	if err != nil {
+		t.Fatalf("Health returned error: %v", err)
+	}
+	if report.Status != engine.StatusHealthy || report.ErrorCode != "" {
+		t.Fatalf("unexpected health report: %+v", report)
+	}
+	if err := <-serverErr; err != nil {
+		t.Fatalf("SOCKS test server: %v", err)
+	}
+}
+
+func TestHealthMarksFailedWhenDataPathProbeFails(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := listener.Addr().String()
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	a := New("unused")
+	a.proc = &processState{done: make(chan struct{}), proxyAddr: addr, healthTarget: "example.com:443"}
+	report, err := a.Health(context.Background())
+	if err != nil {
+		t.Fatalf("Health returned error: %v", err)
+	}
+	if report.Status != engine.StatusFailed || report.ErrorCode != "data_path_probe_failed" {
+		t.Fatalf("unexpected health report: %+v", report)
+	}
+}
+
+func TestValidateHealthTarget(t *testing.T) {
+	for _, target := range []string{"example.com:443", "127.0.0.1:80", "[::1]:443"} {
+		if err := validateHealthTarget(target); err != nil {
+			t.Errorf("valid target %q rejected: %v", target, err)
+		}
+	}
+	for _, target := range []string{"", "example.com", "example.com:0", "example.com:65536", "example.com:443\n"} {
+		if err := validateHealthTarget(target); err == nil {
+			t.Errorf("invalid target %q accepted", target)
+		}
 	}
 }
 

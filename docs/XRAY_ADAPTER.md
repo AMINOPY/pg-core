@@ -13,19 +13,25 @@ or an OS VPN installer.
 - Avoid returning upstream command output because it can include sensitive config.
 - Optionally apply the existing core CDN/SNI settings to a single TLS `vnext`
   outbound. Certificate verification is not disabled.
-- Provide a helper to identify a loopback-only SOCKS inbound and a SOCKS5 probe.
+- Optionally verify the TCP data path through a loopback, no-auth SOCKS5 inbound when `Adapter.HealthTarget` is configured; the target is an explicit `host:port` and is probed after process liveness.
 
 ## Important limitations
 
 - The adapter does not install Xray, configure OS routes, create a TUN device,
   alter system DNS, or guarantee end-to-end connectivity.
-- A healthy process is only a liveness signal. It does not prove the configured
-  remote endpoint is reachable or that application traffic passes.
+- Without `HealthTarget`, health is process-liveness-only and does not prove the
+  configured remote endpoint is reachable or that application traffic passes.
+- With `HealthTarget`, health performs a SOCKS5 CONNECT to the configured `host:port`.
+  This verifies TCP reachability through the proxy, not TLS certificate validity,
+  HTTP semantics, DNS privacy, full app routing, or sustained throughput. Pick a
+  stable endpoint you control or are authorized to test; do not use this as a scan.
 - Fronting support is intentionally limited to one configured edge IP per
   profile attempt; candidate selection and retries belong to a higher-level,
   bounded policy.
-- The SOCKS probe helper requires a no-auth SOCKS5 inbound. Configurations using
-  SOCKS authentication need an explicit credential-safe probe implementation.
+- The optional SOCKS probe requires a loopback-only, no-auth SOCKS5 inbound.
+  Configurations using SOCKS authentication need an explicit credential-safe probe implementation.
+  A failed configured probe reports `data_path_probe_failed`; the lifecycle manager
+  then treats the engine as unhealthy and invokes its cleanup path.
 - The POSIX shell-script process tests are skipped on Windows. Windows process
   lifecycle and Android packaging still require platform-specific CI/device tests.
 
