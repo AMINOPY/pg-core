@@ -2,7 +2,7 @@
 
 **Status: early scaffold / not production-ready.**
 
-Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. A first sing-box subprocess adapter is now available, but Chimera is not yet a production-ready VPN client.
+Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. Initial sing-box and Xray subprocess adapters are available, but Chimera is not yet a production-ready VPN client.
 
 ## Current implementation
 
@@ -12,7 +12,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Start validation, health checks, failure cleanup, and serialized lifecycle operations
 - Deterministic route-candidate selection based on health and latency
 - Bounded DNS/HTTPS diagnostics for explicitly supplied hostnames
-- sing-box adapter: upstream config check, private temporary profile, process start/health/stop
+- sing-box and Xray adapters: config validation, private temporary profiles, process start/health/stop
 - Unit tests and GitHub Actions workflow
 
 ## Foundation (Phase A)
@@ -25,6 +25,10 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 See [docs/SING_BOX_ADAPTER.md](docs/SING_BOX_ADAPTER.md). The adapter wraps an already installed sing-box executable. It validates a complete JSON profile with `sing-box check`, writes it with restrictive permissions, starts the child process, checks process liveness, and stops/cleans up the process.
 
 The adapter does **not** install or pin sing-box, configure OS routes, install system DNS settings, create a system TUN device itself, or guarantee end-to-end connectivity. A live process is not proof that routing or DNS works. Platform-specific route/DNS ownership, rollback, privilege design, and real-engine integration tests remain before production use.
+
+## Xray integration (initial)
+
+See [docs/XRAY_ADAPTER.md](docs/XRAY_ADAPTER.md). The Xray adapter wraps an already-installed executable, validates and stores a private temporary profile, and manages its process lifecycle. It does not install Xray, create TUN, configure system routes/DNS, or prove end-to-end connectivity. Platform-specific validation remains outstanding.
 
 ## CDN/SNI
 
@@ -55,7 +59,7 @@ See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use syste
 |---|---|
 | native | Own engine: TLS+WebSocket tunnel, local SOCKS5, CDN/SNI. See [docs/NATIVE_ENGINE.md](docs/NATIVE_ENGINE.md) |
 | sing-box | Initial subprocess adapter implemented; platform networking validation remains |
-| Xray-core | Planned |
+| Xray-core | Initial process adapter implemented; platform and real-engine validation remain |
 | Mihomo | Planned |
 | Aether | Research only |
 
