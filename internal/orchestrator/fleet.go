@@ -136,13 +136,13 @@ func (f *Fleet) Stop(ctx context.Context, id string) error {
 // Status returns the named engine's last lifecycle state.
 func (f *Fleet) Status(id string) (engine.Status, engine.HealthReport, error) {
 	if f == nil {
-		return engine.StatusUnknown, engine.HealthReport{}, errors.New("fleet is required")
+		return "", engine.HealthReport{}, errors.New("fleet is required")
 	}
 	f.mu.RLock()
 	entry, ok := f.byID[id]
 	f.mu.RUnlock()
 	if !ok {
-		return engine.StatusUnknown, engine.HealthReport{}, fmt.Errorf("%w: %s", ErrEngineNotRegistered, id)
+		return "", engine.HealthReport{}, fmt.Errorf("%w: %s", ErrEngineNotRegistered, id)
 	}
 	status, report := entry.manager.Status()
 	return status, report, nil
