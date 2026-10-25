@@ -108,6 +108,15 @@ func (f *Fleet) Start(ctx context.Context, id string, cfg []byte, claims ...stri
 	f.mu.RUnlock()
 
 	if err := entry.manager.Start(ctx, cfg); err != nil {
+		// If cleanup failed during startup, the adapter may still own a TUN,
+		// route, DNS setting, or listener. Reserve the declared resources until
+		// an explicit Stop succeeds, even though Start returned an error.
+		if errors.Is(err, ErrResourceStateUncertain) {
+			f.mu.Lock()
+			entry.claims = normalized
+			entry.active = true
+			f.mu.Unlock()
+		}
 		return err
 	}
 	f.mu.Lock()
