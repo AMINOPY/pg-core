@@ -2,6 +2,7 @@ package singbox
 
 import (
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -65,6 +66,44 @@ func TestLifecycle(t *testing.T) {
 	report, err = a.Health(ctx)
 	if err != nil || report.Status != engine.StatusStopped {
 		t.Fatalf("after stop report=%+v err=%v", report, err)
+	}
+}
+
+
+func TestProxyAddressRequiresLoopbackUnauthenticatedSOCKS(t *testing.T) {
+	good := []byte(`{"inbounds":[{"type":"socks","listen":"127.0.0.1","listen_port":1080} ]}`)
+	addr, err := proxyAddress(good)
+	if err != nil || addr != "127.0.0.1:1080" {
+		t.Fatalf("addr=%q err=%v", addr, err)
+	}
+	for _, bad := range [][]byte{
+		[]byte(`{"inbounds":[{"type":"socks","listen":"0.0.0.0","listen_port":1080}]}`),
+		[]byte(`{"inbounds":[{"type":"socks","listen":"127.0.0.1","listen_port":1080,"users":[{"username":"u","password":"p"}]}]}`),
+		[]byte(`{"inbounds":[{"type":"http","listen":"127.0.0.1","listen_port":1080}]}`),
+	} {
+		if _, err := proxyAddress(bad); err == nil {
+			t.Fatalf("expected invalid probe inbound to be rejected: %s", bad)
+		}
+	}
+}
+
+func TestHealthMarksFailedWhenConfiguredDataPathProbeFails(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := listener.Addr().String()
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	a := New("unused")
+	a.proc = &processState{done: make(chan struct{}), proxyAddr: addr, healthTarget: "example.com:443"}
+	report, err := a.Health(context.Background())
+	if err != nil {
+		t.Fatalf("Health returned error: %v", err)
+	}
+	if report.Status != engine.StatusFailed || report.ErrorCode != "data_path_probe_failed" {
+		t.Fatalf("unexpected health report: %+v", report)
 	}
 }
 
