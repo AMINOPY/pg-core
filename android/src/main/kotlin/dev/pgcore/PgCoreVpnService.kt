@@ -55,8 +55,8 @@ class PgCoreVpnService : VpnService() {
                     dnsServers = options.dnsServers,
                 )
                 val builder = Builder().setSession("PG CORE").setMtu(config.mtu).setBlocking(true)
-                options.allowedApplications.forEach(builder::addAllowedApplication)
-                options.disallowedApplications.forEach(builder::addDisallowedApplication)
+                options.allowedApplications.forEach { builder.addAllowedApplication(it) }
+                options.disallowedApplications.forEach { builder.addDisallowedApplication(it) }
                 if (config.enableIpv4) {
                     builder.addAddress("10.111.0.1", 32)
                     builder.addRoute("0.0.0.0", 0)
