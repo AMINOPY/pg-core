@@ -367,7 +367,7 @@ func writePrivateConfig(cfg []byte) (dir, configPath string, err error) {
 
 func validateHealthTarget(target string) error {
 	host, portText, err := net.SplitHostPort(target)
-	if err != nil || strings.TrimSpace(host) == "" || strings.ContainsAny(host, "\\r\\n\\t ") {
+	if err != nil || strings.TrimSpace(host) == "" || strings.ContainsAny(host, "\r\n\t ") {
 		return errors.New("health target must be a host:port pair")
 	}
 	port, err := strconv.Atoi(portText)
