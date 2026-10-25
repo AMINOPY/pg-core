@@ -191,7 +191,6 @@ func TestFetchManifestRejectsUnsafeURLs(t *testing.T) {
 	}
 }
 
-
 func TestFetchManifestNilContextDoesNotPanic(t *testing.T) {
 	_, err := FetchManifest(nil, "http://example.com", nil, time.Now(), 0)
 	if !errors.Is(err, ErrInvalidManifest) {
