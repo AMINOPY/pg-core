@@ -44,6 +44,8 @@ func TestValidate(t *testing.T) {
 		{EdgeIPs: []string{"1.1.1.1"}},
 		{SNI: "1.2.3.4", EdgeIPs: []string{"1.1.1.1"}},
 		{SNI: "bad host", EdgeIPs: []string{"1.1.1.1"}},
+		{SNI: "_service.cdn.example.com", EdgeIPs: []string{"1.1.1.1"}},
+		{SNI: "cdn.example.com.", EdgeIPs: []string{"1.1.1.1"}},
 		{SNI: "cdn.example.com", EdgeIPs: []string{"not-an-ip"}},
 		{SNI: "cdn.example.com", EdgeIPs: []string{"23.649.251"}},
 	}
