@@ -18,6 +18,7 @@ const cleanupTimeout = 5 * time.Second
 var ErrAlreadyRunning = errors.New("engine is already running or starting")
 var ErrNotRunning = errors.New("engine is not running")
 var ErrContextRequired = errors.New("context is required")
+var ErrResourceStateUncertain = errors.New("engine resource state is uncertain after cleanup failure")
 
 type Manager struct {
 	adapter engine.Adapter
@@ -113,7 +114,7 @@ func (m *Manager) Start(ctx context.Context, cfg []byte) error {
 			CheckedAt: time.Now().UTC(), ErrorCode: "start_failed",
 		})
 		if cleanupErr != nil {
-			return fmt.Errorf("start engine: %v; cleanup failed: %w", err, cleanupErr)
+			return fmt.Errorf("start engine: %v; cleanup failed: %w: %w", err, ErrResourceStateUncertain, cleanupErr)
 		}
 		return fmt.Errorf("start engine: %w", err)
 	}
@@ -126,7 +127,7 @@ func (m *Manager) Start(ctx context.Context, cfg []byte) error {
 			CheckedAt: time.Now().UTC(), ErrorCode: "health_check_failed",
 		})
 		if cleanupErr != nil {
-			return fmt.Errorf("health check failed: %v; cleanup failed: %w", err, cleanupErr)
+			return fmt.Errorf("health check failed: %v; cleanup failed: %w: %w", err, ErrResourceStateUncertain, cleanupErr)
 		}
 		return fmt.Errorf("health check failed: %w", err)
 	}
@@ -140,7 +141,7 @@ func (m *Manager) Start(ctx context.Context, cfg []byte) error {
 		cleanupErr := m.cleanup()
 		m.setStatus(engine.StatusFailed, report)
 		if cleanupErr != nil {
-			return fmt.Errorf("engine unhealthy after start (status %q); cleanup failed: %w", report.Status, cleanupErr)
+			return fmt.Errorf("engine unhealthy after start (status %q); cleanup failed: %w: %w", report.Status, ErrResourceStateUncertain, cleanupErr)
 		}
 		return fmt.Errorf("engine unhealthy after start (status %q)", report.Status)
 	}
