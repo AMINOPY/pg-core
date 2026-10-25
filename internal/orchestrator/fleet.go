@@ -137,6 +137,27 @@ func (f *Fleet) Stop(ctx context.Context, id string) error {
 	return nil
 }
 
+// RefreshHealth runs the adapter's bounded health check. Resource claims remain
+// reserved after an unhealthy result until Fleet.Stop succeeds, because health
+// failure alone cannot prove that host-level resources have been released.
+func (f *Fleet) RefreshHealth(ctx context.Context, id string) (engine.HealthReport, error) {
+	if f == nil {
+		return engine.HealthReport{}, errors.New("fleet is required")
+	}
+	if ctx == nil {
+		return engine.HealthReport{}, ErrContextRequired
+	}
+	f.opMu.Lock()
+	defer f.opMu.Unlock()
+	f.mu.RLock()
+	entry, ok := f.byID[id]
+	f.mu.RUnlock()
+	if !ok {
+		return engine.HealthReport{}, fmt.Errorf("%w: %s", ErrEngineNotRegistered, id)
+	}
+	return entry.manager.RefreshHealth(ctx)
+}
+
 // Status returns the named engine's last lifecycle state.
 func (f *Fleet) Status(id string) (engine.Status, engine.HealthReport, error) {
 	if f == nil {
