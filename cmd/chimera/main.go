@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/AMINOPY/pg-core/internal/ai"
 	"github.com/AMINOPY/pg-core/internal/config"
 	"github.com/AMINOPY/pg-core/internal/diagnostics"
 	"github.com/AMINOPY/pg-core/internal/engine/native"
@@ -21,6 +22,10 @@ func main() {
 	run := flag.Bool("run", false, "run the native engine (local SOCKS5) using --config and --profile")
 	profilePath := flag.String("profile", "", "path to a native engine profile (JSON), used with --run")
 	diagnose := flag.String("diagnose", "", "run bounded DNS + HTTPS checks for a hostname")
+	aiScan := flag.String("ai-scan", "", "run bounded, explainable network diagnostics for a hostname")
+	samples := flag.Int("samples", 5, "number of diagnostic samples (1-20)")
+	downloadURL := flag.String("download-url", "", "optional trusted HTTPS download-test endpoint (max 10 MiB by default)")
+	uploadURL := flag.String("upload-url", "", "optional trusted HTTPS upload-test endpoint (1 MiB by default)")
 	listEngines := flag.Bool("list-engines", false, "list known engine IDs and implementation status")
 	status := flag.Bool("status", false, "show local CLI status (no daemon is currently available)")
 	quickConnect := flag.Bool("quick-connect", false, "start the two-field local CDN/SNI connect UI (no config file required)")
@@ -40,6 +45,35 @@ func main() {
 		fmt.Println("Press Ctrl+C to stop the UI and tunnel.")
 		if err := quickconnect.Serve(ctx, *quickConnectListen, server); err != nil {
 			fmt.Fprintf(os.Stderr, "quick-connect: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	case *aiScan != "":
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		runner := ai.Runner{
+			Checker:     diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1},
+			Samples:     *samples,
+			Interval:    150 * time.Millisecond,
+			DownloadURL: *downloadURL,
+			UploadURL:   *uploadURL,
+			SpeedTester: ai.SpeedTester{Timeout: 15 * time.Second},
+		}
+		report, err := runner.Run(ctx, *aiScan)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "network diagnostics failed: %v\n", err)
+			os.Exit(2)
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "encode diagnostics report: %v\n", err)
+			os.Exit(1)
+		}
+		if report.Successful == 0 {
+			os.Exit(1)
+		}
+		if report.SpeedTest != nil && (report.SpeedTest.DownloadError != "" || report.SpeedTest.UploadError != "") {
 			os.Exit(1)
 		}
 		return
@@ -71,6 +105,8 @@ func main() {
 		fmt.Println("No network engine is started by this command.")
 		fmt.Println("Use --config config.example.json to validate a configuration.")
 		fmt.Println("Use --diagnose example.com for a bounded DNS/HTTPS check.")
+		fmt.Println("Use --ai-scan example.com for bounded, explainable network diagnostics.")
+		fmt.Println("Add --download-url and/or --upload-url to opt in to bounded throughput measurements.")
 		fmt.Println("Use --quick-connect for the two-field CDN/SNI UI (set CHIMERA_TUNNEL_KEY first).")
 		return
 	}

@@ -100,3 +100,22 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP
     go test ./...
 
 Contributions should include tests and document supported platforms and engine versions.
+
+
+## Explainable network diagnostics
+
+The optional `--ai-scan` CLI runs a bounded series of DNS/HTTPS checks and reports latency summaries, failed-sample ratio, timing variation, and evidence-backed rule findings. It is a deterministic diagnostics module, **not a trained AI model** and not a system-VPN health check.
+
+Example:
+
+```sh
+go run ./cmd/chimera --ai-scan example.com --samples 5
+```
+
+Throughput checks are opt-in and must use endpoints you control or trust:
+
+```sh
+go run ./cmd/chimera --ai-scan example.com --download-url https://your-test-host.example/download --upload-url https://your-test-host.example/upload
+```
+
+The downloader caps transfer size; the uploader sends a bounded payload. Use an endpoint that explicitly supports these request types. Diagnostics are point-in-time measurements and do not claim to measure pure ICMP ping, carrier/SIM identity, or the performance of an active tunnel. See [docs/AI_NETWORK_DIAGNOSTICS.md](docs/AI_NETWORK_DIAGNOSTICS.md).

@@ -85,3 +85,13 @@ This roadmap distinguishes implemented contracts from platform behavior that has
 - Allowing multiple competing TUN/DNS owners without an explicit, tested design
 - Claiming a process is healthy merely because it remains alive
 - Claiming a larger WebSocket frame or one HTTPS sample proves faster real-world tunnel throughput
+
+
+## Explainable network diagnostics CLI (initial implementation)
+- [x] Bounded repeated DNS/HTTPS sampling with cancellation
+- [x] Latency summary, failed-sample ratio, variation estimate, and rule-based findings
+- [x] Optional bounded download/upload measurements against explicitly supplied endpoints
+- [x] Unit tests for sample bounds, endpoint validation, and transfer limits
+- [ ] Add platform UI and collect diagnostics from the active tunnel data plane
+- [ ] Verify throughput and health measurements on controlled real devices/endpoints
+- Note: this is deterministic, explainable analysis; it is not a trained machine-learning model.
