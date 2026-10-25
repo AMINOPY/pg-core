@@ -30,7 +30,7 @@ See [docs/REMOTE_CONTROL_API.md](docs/REMOTE_CONTROL_API.md) for the tenant-scop
 
 See [docs/TRAFFIC_FUSION.md](docs/TRAFFIC_FUSION.md). The `internal/fusion` package provides deterministic path selection, concurrency-safe active-flow reservations, and a `Router` that invokes path-specific context-aware dialers for new outbound connections. It releases leases on dial failure or connection close and refuses to remove routes while they still have active connections.
 
-This is flow-level routing: each connection uses one path. It does **not** bond multiple paths into one flow or implement packet-level aggregation. The included `SOCKS5Dialer` can connect through an existing local SOCKS5 endpoint exposed by a managed engine. `fusion.RefreshRoutes` can refresh caller-supplied routes using a bounded, context-aware probe and protect against stale concurrent updates; the host still supplies the probe and scheduling. The router is not yet wired into the existing engine adapters, OS TUN/routes/DNS, or a live telemetry collector.
+This is flow-level routing: each connection uses one path. It does **not** bond multiple paths into one flow or implement packet-level aggregation. `fusion.RoutesFromSOCKS5` now binds route entries to already-running engine SOCKS5 listeners, and `fusion.ProbeSOCKS5Path` can test a TCP connection through a selected engine to a caller-chosen trusted target. `fusion.RefreshRoutes` refreshes supplied route snapshots with bounded, context-aware probes and protects against stale concurrent updates; the host still owns engine lifecycle, listener configuration, health snapshot collection, and probe scheduling. Only new TCP connections explicitly opened through `Router.DialContext` use this router. It is not a system-wide packet router and is not yet connected to OS TUN/routes/DNS or a live telemetry collector.
 
 ## Engine lifecycle and coexistence
 
@@ -62,7 +62,7 @@ See [docs/CDN_CONNECTION_MODES.md](docs/CDN_CONNECTION_MODES.md). `auto` produce
 
 ## Network policy and platform support
 
-See [docs/NETWORK_POLICY.md](docs/NETWORK_POLICY.md). The network-policy package is a validated, platform-neutral declaration only. It does not yet modify routes, DNS, firewall rules, or TUN devices. Android, Linux and Windows still need platform-owned implementations and integration tests for privilege handling, DNS/IPv4/IPv6 behavior, route restoration after crashes, and fail-closed operation.
+See [docs/NETWORK_POLICY.md](docs/NETWORK_POLICY.md) and [docs/ENGINE_FUSION_RECOVERY.md](docs/ENGINE_FUSION_RECOVERY.md). The network-policy package is a validated, platform-neutral declaration; it does not itself modify routes, DNS, firewall rules, or TUN devices. The new `internal/netrecovery.Session` provides transactional capture/apply/restore/verify semantics and retains snapshots when restoration fails so cleanup can be retried. It is a safety mechanism, not an OS backend: Android `VpnService`, Linux TUN/routes/DNS, and Windows TUN/routes/DNS backends plus host privilege handling and real-device/host tests are still required before claiming system-wide routing, DNS leak protection, crash recovery, or fail-closed behavior.
 
 ## Multilanguage core
 
