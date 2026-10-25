@@ -60,7 +60,7 @@ data class VpnServiceOptions(
                 val octets = value.split('.')
                 octets.size == 4 && octets.all { octet ->
                     octet.isNotEmpty() && octet.all(Char::isDigit) &&
-                        octet.toIntOrNull() in 0..255
+                        octet.toIntOrNull()?.let { it in 0..255 } == true
                 }
             }
         }
