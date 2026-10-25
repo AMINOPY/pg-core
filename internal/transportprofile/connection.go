@@ -75,6 +75,10 @@ func (c ConnectionConfig) Validate() error {
 		if ip == nil {
 			return fmt.Errorf("%w: invalid CDN IP %q", ErrInvalidConnectionConfig, raw)
 		}
+		if !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() ||
+			ip.IsLinkLocalUnicast() || ip.IsMulticast() || ip.IsUnspecified() {
+			return fmt.Errorf("%w: CDN IP %q must be a public unicast address", ErrInvalidConnectionConfig, raw)
+		}
 		canonical := ip.String()
 		if _, ok := seen[canonical]; ok {
 			return fmt.Errorf("%w: duplicate CDN IP %q", ErrInvalidConnectionConfig, canonical)
