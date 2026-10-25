@@ -36,7 +36,7 @@ func TestRouterHoldsLeaseUntilConnectionClose(t *testing.T) {
 	}()
 
 	router, err := NewRouter([]Route{{
-		Path:   Path{ID: "local", Healthy: true, Weight: 1, MaxConcurrent: 1},
+		Path: Path{ID: "local", Healthy: true, Weight: 1, MaxConcurrent: 1},
 		Dialer: &net.Dialer{Timeout: time.Second},
 	}})
 	if err != nil {
@@ -66,7 +66,7 @@ func TestRouterHoldsLeaseUntilConnectionClose(t *testing.T) {
 
 func TestRouterReleasesLeaseAfterDialFailure(t *testing.T) {
 	router, err := NewRouter([]Route{{
-		Path:   Path{ID: "fail", Healthy: true, Weight: 1, MaxConcurrent: 1},
+		Path: Path{ID: "fail", Healthy: true, Weight: 1, MaxConcurrent: 1},
 		Dialer: testDialer{dial: func(context.Context, string, string) (net.Conn, error) {
 			return nil, errors.New("expected dial failure")
 		}},
@@ -86,7 +86,7 @@ func TestRouterCannotRemoveRouteWithOpenConnection(t *testing.T) {
 	left, right := net.Pipe()
 	defer right.Close()
 	router, err := NewRouter([]Route{{
-		Path:   Path{ID: "pipe", Healthy: true, Weight: 1},
+		Path: Path{ID: "pipe", Healthy: true, Weight: 1},
 		Dialer: testDialer{dial: func(context.Context, string, string) (net.Conn, error) {
 			return left, nil
 		}},
@@ -99,7 +99,7 @@ func TestRouterCannotRemoveRouteWithOpenConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := router.Update([]Route{{
-		Path:   Path{ID: "other", Healthy: true, Weight: 1},
+		Path: Path{ID: "other", Healthy: true, Weight: 1},
 		Dialer: testDialer{dial: func(context.Context, string, string) (net.Conn, error) {
 			return nil, errors.New("unused")
 		}},
@@ -110,7 +110,7 @@ func TestRouterCannotRemoveRouteWithOpenConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := router.Update([]Route{{
-		Path:   Path{ID: "other", Healthy: true, Weight: 1},
+		Path: Path{ID: "other", Healthy: true, Weight: 1},
 		Dialer: testDialer{dial: func(context.Context, string, string) (net.Conn, error) {
 			return nil, errors.New("unused")
 		}},
@@ -120,7 +120,7 @@ func TestRouterCannotRemoveRouteWithOpenConnection(t *testing.T) {
 }
 
 func TestRouterRejectsMissingDialerAndReleasesIfMissing(t *testing.T) {
-	if _, err := NewRouter([]Route{{Path:   Path{ID: "missing", Healthy: true, Weight: 1}}}); !errors.Is(err, ErrInvalidPaths) {
+	if _, err := NewRouter([]Route{{Path: Path{ID: "missing", Healthy: true, Weight: 1}}}); !errors.Is(err, ErrInvalidPaths) {
 		t.Fatalf("missing dialer error = %v, want ErrInvalidPaths", err)
 	}
 }
@@ -129,7 +129,7 @@ func TestRouterConcurrentCapacityNeverOverbooks(t *testing.T) {
 	const capacity = 4
 	const workers = 32
 	router, err := NewRouter([]Route{{
-		Path:   Path{ID: "capacity", Healthy: true, Weight: 1, MaxConcurrent: capacity},
+		Path: Path{ID: "capacity", Healthy: true, Weight: 1, MaxConcurrent: capacity},
 		Dialer: testDialer{dial: func(context.Context, string, string) (net.Conn, error) {
 			client, peer := net.Pipe()
 			go func() { _ = peer.Close() }()
