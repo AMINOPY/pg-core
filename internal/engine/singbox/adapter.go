@@ -37,8 +37,9 @@ type Adapter struct {
 	// enabled it is applied to the profile before validation and start.
 	Fronting *fronting.Settings
 
-	mu   sync.Mutex
-	proc *processState
+	lifecycle sync.Mutex
+	mu        sync.Mutex
+	proc      *processState
 }
 
 func New(binary string) *Adapter { return &Adapter{Binary: binary} }
@@ -90,6 +91,9 @@ func (a *Adapter) checkProfile(ctx context.Context, cfg []byte) error {
 }
 
 func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
+	a.lifecycle.Lock()
+	defer a.lifecycle.Unlock()
+
 	if err := validateInput(ctx, a.Binary, cfg); err != nil {
 		return err
 	}
@@ -188,6 +192,12 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 }
 
 func (a *Adapter) Stop(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("context is required")
+	}
+	a.lifecycle.Lock()
+	defer a.lifecycle.Unlock()
+
 	a.mu.Lock()
 	state := a.proc
 	a.mu.Unlock()
