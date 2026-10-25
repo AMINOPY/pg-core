@@ -15,11 +15,9 @@ import (
 
 const cleanupTimeout = 5 * time.Second
 
-var (
-	ErrAlreadyRunning  = errors.New("engine is already running or starting")
-	ErrNotRunning      = errors.New("engine is not running")
-	ErrContextRequired = errors.New("context is required")
-)
+var ErrAlreadyRunning = errors.New("engine is already running or starting")
+var ErrNotRunning = errors.New("engine is not running")
+var ErrContextRequired = errors.New("context is required")
 
 type Manager struct {
 	adapter engine.Adapter
