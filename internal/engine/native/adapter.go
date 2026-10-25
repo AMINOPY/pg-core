@@ -43,9 +43,9 @@ type Profile struct {
 }
 
 type running struct {
-	ln     net.Listener
-	cancel context.CancelFunc
-	dialer *Dialer
+	ln        net.Listener
+	cancel    context.CancelFunc
+	dialer    *Dialer
 	healthURL string
 }
 
