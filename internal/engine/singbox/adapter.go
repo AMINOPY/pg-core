@@ -5,15 +5,19 @@ package singbox
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/AMINOPY/pg-core/internal/engine"
+	"github.com/AMINOPY/pg-core/internal/engine/socksprobe"
 	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
@@ -22,10 +26,12 @@ const maxConfigBytes = 4 << 20
 var ErrAlreadyRunning = errors.New("sing-box process is already running")
 
 type processState struct {
-	cmd     *exec.Cmd
-	dir     string
-	done    chan struct{}
-	waitErr error
+	cmd          *exec.Cmd
+	dir          string
+	done         chan struct{}
+	waitErr      error
+	proxyAddr    string
+	healthTarget string
 }
 
 // Adapter runs an installed sing-box executable. Binary may be an absolute path
@@ -36,6 +42,11 @@ type Adapter struct {
 	// Fronting is the optional CDN/SNI feature (SNI + edge IP list). When it is
 	// enabled it is applied to the profile before validation and start.
 	Fronting *fronting.Settings
+
+	// HealthTarget optionally verifies TCP reachability through a loopback,
+	// no-auth SOCKS5 inbound (for example, "example.com:443"). Empty keeps
+	// process-liveness-only health. Use a stable endpoint you control or may test.
+	HealthTarget string
 
 	lifecycle sync.Mutex
 	mu        sync.Mutex
@@ -115,6 +126,17 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 	if err != nil {
 		return err
 	}
+	proxyAddr := ""
+	healthTarget := strings.TrimSpace(a.HealthTarget)
+	if healthTarget != "" {
+		if err := socksprobe.ValidateTarget(healthTarget); err != nil {
+			return err
+		}
+		proxyAddr, err = proxyAddress(cfg)
+		if err != nil {
+			return fmt.Errorf("data-path health requires a loopback SOCKS inbound: %w", err)
+		}
+	}
 	if err := a.checkProfile(ctx, cfg); err != nil {
 		return err
 	}
@@ -132,7 +154,7 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 		_ = os.RemoveAll(dir)
 		return fmt.Errorf("start sing-box process: %w", err)
 	}
-	state := &processState{cmd: cmd, dir: dir, done: make(chan struct{})}
+	state := &processState{cmd: cmd, dir: dir, done: make(chan struct{}), proxyAddr: proxyAddr, healthTarget: healthTarget}
 
 	a.mu.Lock()
 	if a.proc != nil {
@@ -189,6 +211,15 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 		report.ErrorCode = "process_exited"
 	default:
 		report.Status = engine.StatusHealthy
+	}
+	if report.Status == engine.StatusHealthy && state.healthTarget != "" {
+		if err := socksprobe.ProbeTCP(ctx, state.proxyAddr, state.healthTarget); err != nil {
+			if ctx.Err() != nil {
+				return report, ctx.Err()
+			}
+			report.Status = engine.StatusFailed
+			report.ErrorCode = "data_path_probe_failed"
+		}
 	}
 	report.Latency = time.Since(start)
 	return report, nil
@@ -261,6 +292,32 @@ func validateInput(ctx context.Context, binary string, cfg []byte) error {
 		return fmt.Errorf("sing-box config exceeds %d bytes", maxConfigBytes)
 	}
 	return nil
+}
+
+func proxyAddress(cfg []byte) (string, error) {
+	var root struct {
+		Inbounds []struct {
+			Type       string            `json:"type"`
+			Listen     string            `json:"listen"`
+			ListenPort int               `json:"listen_port"`
+			Users      []json.RawMessage `json:"users"`
+		} `json:"inbounds"`
+	}
+	if err := json.Unmarshal(cfg, &root); err != nil {
+		return "", errors.New("invalid sing-box JSON config")
+	}
+	for _, in := range root.Inbounds {
+		if !strings.EqualFold(in.Type, "socks") || in.ListenPort < 1 || in.ListenPort > 65535 || len(in.Users) != 0 {
+			continue
+		}
+		host := strings.TrimSpace(in.Listen)
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			continue
+		}
+		return net.JoinHostPort(ip.String(), strconv.Itoa(in.ListenPort)), nil
+	}
+	return "", errors.New("sing-box config requires a loopback SOCKS inbound without configured users")
 }
 
 func writePrivateConfig(cfg []byte) (dir, configPath string, err error) {
