@@ -257,7 +257,6 @@ func BenchmarkWebSocketTunnelWrite(b *testing.B) {
 	<-done
 }
 
-
 func TestSOCKS5RejectsUnofferedAuthenticationMethod(t *testing.T) {
 	server, client := net.Pipe()
 	defer server.Close()
