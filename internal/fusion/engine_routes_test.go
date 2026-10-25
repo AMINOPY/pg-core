@@ -42,6 +42,19 @@ func TestRoutesFromSOCKS5BindsPathsToEngineListeners(t *testing.T) {
 	if _, err := RoutesFromSOCKS5([]SOCKS5Path{{Path: Path{ID: "bad", Weight: 1}, ProxyAddress: "not-an-address"}}); err == nil {
 		t.Fatal("expected malformed engine listener to be rejected")
 	}
+	for _, address := range []string{
+		"0.0.0.0:1080",
+		"192.0.2.10:1080",
+		"localhost:1080",
+		"127.0.0.1:abc",
+		"127.0.0.1:65536",
+	} {
+		if _, err := RoutesFromSOCKS5([]SOCKS5Path{{
+			Path: Path{ID: "invalid-listener", Weight: 1}, ProxyAddress: address,
+		}}); err == nil {
+			t.Errorf("expected unsafe or invalid listener %q to be rejected", address)
+		}
+	}
 	if _, err := RoutesFromSOCKS5([]SOCKS5Path{
 		{Path: Path{ID: "same", Weight: 1}, ProxyAddress: "127.0.0.1:1080"},
 		{Path: Path{ID: "same", Weight: 1}, ProxyAddress: "127.0.0.1:1081"},
