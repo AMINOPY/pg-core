@@ -88,12 +88,21 @@ func socks5Connect(ctx context.Context, proxyAddr, targetAddr string) (net.Conn,
 	}
 	fail := func(err error) (net.Conn, error) {
 		_ = conn.Close()
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, err
 	}
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)
 	}
-	if _, err := conn.Write([]byte{5, 1, 0}); err != nil {
+	// A context without an explicit deadline must still be able to interrupt
+	// a stalled SOCKS greeting or CONNECT reply.
+	stopCancel := context.AfterFunc(ctx, func() {
+		_ = conn.SetDeadline(time.Now())
+	})
+	defer stopCancel()
+	if err := writeAll(conn, []byte{5, 1, 0}); err != nil {
 		return fail(err)
 	}
 	var greeting [2]byte
@@ -119,7 +128,7 @@ func socks5Connect(ctx context.Context, proxyAddr, targetAddr string) (net.Conn,
 	var p [2]byte
 	binary.BigEndian.PutUint16(p[:], uint16(port))
 	req = append(req, p[:]...)
-	if _, err := conn.Write(req); err != nil {
+	if err := writeAll(conn, req); err != nil {
 		return fail(err)
 	}
 	var head [4]byte
@@ -147,6 +156,32 @@ func socks5Connect(ctx context.Context, proxyAddr, targetAddr string) (net.Conn,
 	if _, err := io.CopyN(io.Discard, conn, int64(addrLen+2)); err != nil {
 		return fail(err)
 	}
+	if err := ctx.Err(); err != nil {
+		return fail(err)
+	}
+	if !stopCancel() {
+		if err := ctx.Err(); err != nil {
+			return fail(err)
+		}
+		return fail(context.Canceled)
+	}
 	_ = conn.SetDeadline(time.Time{})
 	return conn, nil
+}
+
+// writeAll handles the legal short-write behavior of net.Conn implementations.
+func writeAll(w io.Writer, p []byte) error {
+	for len(p) > 0 {
+		n, err := w.Write(p)
+		if n > 0 {
+			p = p[n:]
+		}
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return io.ErrShortWrite
+		}
+	}
+	return nil
 }
