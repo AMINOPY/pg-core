@@ -172,7 +172,7 @@ func (s *FileSequenceStore) writeLocked(doc sequenceDocument) error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("%w: close temporary file: %v", ErrSequenceStore, err)
 	}
-	if err := os.Rename(tmpName, s.path); err != nil {
+	if err := replaceSequenceFile(tmpName, s.path); err != nil {
 		return fmt.Errorf("%w: replace store: %v", ErrSequenceStore, err)
 	}
 	return nil
