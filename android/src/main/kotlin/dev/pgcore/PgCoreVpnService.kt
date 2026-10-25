@@ -33,13 +33,13 @@ class PgCoreVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> { stopVpn(); stopSelf(startId) }
-            ACTION_START -> startVpn()
+            ACTION_START -> startVpn(intent)
             else -> stopSelf(startId)
         }
         return START_NOT_STICKY
     }
 
-    private fun startVpn() {
+    private fun startVpn(intent: Intent?) {
         if (tun != null || startTask?.isDone == false) return
         stopping.set(false)
         createNotificationChannel()
@@ -48,8 +48,15 @@ class PgCoreVpnService : VpnService() {
             var localTun: ParcelFileDescriptor? = null
             var localBackend: PgCoreVpnBackend? = null
             try {
-                val config = VpnBackendConfig(sessionId = UUID.randomUUID().toString())
+                val options = VpnServiceOptions.fromIntent(intent)
+                val config = VpnBackendConfig(
+                    sessionId = UUID.randomUUID().toString(),
+                    mtu = options.mtu,
+                    dnsServers = options.dnsServers,
+                )
                 val builder = Builder().setSession("PG CORE").setMtu(config.mtu).setBlocking(true)
+                options.allowedApplications.forEach(builder::addAllowedApplication)
+                options.disallowedApplications.forEach(builder::addDisallowedApplication)
                 if (config.enableIpv4) {
                     builder.addAddress("10.111.0.1", 32)
                     builder.addRoute("0.0.0.0", 0)
