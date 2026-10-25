@@ -195,7 +195,6 @@ func TestProfileValidation(t *testing.T) {
 	}
 }
 
-
 // BenchmarkWebSocketTunnelWrite measures the WebSocket framing and masking
 // overhead on a local in-memory full-duplex connection. It is a regression
 // baseline, not a substitute for real network throughput measurements.
