@@ -85,7 +85,6 @@ func TestFleetRejectsInvalidClaimsAndUnknownEngines(t *testing.T) {
 	}
 }
 
-
 func TestFleetRetainsClaimsAfterHealthFailureUntilStopSucceeds(t *testing.T) {
 	fleet := NewFleet()
 	first := &fleetFakeAdapter{fakeAdapter: healthyFake(), id: "engine-a"}
