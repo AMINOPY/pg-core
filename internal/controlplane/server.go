@@ -10,6 +10,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
+	"crypto/rand"
 	"regexp"
 	"sort"
 	"strings"
@@ -225,8 +227,16 @@ func decodeBody(w http.ResponseWriter, r *http.Request, dst any) bool {
 	return true
 }
 func validPlatform(v string) bool { return v == "android" || v == "linux" || v == "windows" || v == "ios" || v == "macos" || v == "web" }
-func validReleaseURL(v string) bool { return strings.HasPrefix(v, "https://") && len(v) <= 2048 && !strings.ContainsAny(v, "\r\n") }
-func randomID() string { return time.Now().UTC().Format("20060102T150405.000000000") }
+func validReleaseURL(v string) bool {
+	if len(v) == 0 || len(v) > 2048 || strings.ContainsAny(v, "\\r\\n") { return false }
+	u, err := url.ParseRequestURI(v)
+	return err == nil && u.Scheme == "https" && u.Hostname() != "" && u.User == nil
+}
+func randomID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err == nil { return hex.EncodeToString(b[:]) }
+	return time.Now().UTC().Format("20060102T150405.000000000")
+}
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
