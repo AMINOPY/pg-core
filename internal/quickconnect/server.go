@@ -177,7 +177,8 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 		Mode string `json:"mode"`
 	}
 	dec := json.NewDecoder(r.Body)
-	if err := dec.Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid selection request"})
 		return
 	}
