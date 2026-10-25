@@ -38,7 +38,7 @@ For a two-field, no-local-config UI using the native TLS/WebSocket tunnel, see [
 
 ## Multilanguage core
 
-The staged Go/C/Python/Kotlin plan is documented in [docs/MULTILANGUAGE_CORE.md](docs/MULTILANGUAGE_CORE.md). Go remains the single lifecycle owner; C is conditional on profiling, Python is for diagnostics/benchmarks, and Kotlin belongs at the Android platform boundary. The dependency-free Python benchmark report validator lives in `tools/corecheck/` and runs in CI. The C ABI and Android adapter remain gated on a measured native need and an actual host-app Gradle module, respectively; neither is claimed as integrated yet.
+The Go/C/Python/Kotlin implementation is staged and documented in [docs/MULTILANGUAGE_CORE.md](docs/MULTILANGUAGE_CORE.md). Go remains the single lifecycle owner. A small C11 ABI primitive for bounded SNI syntax validation now lives in `native/` with standalone tests; it is not a tunnel engine and Go validation remains authoritative until parity tests are added. The dependency-free Python benchmark report validator lives in `tools/corecheck/` and runs in CI. `android/src/main/kotlin/dev/pgcore/EngineBoundary.kt` defines a UI-neutral Kotlin contract for a host app to forward lifecycle requests. It is not yet wired to a Gradle app, foreground service, JNI library, or Android instrumentation tests.
 
 ## Quick start
 
