@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/AMINOPY/pg-core/internal/engine"
+	"github.com/AMINOPY/pg-core/internal/engine/socksprobe"
 	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
@@ -366,15 +367,7 @@ func writePrivateConfig(cfg []byte) (dir, configPath string, err error) {
 }
 
 func validateHealthTarget(target string) error {
-	host, portText, err := net.SplitHostPort(target)
-	if err != nil || strings.TrimSpace(host) == "" || strings.ContainsAny(host, "\r\n\t ") {
-		return errors.New("health target must be a host:port pair")
-	}
-	port, err := strconv.Atoi(portText)
-	if err != nil || port < 1 || port > 65535 {
-		return errors.New("health target port must be between 1 and 65535")
-	}
-	return nil
+	return socksprobe.ValidateTarget(target)
 }
 
 func proxyAddress(cfg []byte) (string, error) {
@@ -383,13 +376,17 @@ func proxyAddress(cfg []byte) (string, error) {
 			Listen   string `json:"listen"`
 			Port     int    `json:"port"`
 			Protocol string `json:"protocol"`
+			Settings struct {
+				Auth     string            `json:"auth"`
+				Accounts []json.RawMessage `json:"accounts"`
+			} `json:"settings"`
 		} `json:"inbounds"`
 	}
 	if err := json.Unmarshal(cfg, &root); err != nil {
 		return "", errors.New("invalid xray JSON config")
 	}
 	for _, in := range root.Inbounds {
-		if !strings.EqualFold(in.Protocol, "socks") || in.Port < 1 || in.Port > 65535 {
+		if !strings.EqualFold(in.Protocol, "socks") || in.Port < 1 || in.Port > 65535 || (in.Settings.Auth != "" && !strings.EqualFold(in.Settings.Auth, "noauth")) || len(in.Settings.Accounts) != 0 {
 			continue
 		}
 		host := strings.TrimSpace(in.Listen)
@@ -406,84 +403,5 @@ func proxyAddress(cfg []byte) (string, error) {
 }
 
 func probeViaSOCKS(ctx context.Context, proxyAddr, target string) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	conn, err := (&net.Dialer{Timeout: 500 * time.Millisecond}).DialContext(ctx, "tcp", proxyAddr)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(1 * time.Second))
-	if _, err := conn.Write([]byte{5, 1, 0}); err != nil {
-		return err
-	}
-	reply := make([]byte, 2)
-	if _, err := readFull(conn, reply); err != nil {
-		return err
-	}
-	if reply[0] != 5 || reply[1] != 0 {
-		return errors.New("SOCKS5 proxy does not allow no-auth negotiation")
-	}
-	host, portText, err := net.SplitHostPort(target)
-	if err != nil {
-		return errors.New("invalid SOCKS target address")
-	}
-	port, err := strconv.Atoi(portText)
-	if err != nil || port < 1 || port > 65535 {
-		return errors.New("invalid SOCKS target port")
-	}
-	ip := net.ParseIP(host)
-	var request []byte
-	if ip4 := ip.To4(); ip4 != nil {
-		request = append([]byte{5, 1, 0, 1}, ip4...)
-	} else if ip6 := ip.To16(); ip6 != nil {
-		request = append([]byte{5, 1, 0, 4}, ip6...)
-	} else {
-		if len(host) == 0 || len(host) > 255 {
-			return errors.New("invalid SOCKS target hostname")
-		}
-		request = append([]byte{5, 1, 0, 3, byte(len(host))}, []byte(host)...)
-	}
-	request = append(request, byte(port>>8), byte(port))
-	if _, err := conn.Write(request); err != nil {
-		return err
-	}
-	head := make([]byte, 4)
-	if _, err := readFull(conn, head); err != nil {
-		return err
-	}
-	if head[0] != 5 || head[1] != 0 {
-		return errors.New("SOCKS5 connect request failed")
-	}
-	n := 0
-	switch head[3] {
-	case 1:
-		n = 4
-	case 4:
-		n = 16
-	case 3:
-		length := make([]byte, 1)
-		if _, err := readFull(conn, length); err != nil {
-			return err
-		}
-		n = int(length[0])
-	default:
-		return errors.New("invalid SOCKS5 address type")
-	}
-	tail := make([]byte, n+2)
-	_, err = readFull(conn, tail)
-	return err
-}
-
-func readFull(conn net.Conn, buf []byte) (int, error) {
-	n := 0
-	for n < len(buf) {
-		got, err := conn.Read(buf[n:])
-		n += got
-		if err != nil {
-			return n, err
-		}
-	}
-	return n, nil
+	return socksprobe.ProbeTCP(ctx, proxyAddr, target)
 }
