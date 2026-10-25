@@ -178,7 +178,7 @@ func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe Pr
 				probeCtx, cancel := context.WithTimeout(ctx, timeout)
 				latency, err := probe(probeCtx, pair.SNI, pair.CDNIP)
 				cancel()
-				if err == nil {
+				if err == nil && latency >= 0 {
 					results <- Route{
 						SNI:       pair.SNI,
 						CDNIP:     pair.CDNIP,
