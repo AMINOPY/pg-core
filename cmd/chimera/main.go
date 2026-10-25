@@ -13,6 +13,7 @@ import (
 	"github.com/AMINOPY/pg-core/internal/diagnostics"
 	"github.com/AMINOPY/pg-core/internal/engine/native"
 	"github.com/AMINOPY/pg-core/internal/fronting"
+	"github.com/AMINOPY/pg-core/internal/quickconnect"
 )
 
 func main() {
@@ -22,9 +23,26 @@ func main() {
 	diagnose := flag.String("diagnose", "", "run bounded DNS + HTTPS checks for a hostname")
 	listEngines := flag.Bool("list-engines", false, "list known engine IDs and implementation status")
 	status := flag.Bool("status", false, "show local CLI status (no daemon is currently available)")
+	quickConnect := flag.Bool("quick-connect", false, "start the two-field local CDN/SNI connect UI (no config file required)")
+	quickConnectListen := flag.String("quick-connect-listen", "127.0.0.1:8787", "loopback address for the quick-connect UI")
 	flag.Parse()
 
 	switch {
+	case *quickConnect:
+		server, err := quickconnect.NewFromEnv()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		fmt.Printf("Chimera Quick Connect UI: http://%s\n", *quickConnectListen)
+		fmt.Println("Press Ctrl+C to stop the UI and tunnel.")
+		if err := quickconnect.Serve(ctx, *quickConnectListen, server); err != nil {
+			fmt.Fprintf(os.Stderr, "quick-connect: %v\n", err)
+			os.Exit(1)
+		}
+		return
 	case *diagnose != "":
 		checker := diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1}
 		result := checker.Check(context.Background(), *diagnose)
@@ -53,6 +71,7 @@ func main() {
 		fmt.Println("No network engine is started by this command.")
 		fmt.Println("Use --config config.example.json to validate a configuration.")
 		fmt.Println("Use --diagnose example.com for a bounded DNS/HTTPS check.")
+		fmt.Println("Use --quick-connect for the two-field CDN/SNI UI (set CHIMERA_TUNNEL_KEY first).")
 		return
 	}
 

@@ -122,3 +122,43 @@ func TestHealthErrorTriggersCleanup(t *testing.T) {
 		t.Fatal("expected cleanup after health error")
 	}
 }
+
+func TestLifecycleMethodsRejectNilContext(t *testing.T) {
+	a := healthyFake()
+	m, err := New(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start(nil, []byte("{}")); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("Start error = %v, want ErrContextRequired", err)
+	}
+	if _, err := m.RefreshHealth(nil); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("RefreshHealth error = %v, want ErrContextRequired", err)
+	}
+	if err := m.Stop(nil); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("Stop error = %v, want ErrContextRequired", err)
+	}
+	if a.started || a.stopped {
+		t.Fatal("nil contexts must be rejected before touching the adapter")
+	}
+}
+
+func TestStartWithCancelledContextDoesNotStartEngine(t *testing.T) {
+	a := healthyFake()
+	m, err := New(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := m.Start(ctx, []byte("{}")); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Start error = %v, want context.Canceled", err)
+	}
+	if a.started {
+		t.Fatal("engine must not start when context is already cancelled")
+	}
+	status, report := m.Status()
+	if status != engine.StatusFailed || report.ErrorCode != "start_cancelled" {
+		t.Fatalf("unexpected status/report after cancellation: %q %+v", status, report)
+	}
+}

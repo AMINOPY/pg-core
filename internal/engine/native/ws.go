@@ -21,7 +21,7 @@ import (
 const (
 	wsGUID                                            = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 	maxFrame                                          = 16 << 20
-	writeChunk                                        = 32 << 10
+	writeChunk                                        = 64 << 10
 	opCont, opText, opBinary, opClose, opPing, opPong = 0, 1, 2, 8, 9, 10
 )
 

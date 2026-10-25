@@ -15,10 +15,9 @@ import (
 
 const cleanupTimeout = 5 * time.Second
 
-var (
-	ErrAlreadyRunning = errors.New("engine is already running or starting")
-	ErrNotRunning     = errors.New("engine is not running")
-)
+var ErrAlreadyRunning = errors.New("engine is already running or starting")
+var ErrNotRunning = errors.New("engine is not running")
+var ErrContextRequired = errors.New("context is required")
 
 type Manager struct {
 	adapter engine.Adapter
@@ -79,6 +78,9 @@ func (m *Manager) cleanup() error {
 }
 
 func (m *Manager) Start(ctx context.Context, cfg []byte) error {
+	if ctx == nil {
+		return ErrContextRequired
+	}
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 
@@ -147,6 +149,9 @@ func (m *Manager) Start(ctx context.Context, cfg []byte) error {
 }
 
 func (m *Manager) RefreshHealth(ctx context.Context) (engine.HealthReport, error) {
+	if ctx == nil {
+		return engine.HealthReport{}, ErrContextRequired
+	}
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 
@@ -184,6 +189,9 @@ func (m *Manager) RefreshHealth(ctx context.Context) (engine.HealthReport, error
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
+	if ctx == nil {
+		return ErrContextRequired
+	}
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 
