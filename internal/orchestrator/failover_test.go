@@ -120,7 +120,6 @@ func TestStartFirstAvailableStopsOnResourceConflict(t *testing.T) {
 	}
 }
 
-
 type cancelDuringStartAdapter struct {
 	*fakeAdapter
 	id         string
