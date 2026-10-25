@@ -58,6 +58,13 @@ func (a *Adapter) ValidateConfig(ctx context.Context, cfg []byte) error {
 	if err != nil {
 		return err
 	}
+	return a.validatePreparedConfig(ctx, prepared)
+}
+
+func (a *Adapter) validatePreparedConfig(ctx context.Context, prepared []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	dir, configPath, err := writePrivateConfig(prepared)
 	if err != nil {
 		return err
@@ -160,7 +167,7 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := a.ValidateConfig(ctx, cfg); err != nil {
+	if err := a.validatePreparedConfig(ctx, prepared); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
