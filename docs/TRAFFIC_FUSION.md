@@ -1,24 +1,26 @@
-# Traffic fusion: flow selection and allocator boundary
+# Traffic fusion: flow routing and allocator boundary
 
 ## What “fusion” means in this repository
 
 Several independent VPN/proxy engines running at once is not, by itself, traffic fusion. True packet-level bonding needs a common data plane, sequence/reassembly logic, congestion control, loss recovery, path authentication, MTU handling, and a reachable server-side endpoint that cooperates with the client. Sending arbitrary TCP packets over multiple unrelated proxy engines will not safely create one faster connection.
 
-PG CORE now provides two separate primitives:
+PG CORE now provides three related primitives:
 
 - `fusion.Select`: deterministic policy selection from a supplied path snapshot.
-- `fusion.Allocator`: concurrency-safe selection and active-flow slot reservation for new flows, plus idempotent release leases.
+- `fusion.Allocator`: concurrency-safe selection and active-flow slot reservation, with idempotent release leases.
+- `fusion.Router`: selects one route for each outbound connection, calls that route's context-aware dialer, and releases the lease when dialing fails or the returned connection closes.
 
-The allocator prevents concurrent callers from exceeding a configured path capacity based on the same stale counter. Its counters represent reservations made through that allocator, not kernel socket state. The host still owns real connection creation/closure and must release each lease when the flow ends.
+The allocator/router counters represent reservations made through this API, not kernel socket state. The host supplies path health/quality snapshots and path-specific dialers. Existing engines and OS-wide VPN routing are not automatically wired into this router.
 
-## Selection policy
+## Selection and lifecycle guarantees
 
 - Reject malformed snapshots and duplicate path IDs.
 - Exclude unhealthy paths and paths at their configured concurrency cap.
-- Score eligible paths using RTT, loss, active flow count, and configured weight.
+- Score eligible paths using RTT, loss, active-flow count, and configured weight.
 - Use stable tie-breaking so identical snapshots produce the same result.
 - Return `ErrNoEligiblePath` rather than silently choosing an unhealthy path.
 - Preserve active-flow counts across health-snapshot updates; do not remove a path while it has active leases.
+- Release reservations on dial failure and when the returned connection is closed; repeated closes do not release twice.
 
 ## Not implemented by this stage
 
@@ -30,8 +32,8 @@ The allocator prevents concurrent callers from exceeding a configured path capac
 
 ## Next engineering stages
 
-1. Connect allocator leases to real outbound dial/close lifecycles and live health samples.
-2. Add integration tests with two controlled local paths, cancellation, and recovery.
+1. Integrate path-specific dialers with the actual outbound connection lifecycle of each supported engine.
+2. Supply fresh, bounded health measurements and add cancellation/recovery tests with two controlled local paths.
 3. Define an authenticated multiplexing protocol between a client and a cooperating server before considering packet striping.
 4. Prototype packet-level bonding only with explicit sequence numbers, bounded reordering buffers, congestion control, path failure recovery, and MTU tests.
 5. Add platform-specific TUN ownership and rollback only after a single authoritative owner is defined for routes and DNS.
