@@ -8,10 +8,15 @@ int main(void) {
     const uint8_t payload[] = {'h', 'i'};
     uint8_t wire[PGFUSION_HEADER_SIZE + sizeof(payload)];
     struct pgfusion_frame_view view;
+    const uint8_t golden[] = {
+        0x50, 0x47, 0x46, 0x31, 0x01, 0x01, 0x00, 0x07,
+        0x10, 0x20, 0x30, 0x40, 0x00, 0x00, 0x00, 0x02, 0x68, 0x69
+    };
     size_t n = pgfusion_frame_encode(PGFUSION_DATA, 7, 0x10203040u,
                                      payload, sizeof(payload), wire, sizeof(wire));
 
     assert(n == sizeof(wire));
+    assert(memcmp(wire, golden, sizeof(golden)) == 0);
     assert(pgfusion_frame_parse(wire, n, &view) == 0);
     assert(view.type == PGFUSION_DATA && view.flags == 7);
     assert(view.sequence == 0x10203040u && view.payload_len == sizeof(payload));

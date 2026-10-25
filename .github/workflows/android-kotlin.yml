@@ -38,3 +38,5 @@ jobs:
           gradle-version: "8.9"
       - name: Compile Android Kotlin library
         run: gradle --no-daemon :android:assembleDebug
+      - name: Run Android Kotlin unit tests
+        run: gradle --no-daemon :android:testDebugUnitTest

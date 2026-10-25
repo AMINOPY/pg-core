@@ -66,3 +66,25 @@ func TestEncodeRejectsUnknownType(t *testing.T) {
 		t.Fatalf("error=%v", err)
 	}
 }
+
+func TestSharedGoldenVector(t *testing.T) {
+	want := []byte{
+		0x50, 0x47, 0x46, 0x31, 0x01, 0x01, 0x00, 0x07,
+		0x10, 0x20, 0x30, 0x40, 0x00, 0x00, 0x00, 0x02,
+		0x68, 0x69,
+	}
+	wire, err := Encode(Frame{Type: TypeData, Flags: 7, Sequence: 0x10203040, Payload: []byte("hi")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(wire, want) {
+		t.Fatalf("wire = %x, want %x", wire, want)
+	}
+	got, err := Decode(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Type != TypeData || got.Flags != 7 || got.Sequence != 0x10203040 || !bytes.Equal(got.Payload, []byte("hi")) {
+		t.Fatalf("decoded frame mismatch: %#v", got)
+	}
+}
