@@ -127,9 +127,9 @@ func normalizeRoutes(routes []Route) ([]Path, map[string]ContextDialer, error) {
 
 type leasedConn struct {
 	net.Conn
-	release  func()
+	release   func()
 	closeOnce sync.Once
-	closeErr error
+	closeErr  error
 }
 
 func (c *leasedConn) Close() error {
