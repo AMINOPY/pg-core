@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -31,11 +32,23 @@ func RoutesFromSOCKS5(paths []SOCKS5Path) ([]Route, error) {
 		if strings.TrimSpace(path.ID) == "" {
 			return nil, fmt.Errorf("%w: path ID is required", ErrInvalidPaths)
 		}
-		host, portText, err := net.SplitHostPort(strings.TrimSpace(path.ProxyAddress))
+		address := strings.TrimSpace(path.ProxyAddress)
+		host, portText, err := net.SplitHostPort(address)
 		if err != nil || host == "" || strings.TrimSpace(portText) == "" {
 			return nil, fmt.Errorf("%w: path %q has an invalid SOCKS5 address", ErrInvalidPaths, path.ID)
 		}
-		dialer := SOCKS5Dialer{ProxyAddress: path.ProxyAddress}
+		// Engine control listeners must remain local. Requiring a literal
+		// loopback IP avoids accidentally routing traffic through a remote
+		// proxy or resolving a hostname to an unexpected address.
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return nil, fmt.Errorf("%w: path %q SOCKS5 listener must use a loopback IP", ErrInvalidPaths, path.ID)
+		}
+		port, err := strconv.Atoi(portText)
+		if err != nil || port < 1 || port > 65535 {
+			return nil, fmt.Errorf("%w: path %q has an invalid SOCKS5 port", ErrInvalidPaths, path.ID)
+		}
+		dialer := SOCKS5Dialer{ProxyAddress: net.JoinHostPort(ip.String(), strconv.Itoa(port))}
 		routes = append(routes, Route{Path: path.Path, Dialer: dialer})
 	}
 	if _, _, err := normalizeRoutes(routes); err != nil {
