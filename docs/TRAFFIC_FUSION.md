@@ -9,8 +9,9 @@ PG CORE now provides three related primitives:
 - `fusion.Select`: deterministic policy selection from a supplied path snapshot.
 - `fusion.Allocator`: concurrency-safe selection and active-flow slot reservation, with idempotent release leases.
 - `fusion.Router`: selects one route for each outbound connection, calls that route's context-aware dialer, and releases the lease when dialing fails or the returned connection closes.
+- `fusion.SOCKS5Dialer`: opens a TCP connection through an existing no-auth SOCKS5 listener, with domain/IPv4/IPv6 target encoding and cancellation-aware handshakes.
 
-The allocator/router counters represent reservations made through this API, not kernel socket state. The host supplies path health/quality snapshots and path-specific dialers. Existing engines and OS-wide VPN routing are not automatically wired into this router.
+The allocator/router counters represent reservations made through this API, not kernel socket state. The host supplies path health/quality snapshots and path-specific dialers. `SOCKS5Dialer` does not start or configure the proxy process. Existing engine adapters and OS-wide VPN routing are not automatically wired into this router.
 
 ## Selection and lifecycle guarantees
 
