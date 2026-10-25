@@ -81,19 +81,19 @@ func (d SOCKS5Dialer) DialContext(ctx context.Context, network, address string) 
 	}
 
 	if err := writeAll(conn, []byte{5, 1, 0}); err != nil {
-		return nil, fmt.Errorf("write SOCKS5 greeting: %w", err)
+		return nil, contextIOError(ctx, "write SOCKS5 greeting", err)
 	}
 	var methodReply [2]byte
 	if _, err := io.ReadFull(conn, methodReply[:]); err != nil {
-		return nil, fmt.Errorf("read SOCKS5 method reply: %w", err)
+		return nil, contextIOError(ctx, "read SOCKS5 method reply", err)
 	}
 	if methodReply != [2]byte{5, 0} {
 		return nil, fmt.Errorf("SOCKS5 proxy rejected no-auth method (reply %v)", methodReply)
 	}
 	if err := writeAll(conn, request); err != nil {
-		return nil, fmt.Errorf("write SOCKS5 CONNECT request: %w", err)
+		return nil, contextIOError(ctx, "write SOCKS5 CONNECT request", err)
 	}
-	if err := readSOCKS5ConnectReply(conn); err != nil {
+	if err := readSOCKS5ConnectReply(ctx, conn); err != nil {
 		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
@@ -145,10 +145,10 @@ func socks5ConnectRequest(address string) ([]byte, error) {
 	return request, nil
 }
 
-func readSOCKS5ConnectReply(conn net.Conn) error {
+func readSOCKS5ConnectReply(ctx context.Context, conn net.Conn) error {
 	var header [4]byte
 	if _, err := io.ReadFull(conn, header[:]); err != nil {
-		return fmt.Errorf("read SOCKS5 CONNECT reply: %w", err)
+		return contextIOError(ctx, "read SOCKS5 CONNECT reply", err)
 	}
 	if header[0] != 5 || header[2] != 0 {
 		return errors.New("malformed SOCKS5 CONNECT reply")
@@ -160,31 +160,38 @@ func readSOCKS5ConnectReply(conn net.Conn) error {
 	switch header[3] {
 	case 1:
 		if _, err := io.CopyN(io.Discard, conn, 4); err != nil {
-			return fmt.Errorf("read SOCKS5 IPv4 bind address: %w", err)
+			return contextIOError(ctx, "read SOCKS5 IPv4 bind address", err)
 		}
 	case 3:
 		var length [1]byte
 		if _, err := io.ReadFull(conn, length[:]); err != nil {
-			return fmt.Errorf("read SOCKS5 domain bind length: %w", err)
+			return contextIOError(ctx, "read SOCKS5 domain bind length", err)
 		}
 		if length[0] == 0 {
 			return errors.New("malformed SOCKS5 domain bind address")
 		}
 		if _, err := io.CopyN(io.Discard, conn, int64(length[0])); err != nil {
-			return fmt.Errorf("read SOCKS5 domain bind address: %w", err)
+			return contextIOError(ctx, "read SOCKS5 domain bind address", err)
 		}
 	case 4:
 		if _, err := io.CopyN(io.Discard, conn, 16); err != nil {
-			return fmt.Errorf("read SOCKS5 IPv6 bind address: %w", err)
+			return contextIOError(ctx, "read SOCKS5 IPv6 bind address", err)
 		}
 	default:
 		return errors.New("unsupported SOCKS5 bind address type")
 	}
 	var bindPort [2]byte
 	if _, err := io.ReadFull(conn, bindPort[:]); err != nil {
-		return fmt.Errorf("read SOCKS5 bind port: %w", err)
+		return contextIOError(ctx, "read SOCKS5 bind port", err)
 	}
 	return nil
+}
+
+func contextIOError(ctx context.Context, operation string, err error) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	return fmt.Errorf("%s: %w", operation, err)
 }
 
 func writeAll(w io.Writer, data []byte) error {
