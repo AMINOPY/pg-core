@@ -80,6 +80,8 @@ func NewFromEnv() (*Server, error) {
 		var catalog autocdn.Catalog
 		if err := dec.Decode(&catalog); err != nil {
 			s.catalogErr[mode] = "candidate catalog is invalid JSON"
+		} else if err := requireJSONEOF(dec); err != nil {
+			s.catalogErr[mode] = "candidate catalog contains trailing JSON data"
 		} else if err := catalog.Validate(); err != nil {
 			s.catalogErr[mode] = "candidate catalog failed validation: " + err.Error()
 		} else {
@@ -174,8 +176,13 @@ func (s *Server) handleAutoSelect(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Mode string `json:"mode"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil && !errors.Is(err, io.EOF) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid selection request"})
+		return
+	}
+	if err := requireJSONEOF(dec); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "selection request contains trailing JSON data"})
 		return
 	}
 	mode := strings.ToLower(strings.TrimSpace(req.Mode))
@@ -249,6 +256,10 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	var req connectRequest
 	if err := dec.Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if err := requireJSONEOF(dec); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request contains trailing JSON data"})
 		return
 	}
 	settings := &fronting.Settings{SNI: strings.TrimSpace(req.SNI), EdgeIPs: fronting.IPList{req.EdgeIPs}}
@@ -362,6 +373,17 @@ func Serve(ctx context.Context, listen string, s *Server) error {
 		}
 		return err
 	}
+}
+
+func requireJSONEOF(dec *json.Decoder) error {
+	var extra any
+	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return errors.New("multiple JSON values are not allowed")
+		}
+		return err
+	}
+	return nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
