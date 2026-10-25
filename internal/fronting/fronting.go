@@ -94,6 +94,17 @@ func (s Settings) Validate() error {
 	if len(ips) == 0 {
 		return errors.New("fronting.edge_ips has no valid IP address")
 	}
+	for _, rawIP := range ips {
+		addr, err := netip.ParseAddr(rawIP)
+		if err != nil {
+			return errors.New("fronting.edge_ips contains an invalid IP address")
+		}
+		addr = addr.Unmap()
+		if !addr.IsGlobalUnicast() || addr.IsPrivate() || addr.IsLoopback() ||
+			addr.IsLinkLocalUnicast() || addr.IsMulticast() || addr.IsUnspecified() {
+			return fmt.Errorf("fronting.edge_ips must contain public unicast addresses; %q is not public", rawIP)
+		}
+	}
 	if len(ips) > maxEdgeIPs {
 		return fmt.Errorf("fronting.edge_ips has more than %d usable entries", maxEdgeIPs)
 	}
