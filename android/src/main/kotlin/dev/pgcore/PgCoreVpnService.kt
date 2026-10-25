@@ -76,6 +76,7 @@ class PgCoreVpnService : VpnService() {
                 localBackend = PgCoreVpnBackendRegistry.create()
                 val started = localBackend.start(localTun.fd, config) { socketFd -> protect(socketFd) }
                 if (!started.ok) throw IOException(started.message ?: started.code)
+                if (stopping.get() || generation.get() != startGeneration) throw IOException("VPN start cancelled")
                 val healthy = localBackend.healthCheck()
                 if (!healthy.ok) throw IOException(healthy.message ?: healthy.code)
                 synchronized(lifecycleLock) {
@@ -87,7 +88,11 @@ class PgCoreVpnService : VpnService() {
                     localTun = null
                     localBackend = null
                 }
-                updateNotification("PG CORE connected")
+                synchronized(lifecycleLock) {
+                    if (!stopping.get() && generation.get() == startGeneration) {
+                        updateNotification("PG CORE connected")
+                    }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "VPN start failed; cleaning up", e)
                 try { localBackend?.stop() } catch (stopError: Exception) {
