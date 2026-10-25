@@ -52,6 +52,27 @@ func TestConnectRejectsInvalidInputBeforeStarting(t *testing.T) {
 	}
 }
 
+func TestConnectRejectsTrailingJSONValues(t *testing.T) {
+	s := &Server{key: "a-secure-example-key-at-least-24"}
+	body := `{"sni":"valid.example.com","edge_ips":"1.1.1.1"} {"extra":true}`
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/connect", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
+func TestAutoSelectRejectsTrailingJSONValues(t *testing.T) {
+	s := &Server{key: "a-secure-example-key-at-least-24"}
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/auto/select", strings.NewReader(`{"mode":"auto"} {}`))
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
 func TestAutoSelectReportsMissingCatalogWithoutBreakingManualUI(t *testing.T) {
 	s := &Server{key: "a-secure-example-key-at-least-24"}
 	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/auto/select", strings.NewReader("{}"))
