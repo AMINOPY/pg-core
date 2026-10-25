@@ -125,3 +125,8 @@ go run ./cmd/chimera --ai-scan example.com --download-url https://your-test-host
 ```
 
 The downloader caps transfer size; the uploader sends a bounded payload. Use an endpoint that explicitly supports these request types. Diagnostics are point-in-time measurements and do not claim to measure pure ICMP ping, carrier/SIM identity, or the performance of an active tunnel. See [docs/AI_NETWORK_DIAGNOSTICS.md](docs/AI_NETWORK_DIAGNOSTICS.md).
+
+
+## Multi-language fusion foundation
+
+See [docs/MULTILANG_FUSION.md](docs/MULTILANG_FUSION.md). Go, C11, and Kotlin now share a bounded PGF1 frame envelope with a 16-byte header and a 64 KiB payload cap. This is framing only, not an authenticated tunnel or production packet-bonding data plane: no session authentication, replay protection, TUN integration, or cooperating multi-path server is included.
