@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import java.io.IOException
+import java.net.InetAddress
 import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -57,7 +58,7 @@ class PgCoreVpnService : VpnService() {
                     builder.addAddress("fd42:7067:636f:7265::1", 128)
                     builder.addRoute("::", 0)
                 }
-                config.dnsServers.forEach(builder::addDnsServer)
+                config.dnsServers.map(InetAddress::getByName).forEach(builder::addDnsServer)
                 localTun = builder.establish() ?: throw IOException("Android denied VPN establishment")
                 if (stopping.get()) throw IOException("VPN start cancelled")
 
@@ -125,7 +126,7 @@ class PgCoreVpnService : VpnService() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getSystemService(NotificationManager::class.java).createNotificationChannel(
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "PG CORE VPN", NotificationManager.IMPORTANCE_LOW)
             )
         }
@@ -146,12 +147,12 @@ class PgCoreVpnService : VpnService() {
         return builder.setContentTitle("PG CORE VPN").setContentText(text)
             .setSmallIcon(android.R.drawable.stat_sys_warning)
             .setOngoing(tun != null || text != "Preparing secure tunnel…")
-            .addAction(Notification.Action.Builder(null, "Disconnect", pending).build())
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect", pending)
             .build()
     }
 
     private fun updateNotification(text: String) {
-        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification(text))
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION_ID, notification(text))
     }
 
     private fun stopForegroundCompat() {
