@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -35,6 +36,10 @@ func run() error {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&credentials); err != nil {
 		return errors.New("PGCORE_CONTROL_PLANE_CREDENTIALS is invalid JSON")
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		return errors.New("PGCORE_CONTROL_PLANE_CREDENTIALS must contain exactly one JSON value")
 	}
 	if len(credentials) == 0 {
 		return errors.New("at least one API credential is required")

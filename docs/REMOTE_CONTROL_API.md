@@ -17,7 +17,8 @@ Scopes:
 - `public:read`: app metadata, current announcement, release metadata.
 - `announcements:write`: publish or replace this app's announcement.
 - `releases:write`: publish this app's release metadata.
-- `users:write`: read/change status for users belonging to this app.
+- `users:read`: read status for users belonging to this app.
+- `users:write`: change status for users belonging to this app; this scope also permits reading status.
 
 Deploy only behind HTTPS. Add an authenticated operator login and MFA in the management panel; API keys are service credentials, not human identities. Avoid logging Authorization headers or request bodies containing personal data.
 
@@ -33,7 +34,7 @@ All responses are JSON. Send `Authorization: Bearer <key>`.
 | GET | `/v1/releases/latest?platform=android` | `public:read` | Latest metadata for android/linux/windows/ios/macos/web |
 | POST | `/v1/admin/announcements` | `announcements:write` | `{"message":"...","expires_at":"RFC3339 timestamp"}` |
 | POST | `/v1/admin/releases` | `releases:write` | `{"platform":"android","version":"1.2.3","url":"https://...","notes":"...","force":false}` |
-| GET | `/v1/admin/users/{user_id}` | `users:write` | Read this app's user status |
+| GET | `/v1/admin/users/{user_id}` | `users:read` or `users:write` | Read this app's user status |
 | PUT | `/v1/admin/users/{user_id}` | `users:write` | `{"status":"active"}` or `{"status":"suspended"}` |
 
 Errors use `{"error":"stable_code"}`; 401 means missing/invalid key, 403 means missing scope. Request bodies are capped at 1 MiB and reject unknown JSON fields and trailing JSON values. Announcement text is capped at 4,000 bytes; release links must use HTTPS.
@@ -45,7 +46,7 @@ The `cmd/controlplane` service uses the durable single-process FileStore, listen
 Generate separate random keys for each app and role, then pass credentials as JSON through the environment. Do not commit real credentials:
 
 ```sh
-export PGCORE_CONTROL_PLANE_CREDENTIALS='[{"key":"REPLACE_WITH_32_PLUS_RANDOM_CHARS_FOR_READ","app_id":"app-a","scopes":["public:read"]},{"key":"REPLACE_WITH_A_DIFFERENT_32_PLUS_RANDOM_ADMIN_SECRET","app_id":"app-a","scopes":["public:read","users:write","announcements:write","releases:write"]}]'
+export PGCORE_CONTROL_PLANE_CREDENTIALS='[{"key":"REPLACE_WITH_32_PLUS_RANDOM_CHARS_FOR_READ","app_id":"app-a","scopes":["public:read"]},{"key":"REPLACE_WITH_A_DIFFERENT_32_PLUS_RANDOM_ADMIN_SECRET","app_id":"app-a","scopes":["public:read","users:read","users:write","announcements:write","releases:write"]}]'
 export PGCORE_CONTROL_PLANE_DB="$HOME/.local/share/pgcore/controlplane.json"
 export PGCORE_CONTROL_PLANE_ADDR="127.0.0.1:8788"
 go run ./cmd/controlplane

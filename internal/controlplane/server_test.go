@@ -13,6 +13,7 @@ import (
 const (
 	keyA = "app-a-admin-key-0123456789abcdef0123456789"
 	keyB = "app-b-read-key-0123456789abcdef0123456789"
+	keyC = "app-a-users-read-key-0123456789abcdef0123456789"
 )
 
 func testServer(t *testing.T) (*Server, *MemoryStore) {
@@ -21,6 +22,7 @@ func testServer(t *testing.T) (*Server, *MemoryStore) {
 	s, err := NewServer(store, []Credential{
 		{Key: keyA, AppID: "app-a", Scopes: []string{ScopeRead, ScopeManageUsers, ScopeManageAnnouncements, ScopeManageReleases}},
 		{Key: keyB, AppID: "app-b", Scopes: []string{ScopeRead}},
+		{Key: keyC, AppID: "app-a", Scopes: []string{ScopeReadUsers}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -79,6 +81,21 @@ func TestUserStatusIsScopedAndValidated(t *testing.T) {
 	w = request(t, s, http.MethodPut, "/v1/admin/users/user-43", keyA, `{"status":"erase-device"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("invalid status accepted: %d", w.Code)
+	}
+}
+
+func TestUserReadScopeCannotWrite(t *testing.T) {
+	s, _ := testServer(t)
+	w := request(t, s, http.MethodPut, "/v1/admin/users/user-read-only", keyC, `{"status":"suspended"}`)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("read-only user scope wrote status: %d", w.Code)
+	}
+}
+
+func TestUnknownScopeRejected(t *testing.T) {
+	_, err := NewServer(NewMemoryStore(), []Credential{{Key: keyA, AppID: "app-a", Scopes: []string{"admin:*"}}})
+	if err == nil {
+		t.Fatal("unknown wildcard scope accepted")
 	}
 }
 

@@ -30,6 +30,7 @@ var (
 // Scope names are capabilities. Keys should receive only the scopes they need.
 const (
 	ScopeRead                = "public:read"
+	ScopeReadUsers           = "users:read"
 	ScopeManageUsers         = "users:write"
 	ScopeManageAnnouncements = "announcements:write"
 	ScopeManageReleases      = "releases:write"
@@ -168,7 +169,14 @@ func NewServer(store Store, credentials []Credential) (*Server, error) {
 			return nil, errors.New("controlplane: duplicate API key")
 		}
 		scopes := make(map[string]bool, len(c.Scopes))
+		knownScopes := map[string]bool{
+			ScopeRead: true, ScopeReadUsers: true, ScopeManageUsers: true,
+			ScopeManageAnnouncements: true, ScopeManageReleases: true,
+		}
 		for _, scope := range c.Scopes {
+			if !knownScopes[scope] {
+				return nil, errors.New("controlplane: unknown API scope")
+			}
 			scopes[scope] = true
 		}
 		s.keys[id] = credentialRecord{appID: c.AppID, scopes: scopes, hash: h}
@@ -286,7 +294,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusMethodNotAllowed, "method_not_allowed")
 			return
 		}
-		if !s.require(w, cred, ScopeManageUsers) {
+		if r.Method == http.MethodGet {
+			if !cred.scopes[ScopeReadUsers] && !cred.scopes[ScopeManageUsers] {
+				writeError(w, http.StatusForbidden, "insufficient_scope")
+				return
+			}
+		} else if !s.require(w, cred, ScopeManageUsers) {
 			return
 		}
 		userID := strings.TrimPrefix(r.URL.Path, "/v1/admin/users/")
@@ -403,7 +416,7 @@ func writeError(w http.ResponseWriter, status int, code string) {
 
 // KnownScopes returns a sorted copy for tooling and configuration validation.
 func KnownScopes() []string {
-	v := []string{ScopeRead, ScopeManageUsers, ScopeManageAnnouncements, ScopeManageReleases}
+	v := []string{ScopeRead, ScopeReadUsers, ScopeManageUsers, ScopeManageAnnouncements, ScopeManageReleases}
 	sort.Strings(v)
 	return v
 }
