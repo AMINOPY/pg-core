@@ -2,6 +2,7 @@ package xray
 
 import (
 	"context"
+	"time"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/AMINOPY/pg-core/internal/engine"
 	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
@@ -106,5 +108,32 @@ func TestProbeViaSOCKSRejectsUnavailableProxy(t *testing.T) {
 	cancel()
 	if err := probeViaSOCKS(ctx, "127.0.0.1:1", "example.com:443"); err == nil {
 		t.Fatal("expected probe failure")
+	}
+}
+
+
+func TestStartRejectsDuplicateProcessAndStopCleansUp(t *testing.T) {
+	binary := fakeBinary(t, `if [ "$2" = "-test" ]; then exit 0; fi
+trap 'exit 0' INT TERM
+while :; do sleep 1; done`)
+	a := New(binary)
+	cfg := []byte(`{"outbounds":[{"protocol":"freedom"}]}`)
+	if err := a.Start(context.Background(), cfg); err != nil {
+		t.Fatalf("first Start: %v", err)
+	}
+	if err := a.Start(context.Background(), cfg); err != ErrAlreadyRunning {
+		t.Fatalf("second Start error = %v, want ErrAlreadyRunning", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := a.Stop(ctx); err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+	report, err := a.Health(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Status != engine.StatusStopped {
+		t.Fatalf("status after Stop = %v, want stopped", report.Status)
 	}
 }
