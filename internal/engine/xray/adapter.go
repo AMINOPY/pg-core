@@ -28,14 +28,21 @@ const maxConfigBytes = 4 << 20
 var ErrAlreadyRunning = errors.New("xray process is already running")
 
 type processState struct {
-	cmd  *exec.Cmd
-	dir  string
-	done chan struct{}
+	cmd          *exec.Cmd
+	dir          string
+	done         chan struct{}
+	proxyAddr    string
+	healthTarget string
 }
 
 type Adapter struct {
 	Binary   string
 	Fronting *fronting.Settings
+
+	// HealthTarget optionally enables a TCP data-path probe through a loopback,
+	// no-auth SOCKS5 inbound (for example, "example.com:443"). Empty preserves
+	// process-liveness-only health. Use a stable endpoint you are authorized to test.
+	HealthTarget string
 
 	// lifecycle serializes Start/Stop so concurrent callers cannot spawn
 	// duplicate children or remove a config directory still in use.
@@ -178,6 +185,17 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 	if err != nil {
 		return err
 	}
+	proxyAddr := ""
+	healthTarget := strings.TrimSpace(a.HealthTarget)
+	if healthTarget != "" {
+		if err := validateHealthTarget(healthTarget); err != nil {
+			return err
+		}
+		proxyAddr, err = proxyAddress(prepared)
+		if err != nil {
+			return fmt.Errorf("data-path health requires a loopback SOCKS inbound: %w", err)
+		}
+	}
 	if err := a.validatePreparedConfig(ctx, prepared); err != nil {
 		return err
 	}
@@ -193,7 +211,7 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 		_ = os.RemoveAll(dir)
 		return errors.New("start xray process failed")
 	}
-	state := &processState{cmd: cmd, dir: dir, done: make(chan struct{})}
+	state := &processState{cmd: cmd, dir: dir, done: make(chan struct{}), proxyAddr: proxyAddr, healthTarget: healthTarget}
 
 	a.mu.Lock()
 	if a.proc != nil {
@@ -247,6 +265,15 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 		report.ErrorCode = "process_exited"
 	default:
 		report.Status = engine.StatusHealthy
+	}
+	if report.Status == engine.StatusHealthy && state.healthTarget != "" {
+		if err := probeViaSOCKS(ctx, state.proxyAddr, state.healthTarget); err != nil {
+			if ctx.Err() != nil {
+				return report, ctx.Err()
+			}
+			report.Status = engine.StatusFailed
+			report.ErrorCode = "data_path_probe_failed"
+		}
 	}
 	report.Latency = time.Since(start)
 	return report, nil
@@ -336,6 +363,18 @@ func writePrivateConfig(cfg []byte) (dir, configPath string, err error) {
 		return cleanup(fmt.Errorf("write private xray config: %w", err))
 	}
 	return dir, configPath, nil
+}
+
+func validateHealthTarget(target string) error {
+	host, portText, err := net.SplitHostPort(target)
+	if err != nil || strings.TrimSpace(host) == "" || strings.ContainsAny(host, "\\r\\n\\t ") {
+		return errors.New("health target must be a host:port pair")
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil || port < 1 || port > 65535 {
+		return errors.New("health target port must be between 1 and 65535")
+	}
+	return nil
 }
 
 func proxyAddress(cfg []byte) (string, error) {
