@@ -25,6 +25,10 @@ jobs:
           python-version: "3.x"
       - name: Python corecheck tests
         run: python -m unittest discover -s tools/corecheck -p 'test_*.py'
+      - name: Native C ABI tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic native/cdn_validation.c native/test_cdn_validation.c -o /tmp/pg-core-c-test
+          /tmp/pg-core-c-test
       - name: Format check
         shell: bash
         run: |
