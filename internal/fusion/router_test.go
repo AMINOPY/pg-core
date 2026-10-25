@@ -129,7 +129,9 @@ func TestRouterConcurrentCapacityNeverOverbooks(t *testing.T) {
 	router, err := NewRouter([]Route{{
 		Path: Path{ID: "capacity", Healthy: true, Weight: 1, MaxConcurrent: cap},
 		Dialer: testDialer{dial: func(context.Context, string, string) (net.Conn, error) {
-			return net.Pipe()
+			client, peer := net.Pipe()
+			go func() { _ = peer.Close() }()
+			return client, nil
 		}},
 	}})
 	if err != nil {
