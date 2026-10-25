@@ -17,6 +17,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Owns Android VPN lifecycle. The actual packet data plane is supplied by
@@ -25,6 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class PgCoreVpnService : VpnService() {
     private val stopping = AtomicBoolean(false)
+    private val generation = AtomicLong(0)
+    private val lifecycleLock = Any()
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     @Volatile private var tun: ParcelFileDescriptor? = null
     @Volatile private var backend: PgCoreVpnBackend? = null
@@ -42,6 +45,7 @@ class PgCoreVpnService : VpnService() {
     private fun startVpn(intent: Intent?) {
         if (tun != null || startTask?.isDone == false) return
         stopping.set(false)
+        val startGeneration = generation.incrementAndGet()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, notification("Preparing secure tunnel…"))
         startTask = executor.submit {
@@ -67,19 +71,22 @@ class PgCoreVpnService : VpnService() {
                 }
                 config.dnsServers.map { InetAddress.getByName(it) }.forEach(builder::addDnsServer)
                 localTun = builder.establish() ?: throw IOException("Android denied VPN establishment")
-                if (stopping.get()) throw IOException("VPN start cancelled")
+                if (stopping.get() || generation.get() != startGeneration) throw IOException("VPN start cancelled")
 
                 localBackend = PgCoreVpnBackendRegistry.create()
                 val started = localBackend.start(localTun.fd, config) { socketFd -> protect(socketFd) }
                 if (!started.ok) throw IOException(started.message ?: started.code)
                 val healthy = localBackend.healthCheck()
                 if (!healthy.ok) throw IOException(healthy.message ?: healthy.code)
-                if (stopping.get()) throw IOException("VPN start cancelled")
-
-                tun = localTun
-                backend = localBackend
-                localTun = null
-                localBackend = null
+                synchronized(lifecycleLock) {
+                    if (stopping.get() || generation.get() != startGeneration) {
+                        throw IOException("VPN start cancelled")
+                    }
+                    tun = localTun
+                    backend = localBackend
+                    localTun = null
+                    localBackend = null
+                }
                 updateNotification("PG CORE connected")
             } catch (e: Exception) {
                 Log.e(TAG, "VPN start failed; cleaning up", e)
@@ -96,12 +103,17 @@ class PgCoreVpnService : VpnService() {
     }
 
     private fun stopVpn() {
-        if (!stopping.compareAndSet(false, true)) return
-        startTask?.cancel(true)
-        val oldBackend = backend
-        val oldTun = tun
-        backend = null
-        tun = null
+        var oldBackend: PgCoreVpnBackend? = null
+        var oldTun: ParcelFileDescriptor? = null
+        synchronized(lifecycleLock) {
+            if (!stopping.compareAndSet(false, true)) return
+            generation.incrementAndGet()
+            startTask?.cancel(true)
+            oldBackend = backend
+            oldTun = tun
+            backend = null
+            tun = null
+        }
         executor.submit {
             try { oldBackend?.stop() } catch (e: Exception) {
                 Log.e(TAG, "Backend stop failed", e)
