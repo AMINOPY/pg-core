@@ -13,6 +13,8 @@ PG CORE now provides three related primitives:
 
 The allocator/router counters represent reservations made through this API, not kernel socket state. The host supplies path health/quality snapshots and path-specific dialers. `SOCKS5Dialer` does not start or configure the proxy process. Existing engine adapters and OS-wide VPN routing are not automatically wired into this router.
 
+The integration test `TestRouterUsesSOCKS5PathAndUpdatesAfterPathFailure` exercises route selection, a SOCKS5 handshake, and a health update using local test proxies. These proxies validate the code path only; they do not emulate real engines, OS VPN routing, or Internet reachability.
+
 ## Selection and lifecycle guarantees
 
 - Reject malformed snapshots and duplicate path IDs.
