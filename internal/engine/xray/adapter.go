@@ -405,4 +405,3 @@ func proxyAddress(cfg []byte) (string, error) {
 func probeViaSOCKS(ctx context.Context, proxyAddr, target string) error {
 	return socksprobe.ProbeTCP(ctx, proxyAddr, target)
 }
-
