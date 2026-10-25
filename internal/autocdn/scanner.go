@@ -117,7 +117,10 @@ func validateHostname(host string) error {
 	if _, err := netip.ParseAddr(host); err == nil {
 		return errors.New("SNI must be a hostname, not an IP address")
 	}
-	for _, label := range strings.Split(strings.TrimSuffix(host, "."), ".") {
+	if strings.HasSuffix(host, ".") {
+		return errors.New("trailing dot is not allowed in SNI hostname")
+	}
+	for _, label := range strings.Split(host, ".") {
 		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
 			return errors.New("invalid DNS hostname")
 		}
