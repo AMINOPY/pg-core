@@ -118,7 +118,10 @@ func validHostname(h string) error {
 	if _, err := netip.ParseAddr(h); err == nil {
 		return errors.New("must be a host name, not an IP address")
 	}
-	for _, label := range strings.Split(strings.TrimSuffix(h, "."), ".") {
+	if strings.HasSuffix(h, ".") {
+		return errors.New("trailing dot is not allowed in SNI host name")
+	}
+	for _, label := range strings.Split(h, ".") {
 		if label == "" || len(label) > 63 {
 			return errors.New("invalid host name")
 		}
@@ -126,7 +129,7 @@ func validHostname(h string) error {
 			return errors.New("invalid host name")
 		}
 		for _, r := range label {
-			ok := r == '-' || r == '_' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+			ok := r == '-' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
 			if !ok {
 				return errors.New("invalid host name")
 			}
