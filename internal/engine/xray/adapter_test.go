@@ -2,8 +2,8 @@ package xray
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -207,7 +207,7 @@ func TestValidateHealthTarget(t *testing.T) {
 			t.Errorf("valid target %q rejected: %v", target, err)
 		}
 	}
-	for _, target := range []string{"", "example.com", "example.com:0", "example.com:65536", "example.com:443\\n"} {
+	for _, target := range []string{"", "example.com", "example.com:0", "example.com:65536", "example.com:443\n"} {
 		if err := validateHealthTarget(target); err == nil {
 			t.Errorf("invalid target %q accepted", target)
 		}
