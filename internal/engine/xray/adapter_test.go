@@ -2,6 +2,7 @@ package xray
 
 import (
 	"context"
+	"errors"
 	"encoding/json"
 	"io"
 	"net"
