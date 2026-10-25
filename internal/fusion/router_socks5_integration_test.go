@@ -59,11 +59,11 @@ func TestRouterUsesSOCKS5PathAndUpdatesAfterPathFailure(t *testing.T) {
 
 	if err := router.Update([]Route{
 		{
-			Path: Path{ID: "fast", Healthy: false, RTT: 10 * time.Millisecond, Weight: 1, MaxConcurrent: 2},
+			Path:   Path{ID: "fast", Healthy: false, RTT: 10 * time.Millisecond, Weight: 1, MaxConcurrent: 2},
 			Dialer: SOCKS5Dialer{ProxyAddress: fastProxy},
 		},
 		{
-			Path: Path{ID: "slow", Healthy: true, RTT: 50 * time.Millisecond, Weight: 1, MaxConcurrent: 2},
+			Path:   Path{ID: "slow", Healthy: true, RTT: 50 * time.Millisecond, Weight: 1, MaxConcurrent: 2},
 			Dialer: SOCKS5Dialer{ProxyAddress: slowProxy},
 		},
 	}); err != nil {
