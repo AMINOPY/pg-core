@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +20,8 @@ const (
 	ModeAuto        ConnectionMode = "auto"
 	ModeDirect      ConnectionMode = "direct"
 	ModeCDNFronting ConnectionMode = "cdn_fronting"
+	ModeAutoIR      ConnectionMode = "auto-ir"
+	ModeAutoUS      ConnectionMode = "auto-us"
 )
 
 var ErrInvalidConnectionConfig = errors.New("invalid connection config")
@@ -43,7 +46,7 @@ type ConnectionConfig struct {
 }
 
 func (c ConnectionConfig) Validate() error {
-	if c.Mode != ModeAuto && c.Mode != ModeDirect && c.Mode != ModeCDNFronting {
+	if c.Mode != ModeAuto && c.Mode != ModeDirect && c.Mode != ModeCDNFronting && c.Mode != ModeAutoIR && c.Mode != ModeAutoUS {
 		return fmt.Errorf("%w: unsupported mode %q", ErrInvalidConnectionConfig, c.Mode)
 	}
 	u, err := url.Parse(c.Endpoint)
@@ -86,7 +89,7 @@ func (c ConnectionConfig) Validate() error {
 		if len(c.CDNIPs) != 0 {
 			return fmt.Errorf("%w: direct mode does not use cdn_ips", ErrInvalidConnectionConfig)
 		}
-	case ModeCDNFronting:
+	case ModeCDNFronting, ModeAutoIR, ModeAutoUS:
 		if len(c.CDNIPs) == 0 {
 			return fmt.Errorf("%w: cdn_fronting mode requires explicit cdn_ips", ErrInvalidConnectionConfig)
 		}
@@ -129,6 +132,12 @@ func PlanConnections(cfg ConnectionConfig) ([]ConnectionAttempt, error) {
 			out = append(out, fronting(net.ParseIP(strings.TrimSpace(ip)).String()))
 		}
 		return out, nil
+	case ModeAutoIR, ModeAutoUS:
+		out := []ConnectionAttempt{direct}
+		for _, ip := range cfg.CDNIPs {
+			out = append(out, fronting(net.ParseIP(strings.TrimSpace(ip)).String()))
+		}
+		return out, nil
 	case ModeAuto:
 		out := []ConnectionAttempt{direct}
 		for _, ip := range cfg.CDNIPs {
@@ -153,6 +162,9 @@ type ProbeResult struct {
 // ProbeCDNIPs checks only the explicitly configured IP list. It never scans
 // ranges or discovers additional hosts. Certificate verification remains on.
 func ProbeCDNIPs(ctx context.Context, cfg ConnectionConfig) []ProbeResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := cfg.Validate(); err != nil || len(cfg.CDNIPs) == 0 {
 		return nil
 	}
@@ -208,4 +220,22 @@ func probeOne(ctx context.Context, rawIP, serverName string, timeout time.Durati
 	result.Reachable = true
 	result.Latency = time.Since(start)
 	return result
+}
+
+
+// RankProbeResults returns a stable best-first copy of probe results. Reachable
+// TLS endpoints rank ahead of failures; ties retain input order. This is a
+// candidate ranking signal only and does not prove that a tunnel works.
+func RankProbeResults(results []ProbeResult) []ProbeResult {
+	ranked := append([]ProbeResult(nil), results...)
+	sort.SliceStable(ranked, func(i, j int) bool {
+		if ranked[i].Reachable != ranked[j].Reachable {
+			return ranked[i].Reachable
+		}
+		if ranked[i].Reachable && ranked[i].Latency != ranked[j].Latency {
+			return ranked[i].Latency < ranked[j].Latency
+		}
+		return false
+	})
+	return ranked
 }
