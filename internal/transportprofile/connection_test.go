@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func validConnectionConfig() ConnectionConfig {
@@ -22,6 +23,9 @@ func TestConnectionModesValidate(t *testing.T) {
 	}{
 		{"direct", func(*ConnectionConfig) {}, true},
 		{"auto", func(c *ConnectionConfig) { c.Mode = ModeAuto }, true},
+		{"auto-ir requires candidates", func(c *ConnectionConfig) { c.Mode = ModeAutoIR }, false},
+		{"auto-ir with candidates", func(c *ConnectionConfig) { c.Mode = ModeAutoIR; c.CDNIPs = []string{"192.0.2.10"} }, true},
+		{"auto-us with candidates", func(c *ConnectionConfig) { c.Mode = ModeAutoUS; c.CDNIPs = []string{"192.0.2.10"} }, true},
 		{"fronting requires IP", func(c *ConnectionConfig) {
 			c.Mode = ModeCDNFronting
 			c.ServerName = "edge.example.net"
@@ -125,5 +129,52 @@ func TestPlanConnectionsModesAndOrdering(t *testing.T) {
 	plan, err = PlanConnections(cfg)
 	if err != nil || len(plan) != 2 || plan[0].Mode != ModeCDNFronting {
 		t.Fatalf("fronting plan = %#v, err = %v", plan, err)
+	}
+}
+
+func TestRegionalModesPlanDeterministically(t *testing.T) {
+	for _, mode := range []ConnectionMode{ModeAutoIR, ModeAutoUS} {
+		cfg := validConnectionConfig()
+		cfg.Mode = mode
+		cfg.ServerName = "edge.example.net"
+		cfg.CDNIPs = []string{"192.0.2.10", "192.0.2.11"}
+		plan, err := PlanConnections(cfg)
+		if err != nil {
+			t.Fatalf("%s PlanConnections() error = %v", mode, err)
+		}
+		if len(plan) != 3 || plan[0].Mode != ModeDirect || plan[1].Address != "192.0.2.10" || plan[2].Address != "192.0.2.11" {
+			t.Fatalf("%s plan = %#v", mode, plan)
+		}
+	}
+}
+
+func TestRankProbeResultsHealthyFastFirstAndStable(t *testing.T) {
+	input := []ProbeResult{
+		{IP: "192.0.2.1", Reachable: true, Latency: 50 * time.Millisecond},
+		{IP: "192.0.2.2", Reachable: false, Latency: time.Millisecond},
+		{IP: "192.0.2.3", Reachable: true, Latency: 10 * time.Millisecond},
+		{IP: "192.0.2.4", Reachable: true, Latency: 10 * time.Millisecond},
+	}
+	got := RankProbeResults(input)
+	want := []string{"192.0.2.3", "192.0.2.4", "192.0.2.1", "192.0.2.2"}
+	for i := range want {
+		if got[i].IP != want[i] {
+			t.Fatalf("ranked[%d].IP = %q, want %q", i, got[i].IP, want[i])
+		}
+	}
+	if input[0].IP != "192.0.2.1" {
+		t.Fatal("RankProbeResults mutated input")
+	}
+}
+
+func TestProbeCDNIPsAcceptsNilContext(t *testing.T) {
+	cfg := validConnectionConfig()
+	cfg.Mode = ModeCDNFronting
+	cfg.ServerName = "edge.example.net"
+	cfg.CDNIPs = []string{"192.0.2.1"}
+	cfg.TimeoutMS = 250
+	got := ProbeCDNIPs(nil, cfg)
+	if len(got) != 1 || got[0].IP != "192.0.2.1" {
+		t.Fatalf("ProbeCDNIPs(nil) = %#v", got)
 	}
 }
