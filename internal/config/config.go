@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/AMINOPY/pg-core/internal/fronting"
+	"github.com/AMINOPY/pg-core/internal/transportprofile"
 )
 
 type EngineID string
@@ -30,7 +31,8 @@ type Config struct {
 	TUNOwner      string     `json:"tun_owner,omitempty"`
 	DNSOwner      string     `json:"dns_owner,omitempty"`
 	// Fronting is the CDN/SNI feature: an SNI host name plus a list of edge IPs.
-	Fronting *fronting.Settings `json:"fronting,omitempty"`
+	Fronting   *fronting.Settings                 `json:"fronting,omitempty"`
+	Connection *transportprofile.ConnectionConfig `json:"connection,omitempty"`
 }
 
 // Normalize applies safe, deterministic migrations for older schema versions.
@@ -106,6 +108,11 @@ func (c Config) Validate() error {
 	if c.Fronting != nil {
 		if err := c.Fronting.Validate(); err != nil {
 			return err
+		}
+	}
+	if c.Connection != nil {
+		if err := c.Connection.Validate(); err != nil {
+			return fmt.Errorf("connection: %w", err)
 		}
 	}
 	return nil

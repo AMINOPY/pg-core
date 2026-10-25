@@ -19,6 +19,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Platform-neutral network-policy contract for routing mode, DNS ownership intent, IP-family policy, MTU and deadlines
 - Explicit HTTPS transport-profile validation and bounded discovery of Ed25519-signed manifests
 - Persistent monotonic manifest-sequence storage to reject rollback across restarts, when the host persists and uses the store
+- Validated Auto/Direct/CDN Fronting and regional auto-ir/auto-us candidate modes with bounded TLS probes and stable latency ranking (planning/probing, not a complete tunnel)
 - Unit tests, fuzz targets, and GitHub Actions workflow
 
 ## Engine lifecycle and coexistence
@@ -44,6 +45,10 @@ The `internal/transportprofile` package validates explicit HTTPS/WebSocket/gRPC 
 See [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md) and [docs/MANIFEST_ROLLBACK_PROTECTION.md](docs/MANIFEST_ROLLBACK_PROTECTION.md). This is profile validation and discovery, not a completed CDN transport dialer. It does not bypass CDN provider policy, install OS routes, or provide a universal zero-configuration service without a trusted bootstrap identity and reachable server endpoint.
 
 For a two-field, no-local-config UI using the native TLS/WebSocket tunnel, see [Quick Connect](docs/QUICK_CONNECT.md). Set `CHIMERA_TUNNEL_KEY` once, then run `go run ./cmd/chimera --quick-connect`; the UI asks only for SNI and CDN edge IPs. This requires a server/Worker already deployed with the matching key and only exposes a local SOCKS5 proxy, not system-wide VPN routing.
+
+## CDN connection modes
+
+See [docs/CDN_CONNECTION_MODES.md](docs/CDN_CONNECTION_MODES.md). `auto` produces a deterministic direct-first candidate plan, `direct` requires endpoint/SNI identity agreement, and `cdn_fronting` requires explicit edge IPs. `auto-ir` and `auto-us` accept caller-supplied regional candidate lists; they do not ship a live regional IP database. TLS probes keep certificate verification enabled and are bounded, and results can be ranked by reachability and latency. These modes do not discover IP ranges, bypass provider policy, or automatically alter the active engine's transport. Candidate selection is not proof that the native tunnel can use the candidate.
 
 ## Network policy and platform support
 
@@ -86,7 +91,7 @@ See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use syste
 
 No implementation can guarantee connectivity on every network or defeat every DPI system. TLS fingerprint rotation and imitation of named third-party apps are not implemented. Synthetic traffic may be used in controlled performance tests, not to impersonate real services. Signed manifests require trusted key provisioning and careful key rotation; storing a sequence is effective only when the host uses the persistent store.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md), [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md), [docs/NETWORK_POLICY.md](docs/NETWORK_POLICY.md), [docs/LANGUAGE_STRATEGY.md](docs/LANGUAGE_STRATEGY.md), and [SECURITY.md](SECURITY.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROADMAP.md](docs/ROADMAP.md), [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md), [docs/CDN_TRANSPORT.md](docs/CDN_TRANSPORT.md), [docs/CDN_CONNECTION_MODES.md](docs/CDN_CONNECTION_MODES.md), [docs/NETWORK_POLICY.md](docs/NETWORK_POLICY.md), [docs/LANGUAGE_STRATEGY.md](docs/LANGUAGE_STRATEGY.md), and [SECURITY.md](SECURITY.md).
 
 ## Development
 
