@@ -6,8 +6,16 @@ package dev.pgcore
  * The fd is borrowed: the service owns and closes it after stop() completes.
  */
 interface PgCoreVpnBackend {
-    /** Return only after packet forwarding is ready. */
-    fun start(tunFd: Int, config: VpnBackendConfig): EngineResult
+    /**
+     * Return only after packet forwarding is ready. Any socket used to reach an
+     * upstream engine must be protected via protectSocket before connecting,
+     * or it may be routed back into this VPN and create a loop.
+     */
+    fun start(
+        tunFd: Int,
+        config: VpnBackendConfig,
+        protectSocket: (socketFd: Int) -> Boolean,
+    ): EngineResult
     /** Stop workers and release sockets; safe to call more than once. */
     fun stop(): EngineResult
     /** Perform a bounded end-to-end data-plane probe. */
@@ -52,8 +60,11 @@ data class VpnPathConfig(
 
 /** Safe default: no TUN packet-forwarding backend/JNI library is bundled yet. */
 object UnavailableVpnBackend : PgCoreVpnBackend {
-    override fun start(tunFd: Int, config: VpnBackendConfig) =
-        EngineResult.failure("vpn_backend_unavailable", "No Android TUN data-plane backend is installed")
+    override fun start(
+        tunFd: Int,
+        config: VpnBackendConfig,
+        protectSocket: (socketFd: Int) -> Boolean,
+    ) = EngineResult.failure("vpn_backend_unavailable", "No Android TUN data-plane backend is installed")
     override fun stop() = EngineResult.success()
     override fun healthCheck() =
         EngineResult.failure("vpn_backend_unavailable", "No Android TUN data-plane backend is installed")
