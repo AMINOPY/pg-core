@@ -23,11 +23,19 @@ Check Cloudflare's current terms and free-plan limits before relying on it. On a
 
 ## Run
 
-```
+Basic local SOCKS5 profile (edge handshake only):
+
+```sh
 go run ./cmd/chimera --config config.native.example.json --profile profile.native.example.json --run
 ```
 
-It prints the SOCKS5 address and an edge check (a real TLS + WebSocket probe, not only "process alive"). For a real destination check through the tunnel, set `health_url` in the native profile, for example `https://example.com/`. Health is reported as degraded if the edge handshake succeeds but the configured endpoint does not return HTTP 2xx through the local SOCKS5 tunnel. Remote health endpoints must use HTTPS; plain HTTP is accepted only for loopback test targets. Redirects are not followed.
+To also check a real HTTP destination through the active SOCKS5 tunnel, use the separate [health-check profile example](../profile.native.healthcheck.example.json):
+
+```sh
+go run ./cmd/chimera --config config.native.example.json --profile profile.native.healthcheck.example.json --run
+```
+
+The example checks `https://example.com/`; change it to an HTTPS endpoint you control if you prefer. A successful health check requires an HTTP 2xx response through the tunnel, not just a live process or successful edge handshake. Remote health endpoints must use HTTPS; plain HTTP is accepted only for loopback test targets. Redirects are not followed. This is an optional destination probe, not proof of system-wide VPN routing or DNS-leak protection.
 
 ## What is and is not included
 
