@@ -16,6 +16,11 @@ func TestCatalogValidate(t *testing.T) {
 	bad := []Catalog{
 		{},
 		{SNIs: []string{"not a hostname"}, CDNIPs: []string{"1.1.1.1"}},
+		{SNIs: []string{"cdn.example.com."}, CDNIPs: []string{"1.1.1.1"}},
+		{SNIs: []string{"cdn..example.com"}, CDNIPs: []string{"1.1.1.1"}},
+		{SNIs: []string{"-cdn.example.com"}, CDNIPs: []string{"1.1.1.1"}},
+		{SNIs: []string{"cdn.example.com-"}, CDNIPs: []string{"1.1.1.1"}},
+		{SNIs: []string{"cḋn.example.com"}, CDNIPs: []string{"1.1.1.1"}},
 		{SNIs: []string{"1.1.1.1"}, CDNIPs: []string{"1.1.1.1"}},
 		{SNIs: []string{"cdn.example.com"}, CDNIPs: []string{"127.0.0.1"}},
 		{SNIs: []string{"cdn.example.com"}, CDNIPs: []string{"not-an-ip"}},
