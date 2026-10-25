@@ -88,6 +88,9 @@ func socks5Connect(ctx context.Context, proxyAddr, targetAddr string) (net.Conn,
 	}
 	fail := func(err error) (net.Conn, error) {
 		_ = conn.Close()
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, err
 	}
 	if deadline, ok := ctx.Deadline(); ok {
