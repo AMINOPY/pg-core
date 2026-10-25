@@ -9,6 +9,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Strict JSON parsing with unknown-field and trailing-value rejection
 - Config validation for supported engine IDs and active-engine selection
 - Common engine lifecycle/health interface and adapter registry
+- Multi-engine fleet coordinator with independent per-engine lifecycle and explicit exclusive-resource claims
 - Start validation, health checks, failure cleanup, and serialized lifecycle operations
 - Deterministic route-candidate selection based on health and latency
 - Bounded DNS/HTTPS diagnostics for explicitly supplied hostnames
@@ -63,7 +64,7 @@ See [docs/NETWORK_DIAGNOSTICS.md](docs/NETWORK_DIAGNOSTICS.md). Checks use syste
 | Mihomo | Planned |
 | Aether | Research only |
 
-Do not run multiple engines as competing owners of the same traffic path without an explicit, tested design.
+The `internal/orchestrator.Fleet` can run independent engine processes together when the host app supplies accurate exclusive-resource claims; duplicate claims (for example `tun:default`) are rejected. This is process/lifecycle coordination only, not traffic multiplexing or automatic route/DNS isolation. Do not run engines as competing owners of the same traffic path without an explicit, tested host-network design.
 
 ## Security and limitations
 
