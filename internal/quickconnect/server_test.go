@@ -86,6 +86,26 @@ func TestAutoSelectReportsMissingCatalogWithoutBreakingManualUI(t *testing.T) {
 	}
 }
 
+func TestAutoSelectRejectsUnknownFields(t *testing.T) {
+	s := &Server{key: "a-secure-example-key-at-least-24"}
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/auto/select", strings.NewReader(`{"mode":"auto","unexpected":true}`))
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
+func TestAutoSelectRejectsEmptyBody(t *testing.T) {
+	s := &Server{key: "a-secure-example-key-at-least-24"}
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/auto/select", strings.NewReader(""))
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
 func TestAutoSelectRejectsUnknownMode(t *testing.T) {
 	s := &Server{key: "a-secure-example-key-at-least-24"}
 	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/auto/select", strings.NewReader(`{"mode":"unknown"}`))
