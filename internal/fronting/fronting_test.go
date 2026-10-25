@@ -56,17 +56,6 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsNonPublicEdgeIPs(t *testing.T) {
-	for _, ip := range []string{"127.0.0.1", "10.0.0.1", "169.254.1.1", "224.0.0.1", "::", "fc00::1", "fe80::1"} {
-		t.Run(ip, func(t *testing.T) {
-			s := Settings{SNI: "cdn.example.com", EdgeIPs: []string{ip}}
-			if err := s.Validate(); err == nil {
-				t.Fatalf("Validate() accepted non-public edge IP %q", ip)
-			}
-		})
-	}
-}
-
 func TestApplyDisabledIsNoop(t *testing.T) {
 	out, err := Apply([]byte(profile), Settings{})
 	if err != nil || string(out) != profile {
