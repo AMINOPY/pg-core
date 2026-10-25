@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/AMINOPY/pg-core/internal/engine"
-	"github.com/AMINOPY/pg-core/internal/fronting"
 	"github.com/AMINOPY/pg-core/internal/engine/socksprobe"
+	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
 const maxConfigBytes = 4 << 20
@@ -376,13 +376,17 @@ func proxyAddress(cfg []byte) (string, error) {
 			Listen   string `json:"listen"`
 			Port     int    `json:"port"`
 			Protocol string `json:"protocol"`
+			Settings struct {
+				Auth     string            `json:"auth"`
+				Accounts []json.RawMessage `json:"accounts"`
+			} `json:"settings"`
 		} `json:"inbounds"`
 	}
 	if err := json.Unmarshal(cfg, &root); err != nil {
 		return "", errors.New("invalid xray JSON config")
 	}
 	for _, in := range root.Inbounds {
-		if !strings.EqualFold(in.Protocol, "socks") || in.Port < 1 || in.Port > 65535 {
+		if !strings.EqualFold(in.Protocol, "socks") || in.Port < 1 || in.Port > 65535 || (in.Settings.Auth != "" && !strings.EqualFold(in.Settings.Auth, "noauth")) || len(in.Settings.Accounts) != 0 {
 			continue
 		}
 		host := strings.TrimSpace(in.Listen)
