@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // SwitchWithRollback stops the current engine before starting its replacement.
@@ -14,6 +15,8 @@ import (
 //
 // The host must still verify end-to-end data-plane connectivity after a switch.
 // This coordinates lifecycle only and is not seamless packet-level handover.
+const switchRecoveryTimeout = 30 * time.Second
+
 func (f *Fleet) SwitchWithRollback(ctx context.Context, current, replacement Candidate) (string, error) {
 	if f == nil {
 		return "", errors.New("fleet is required")
@@ -56,10 +59,13 @@ func (f *Fleet) SwitchWithRollback(ctx context.Context, current, replacement Can
 		}
 	}
 
-	if err := ctx.Err(); err != nil {
-		return "", fmt.Errorf("replacement %q failed and switch context is cancelled; current engine remains stopped: %w", replacement.EngineID, errors.Join(replacementErr, err))
-	}
-	if restoreErr := f.Start(ctx, current.EngineID, current.Config, current.Claims...); restoreErr != nil {
+	// Rollback is recovery work and must not inherit a cancelled request
+	// context; otherwise a cancelled switch could leave the user disconnected
+	// even though the replacement has been cleaned up safely.
+	rollbackCtx, cancel := context.WithTimeout(context.Background(), switchRecoveryTimeout)
+	restoreErr := f.Start(rollbackCtx, current.EngineID, current.Config, current.Claims...)
+	cancel()
+	if restoreErr != nil {
 		return "", fmt.Errorf("replacement %q failed and original engine %q could not be restored: %w", replacement.EngineID, current.EngineID, errors.Join(replacementErr, restoreErr))
 	}
 	return current.EngineID, fmt.Errorf("replacement %q failed; original engine %q was restored: %w", replacement.EngineID, current.EngineID, replacementErr)
