@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"testing"
-	"time"
 )
 
 type routeTestDialer struct {
@@ -87,5 +86,4 @@ func TestProbeSOCKS5PathRejectsInvalidInputsAndSurfacesDialFailure(t *testing.T)
 	if _, err := ProbeSOCKS5Path(context.Background(), route, " "); err == nil {
 		t.Fatal("expected empty target error")
 	}
-	_ = time.Second
 }
