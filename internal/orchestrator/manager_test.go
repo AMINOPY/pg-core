@@ -142,3 +142,23 @@ func TestLifecycleMethodsRejectNilContext(t *testing.T) {
 		t.Fatal("nil contexts must be rejected before touching the adapter")
 	}
 }
+
+func TestStartWithCancelledContextDoesNotStartEngine(t *testing.T) {
+	a := healthyFake()
+	m, err := New(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := m.Start(ctx, []byte("{}")); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Start error = %v, want context.Canceled", err)
+	}
+	if a.started {
+		t.Fatal("engine must not start when context is already cancelled")
+	}
+	status, report := m.Status()
+	if status != engine.StatusFailed || report.ErrorCode != "start_cancelled" {
+		t.Fatalf("unexpected status/report after cancellation: %q %+v", status, report)
+	}
+}
