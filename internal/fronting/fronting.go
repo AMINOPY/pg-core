@@ -14,11 +14,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/netip"
 	"strings"
 )
 
-const maxEdgeIPs = 64
+const (
+	maxEdgeIPs = 64
+	maxInputOutbounds = 256
+	maxExpandedOutbounds = 512
+)
 
 // IPList is the edge IP list. In JSON it may be an array of strings or one
 // string whose entries are separated by comma, semicolon, space or new line.
@@ -151,10 +156,20 @@ func Apply(profile []byte, s Settings) ([]byte, error) {
 	dec := json.NewDecoder(bytes.NewReader(profile))
 	dec.UseNumber()
 	var root map[string]any
-	if err := dec.Decode(&root); err != nil {
+	if err := dec.Decode(&root); err != nil || root == nil {
 		return nil, errors.New("profile is not a valid JSON object")
 	}
-	outbounds, _ := root["outbounds"].([]any)
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		return nil, errors.New("profile must contain exactly one JSON value")
+	}
+	outbounds, ok := root["outbounds"].([]any)
+	if !ok || len(outbounds) == 0 {
+		return nil, errors.New("profile must contain a non-empty outbounds array")
+	}
+	if len(outbounds) > maxInputOutbounds {
+		return nil, fmt.Errorf("profile has more than %d outbounds", maxInputOutbounds)
+	}
 
 	var out []any
 	changed := 0
@@ -165,6 +180,13 @@ func Apply(profile []byte, s Settings) ([]byte, error) {
 			continue
 		}
 		changed++
+		additional := 1
+		if len(ips) > 1 {
+			additional = len(ips) + 1
+		}
+		if len(out)+additional > maxExpandedOutbounds {
+			return nil, fmt.Errorf("fronting expansion would exceed %d outbounds", maxExpandedOutbounds)
+		}
 		if len(ips) == 1 {
 			out = append(out, rewrite(ob, ips[0], sni, ""))
 			continue
