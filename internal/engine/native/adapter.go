@@ -38,12 +38,15 @@ type Profile struct {
 	// Listen is the local SOCKS5 address; must be loopback. Default 127.0.0.1:1080.
 	Listen    string `json:"listen,omitempty"`
 	TimeoutMS int    `json:"timeout_ms,omitempty"`
+	// HealthURL optionally verifies an HTTP response through the active SOCKS5 tunnel.
+	HealthURL string `json:"health_url,omitempty"`
 }
 
 type running struct {
 	ln     net.Listener
 	cancel context.CancelFunc
 	dialer *Dialer
+	healthURL string
 }
 
 // Adapter implements engine.Adapter.
@@ -72,6 +75,9 @@ func parseProfile(raw []byte) (Profile, error) {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&p); err != nil {
 		return p, errors.New("invalid native profile")
+	}
+	if err := validateHealthURL(p.HealthURL); err != nil {
+		return p, err
 	}
 	if p.Path == "" {
 		if p.Key == "" {
@@ -172,7 +178,7 @@ func (a *Adapter) Start(ctx context.Context, raw []byte) error {
 	}
 	runCtx, cancel := context.WithCancel(context.Background())
 	go serveSOCKS5(runCtx, ln, d)
-	a.run = &running{ln: ln, cancel: cancel, dialer: d}
+	a.run = &running{ln: ln, cancel: cancel, dialer: d, healthURL: p.HealthURL}
 	return nil
 }
 
@@ -208,6 +214,15 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 			return rep, ctx.Err()
 		}
 		rep.Status, rep.ErrorCode = engine.StatusDegraded, "edge_unreachable"
+	} else if r.healthURL != "" {
+		if err := checkDataPlane(ctx, r.ln.Addr().String(), r.healthURL); err != nil {
+			if ctx.Err() != nil {
+				return rep, ctx.Err()
+			}
+			rep.Status, rep.ErrorCode = engine.StatusDegraded, "data_plane_unreachable"
+		} else {
+			rep.Status = engine.StatusHealthy
+		}
 	} else {
 		rep.Status = engine.StatusHealthy
 	}
