@@ -2,6 +2,7 @@ package fronting
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -165,5 +166,32 @@ func TestJSONStringOrArray(t *testing.T) {
 	}
 	if v, _ := ParseIPs(b.EdgeIPs); len(v) != 2 {
 		t.Fatalf("b: %v", v)
+	}
+}
+
+func TestApplyRejectsTrailingJSON(t *testing.T) {
+	_, err := Apply([]byte(profile+` {}`), Settings{
+		SNI:     "cdn.example.com",
+		EdgeIPs: []string{"104.16.0.1"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "exactly one JSON value") {
+		t.Fatalf("error=%v, want trailing JSON rejection", err)
+	}
+}
+
+func TestApplyBoundsExpandedOutboundCount(t *testing.T) {
+	outbound := `{"type":"vless","tag":"proxy","server":"origin.example.com","tls":{"enabled":true}}`
+	profileWithManyTLSOutbounds := `{"outbounds":[` + strings.TrimSuffix(strings.Repeat(outbound+",", 8), ",") + `]}`
+	ips := make([]string, 0, maxEdgeIPs)
+	for i := 1; i <= maxEdgeIPs; i++ {
+		ips = append(ips, fmt.Sprintf("192.0.2.%d", i))
+	}
+
+	_, err := Apply([]byte(profileWithManyTLSOutbounds), Settings{
+		SNI:     "cdn.example.com",
+		EdgeIPs: IPList(ips),
+	})
+	if err == nil || !strings.Contains(err.Error(), "would exceed") {
+		t.Fatalf("error=%v, want bounded expansion error", err)
 	}
 }
