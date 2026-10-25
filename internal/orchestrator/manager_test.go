@@ -122,3 +122,23 @@ func TestHealthErrorTriggersCleanup(t *testing.T) {
 		t.Fatal("expected cleanup after health error")
 	}
 }
+
+func TestLifecycleMethodsRejectNilContext(t *testing.T) {
+	a := healthyFake()
+	m, err := New(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start(nil, []byte("{}")); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("Start error = %v, want ErrContextRequired", err)
+	}
+	if _, err := m.RefreshHealth(nil); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("RefreshHealth error = %v, want ErrContextRequired", err)
+	}
+	if err := m.Stop(nil); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("Stop error = %v, want ErrContextRequired", err)
+	}
+	if a.started || a.stopped {
+		t.Fatal("nil contexts must be rejected before touching the adapter")
+	}
+}
