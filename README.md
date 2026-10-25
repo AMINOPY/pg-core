@@ -26,7 +26,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 
 See [docs/TRAFFIC_FUSION.md](docs/TRAFFIC_FUSION.md). The `internal/fusion` package provides deterministic path selection, concurrency-safe active-flow reservations, and a `Router` that invokes path-specific context-aware dialers for new outbound connections. It releases leases on dial failure or connection close and refuses to remove routes while they still have active connections.
 
-This is flow-level routing: each connection uses one path. It does **not** bond multiple paths into one flow or implement packet-level aggregation. The host must provide real dialers and health snapshots; this router is not yet wired into the existing engine adapters, OS TUN/routes/DNS, or a live telemetry collector.
+This is flow-level routing: each connection uses one path. It does **not** bond multiple paths into one flow or implement packet-level aggregation. The included `SOCKS5Dialer` can connect through an existing local SOCKS5 endpoint exposed by a managed engine. The host must still provide endpoint addresses and health snapshots; this router is not yet wired into the existing engine adapters, OS TUN/routes/DNS, or a live telemetry collector.
 
 ## Engine lifecycle and coexistence
 
