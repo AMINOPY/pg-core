@@ -123,3 +123,37 @@ func TestFleetRetainsClaimsAfterHealthFailureUntilStopSucceeds(t *testing.T) {
 		t.Fatalf("start after successful Stop: %v", err)
 	}
 }
+
+func TestFleetRetainsClaimsWhenStopFails(t *testing.T) {
+	fleet := NewFleet()
+	first := &fleetFakeAdapter{fakeAdapter: healthyFake(), id: "engine-a"}
+	second := &fleetFakeAdapter{fakeAdapter: healthyFake(), id: "engine-b"}
+	for _, adapter := range []*fleetFakeAdapter{first, second} {
+		if err := fleet.Register(adapter); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx := context.Background()
+	if err := fleet.Start(ctx, "engine-a", []byte("{}"), "dns:system"); err != nil {
+		t.Fatal(err)
+	}
+
+	first.stopErr = errors.New("simulated cleanup failure")
+	if err := fleet.Stop(ctx, "engine-a"); err == nil {
+		t.Fatal("expected Stop to report cleanup failure")
+	}
+	if err := fleet.Start(ctx, "engine-b", []byte("{}"), "dns:system"); !errors.Is(err, ErrResourceConflict) {
+		t.Fatalf("start after failed Stop error=%v, want ErrResourceConflict", err)
+	}
+	if second.started {
+		t.Fatal("another engine started while cleanup had failed")
+	}
+
+	first.stopErr = nil
+	if err := fleet.Stop(ctx, "engine-a"); err != nil {
+		t.Fatalf("retry Stop: %v", err)
+	}
+	if err := fleet.Start(ctx, "engine-b", []byte("{}"), "dns:system"); err != nil {
+		t.Fatalf("start after successful cleanup: %v", err)
+	}
+}
