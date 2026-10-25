@@ -27,10 +27,10 @@ Check Cloudflare's current terms and free-plan limits before relying on it. On a
 go run ./cmd/chimera --config config.native.example.json --profile profile.native.example.json --run
 ```
 
-It prints the SOCKS5 address and an edge check (a real TLS + WebSocket probe, not only "process alive").
+It prints the SOCKS5 address and an edge check (a real TLS + WebSocket probe, not only "process alive"). For a real destination check through the tunnel, set `health_url` in the native profile, for example `https://example.com/`. Health is reported as degraded if the edge handshake succeeds but the configured endpoint does not return HTTP 2xx through the local SOCKS5 tunnel. Remote health endpoints must use HTTPS; plain HTTP is accepted only for loopback test targets. Redirects are not followed.
 
 ## What is and is not included
 
-Included: TLS with certificate verification, SNI/IP list with failover and "last good IP first", SOCKS5 CONNECT (TCP), multi-frame streaming, tests, Android hook (`Adapter.Control` for `VpnService.protect`).
+Included: TLS with certificate verification, SNI/IP list with failover and "last good IP first", SOCKS5 CONNECT (TCP), multi-frame streaming, optional end-to-end HTTP health checks through SOCKS5, tests, Android hook (`Adapter.Control` for `VpnService.protect`).
 
 Not included: UDP, TUN device, DNS proxy, system routes, IP scanner, Beast Mode, traffic obfuscation beyond standard TLS. On Android the TUN side is `VpnService` + a tun2socks library pointing at the SOCKS5 port.
