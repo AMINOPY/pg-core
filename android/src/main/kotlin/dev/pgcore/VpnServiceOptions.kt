@@ -1,6 +1,8 @@
 package dev.pgcore
 
 import android.content.Intent
+import java.net.Inet6Address
+import java.net.InetAddress
 
 /**
  * Host-controlled Android VPN options. Application package filtering is
@@ -55,7 +57,10 @@ data class VpnServiceOptions(
         private fun looksLikeIpAddress(value: String): Boolean {
             if (value.isBlank() || value.any { it.isWhitespace() }) return false
             return if (':' in value) {
-                value.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' || it == ':' || it == '.' }
+                // A character whitelist is insufficient: strings such as "::::"
+                // look hexadecimal but are not valid IPv6 literals. A colon
+                // forces literal parsing, so this does not perform hostname DNS.
+                runCatching { InetAddress.getByName(value) is Inet6Address }.getOrDefault(false)
             } else {
                 val octets = value.split('.')
                 octets.size == 4 && octets.all { octet ->
