@@ -294,11 +294,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusMethodNotAllowed, "method_not_allowed")
 			return
 		}
-		requiredScope := ScopeManageUsers
 		if r.Method == http.MethodGet {
-			requiredScope = ScopeReadUsers
-		}
-		if !s.require(w, cred, requiredScope) {
+			if !cred.scopes[ScopeReadUsers] && !cred.scopes[ScopeManageUsers] {
+				writeError(w, http.StatusForbidden, "insufficient_scope")
+				return
+			}
+		} else if !s.require(w, cred, ScopeManageUsers) {
 			return
 		}
 		userID := strings.TrimPrefix(r.URL.Path, "/v1/admin/users/")
