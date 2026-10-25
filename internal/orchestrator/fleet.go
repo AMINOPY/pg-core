@@ -22,6 +22,7 @@ var (
 type fleetEntry struct {
 	manager *Manager
 	claims  map[string]struct{}
+	active  bool
 }
 
 // Fleet manages independent engine lifecycles. Claims describe exclusive host
@@ -86,8 +87,9 @@ func (f *Fleet) Start(ctx context.Context, id string, cfg []byte, claims ...stri
 		if otherID == id {
 			continue
 		}
-		status, _ := other.manager.Status()
-		if status != engine.StatusHealthy && status != engine.StatusDegraded && status != engine.StatusStarting {
+		// Keep claims reserved until Fleet.Stop succeeds. A failed health check
+		// does not prove that external TUN, DNS, or route state was released.
+		if !other.active {
 			continue
 		}
 		for claim := range normalized {
@@ -104,6 +106,7 @@ func (f *Fleet) Start(ctx context.Context, id string, cfg []byte, claims ...stri
 	}
 	f.mu.Lock()
 	entry.claims = normalized
+	entry.active = true
 	f.mu.Unlock()
 	return nil
 }
@@ -129,8 +132,30 @@ func (f *Fleet) Stop(ctx context.Context, id string) error {
 	}
 	f.mu.Lock()
 	entry.claims = make(map[string]struct{})
+	entry.active = false
 	f.mu.Unlock()
 	return nil
+}
+
+// RefreshHealth runs the adapter's bounded health check. Resource claims remain
+// reserved after an unhealthy result until Fleet.Stop succeeds, because health
+// failure alone cannot prove that host-level resources have been released.
+func (f *Fleet) RefreshHealth(ctx context.Context, id string) (engine.HealthReport, error) {
+	if f == nil {
+		return engine.HealthReport{}, errors.New("fleet is required")
+	}
+	if ctx == nil {
+		return engine.HealthReport{}, ErrContextRequired
+	}
+	f.opMu.Lock()
+	defer f.opMu.Unlock()
+	f.mu.RLock()
+	entry, ok := f.byID[id]
+	f.mu.RUnlock()
+	if !ok {
+		return engine.HealthReport{}, fmt.Errorf("%w: %s", ErrEngineNotRegistered, id)
+	}
+	return entry.manager.RefreshHealth(ctx)
 }
 
 // Status returns the named engine's last lifecycle state.

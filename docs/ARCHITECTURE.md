@@ -36,7 +36,7 @@ stopped -> starting -> healthy / degraded / failed -> stopping -> stopped
 
 - Start: validate configuration and capabilities before changing system networking.
 - Failure: report a stable error code and cancel dependent work.
-- Stop: release resources and restore system state.
+- Stop: release resources and restore system state. Fleet resource claims stay reserved after a failed health check until an explicit `Fleet.Stop` succeeds; a failed probe alone is not proof that OS-level TUN, DNS, or route state was released.
 - Recovery: bounded retries with backoff; never create unbounded reconnect loops.
 
 ## Current status
