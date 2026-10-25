@@ -115,6 +115,7 @@ On Android, run network work off the main thread and comply with the app's netwo
 #include <curl/curl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int main(void) {
     const char *base = getenv("PGCORE_API_URL");
