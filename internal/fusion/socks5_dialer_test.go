@@ -25,7 +25,7 @@ func TestSOCKS5DialerEncodesDomainIPv4AndIPv6Targets(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			requests := make(chan []byte, 1)
-			proxy, closeProxy := startTestSOCKS5Proxy(t, 0, []byte("ok"), requests)
+			proxy, closeProxy := startTestSOCKS5Proxy(t, 0, 0, []byte("ok"), requests)
 			defer closeProxy()
 			dialer := SOCKS5Dialer{ProxyAddress: proxy}
 			conn, err := dialer.DialContext(context.Background(), "tcp", tc.target)
@@ -70,7 +70,7 @@ func TestSOCKS5DialerEncodesDomainIPv4AndIPv6Targets(t *testing.T) {
 
 func TestSOCKS5DialerRejectsUnsupportedMethodAndConnectFailure(t *testing.T) {
 	t.Run("unsupported method", func(t *testing.T) {
-		proxy, closeProxy := startTestSOCKS5Proxy(t, 255, nil, nil)
+		proxy, closeProxy := startTestSOCKS5Proxy(t, 255, 0, nil, nil)
 		defer closeProxy()
 		_, err := (SOCKS5Dialer{ProxyAddress: proxy}).DialContext(context.Background(), "tcp", "example.com:443")
 		if err == nil {
@@ -78,7 +78,7 @@ func TestSOCKS5DialerRejectsUnsupportedMethodAndConnectFailure(t *testing.T) {
 		}
 	})
 	t.Run("connect rejected", func(t *testing.T) {
-		proxy, closeProxy := startTestSOCKS5Proxy(t, 5, nil, nil)
+		proxy, closeProxy := startTestSOCKS5Proxy(t, 0, 5, nil, nil)
 		defer closeProxy()
 		_, err := (SOCKS5Dialer{ProxyAddress: proxy}).DialContext(context.Background(), "tcp", "example.com:443")
 		if err == nil {
@@ -142,7 +142,7 @@ func TestSOCKS5DialerRejectsInvalidInputs(t *testing.T) {
 	}
 }
 
-func startTestSOCKS5Proxy(t *testing.T, replyCode byte, payload []byte, requests chan<- []byte) (string, func()) {
+func startTestSOCKS5Proxy(t *testing.T, methodReply, replyCode byte, payload []byte, requests chan<- []byte) (string, func()) {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -163,7 +163,7 @@ func startTestSOCKS5Proxy(t *testing.T, replyCode byte, payload []byte, requests
 		if greeting[0] != 5 || greeting[1] != 1 || greeting[2] != 0 {
 			return
 		}
-		if _, err := conn.Write([]byte{5, 0}); err != nil {
+		if _, err := conn.Write([]byte{5, methodReply}); err != nil || methodReply != 0 {
 			return
 		}
 		var header [4]byte
