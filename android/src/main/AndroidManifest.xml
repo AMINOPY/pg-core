@@ -6,7 +6,7 @@
     <application>
         <service
             android:name="dev.pgcore.PgCoreVpnService"
-            android:exported="false"
+            android:exported="true"
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:foregroundServiceType="specialUse">
             <intent-filter>
