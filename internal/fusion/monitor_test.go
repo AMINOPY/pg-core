@@ -112,3 +112,47 @@ func TestRefreshRoutesRejectsUnboundedInput(t *testing.T) {
 		t.Fatal("expected excessive timeout to be rejected")
 	}
 }
+
+func TestRefreshRoutesDoesNotOverwriteNewerSnapshot(t *testing.T) {
+	router, routes := monitorRoutes(t)
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		_, err := RefreshRoutes(context.Background(), router, routes, func(context.Context, Route) (time.Duration, error) {
+			select {
+			case started <- struct{}{}:
+			default:
+			}
+			<-release
+			return 2 * time.Millisecond, nil
+		}, 1, time.Second)
+		done <- err
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("route probe did not start")
+	}
+	newer := append([]Route(nil), routes...)
+	newer[0].Path.Healthy = true
+	newer[0].Path.RTT = 99 * time.Millisecond
+	if err := router.Update(newer); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	if err := <-done; !errors.Is(err, ErrConcurrentRouteUpdate) {
+		t.Fatalf("refresh error = %v, want ErrConcurrentRouteUpdate", err)
+	}
+	paths := router.Snapshot()
+	for _, path := range paths {
+		if path.ID == "fast" {
+			if !path.Healthy || path.RTT != 99*time.Millisecond {
+				t.Fatalf("newer route snapshot was overwritten: %+v", path)
+			}
+			return
+		}
+	}
+	t.Fatal("fast route missing after update")
+}
