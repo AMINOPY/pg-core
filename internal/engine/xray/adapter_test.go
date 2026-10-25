@@ -120,7 +120,6 @@ func TestProbeViaSOCKSRejectsUnavailableProxy(t *testing.T) {
 	}
 }
 
-
 func TestStartRejectsDuplicateProcessAndStopCleansUp(t *testing.T) {
 	binary := fakeBinary(t, `if [ "$2" = "-test" ]; then exit 0; fi
 trap 'exit 0' INT TERM
