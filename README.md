@@ -19,7 +19,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Platform-neutral network-policy contract for routing mode, DNS ownership intent, IP-family policy, MTU and deadlines
 - Explicit HTTPS transport-profile validation and bounded discovery of Ed25519-signed manifests
 - Persistent monotonic manifest-sequence storage to reject rollback across restarts, when the host persists and uses the store
-- Validated Auto/Direct/CDN Fronting connection modes and bounded TLS probes for explicitly supplied CDN IPs (candidate planning/probing, not a complete tunnel)
+- Validated Auto/Direct/CDN Fronting and regional auto-ir/auto-us candidate modes with bounded TLS probes and stable latency ranking (planning/probing, not a complete tunnel)
 - Unit tests, fuzz targets, and GitHub Actions workflow
 
 ## Engine lifecycle and coexistence
@@ -48,7 +48,7 @@ For a two-field, no-local-config UI using the native TLS/WebSocket tunnel, see [
 
 ## CDN connection modes
 
-See [docs/CDN_CONNECTION_MODES.md](docs/CDN_CONNECTION_MODES.md). `auto` produces a deterministic direct-first candidate plan, `direct` requires endpoint/SNI identity agreement, and `cdn_fronting` requires explicit edge IPs. TLS probes keep certificate verification enabled and are bounded. These modes do not discover IP ranges, bypass provider policy, or automatically alter the active engine's transport. Candidate selection is not proof that the native tunnel can use the candidate.
+See [docs/CDN_CONNECTION_MODES.md](docs/CDN_CONNECTION_MODES.md). `auto` produces a deterministic direct-first candidate plan, `direct` requires endpoint/SNI identity agreement, and `cdn_fronting` requires explicit edge IPs. `auto-ir` and `auto-us` accept caller-supplied regional candidate lists; they do not ship a live regional IP database. TLS probes keep certificate verification enabled and are bounded, and results can be ranked by reachability and latency. These modes do not discover IP ranges, bypass provider policy, or automatically alter the active engine's transport. Candidate selection is not proof that the native tunnel can use the candidate.
 
 ## Network policy and platform support
 
