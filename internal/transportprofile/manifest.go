@@ -149,6 +149,9 @@ func normalizeHost(host string) string {
 // FetchManifest downloads the standard well-known document using verified HTTPS.
 // Redirects are rejected to prevent discovery from silently changing authority.
 func FetchManifest(ctx context.Context, discoveryURL string, trustedKeys map[string]ed25519.PublicKey, now time.Time, minSequence uint64) (Manifest, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
