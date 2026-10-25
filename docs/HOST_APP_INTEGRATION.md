@@ -35,6 +35,27 @@ For a Settings action and an Add Connection action, the module descriptor
 declares both entry points. The host can call `integration.Invoke` after the
 user chooses an action.
 
+For the standard CDN/SNI entry, the host supplies its native navigation callback:
+
+```go
+module := integration.NewFrontingModule(func(
+    ctx context.Context,
+    entry integration.EntryPoint,
+    host integration.HostContext,
+) error {
+    // Navigate to the app-owned screen; check host.ActiveEngineID against
+    // the engine capabilities before enabling connection actions.
+    return navigator.OpenFrontingCDN(ctx, entry, host)
+})
+if err := integration.Register(registry, module); err != nil {
+    return err
+}
+```
+
+The callback above is a host-app adapter point, not a function provided by PG
+CORE. It must be implemented by the embedding app. `NewFrontingModule`
+declares the stable ID `fronting.cdn-sni` and registers both entry points.
+
 `HostContext` intentionally contains only non-secret app/engine identifiers.
 Credentials and private configuration must stay in the host's secure profile
 store and must not be passed through UI action metadata.
