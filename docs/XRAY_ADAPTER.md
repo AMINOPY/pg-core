@@ -19,8 +19,8 @@ or an OS VPN installer.
 
 - The adapter does not install Xray, configure OS routes, create a TUN device,
   alter system DNS, or guarantee end-to-end connectivity.
-- Without `HealthTarget`, health is process-liveness-only and does not prove the
-  configured remote endpoint is reachable or that application traffic passes.
+- Without `HealthTarget`, health is process-liveness-only and reports `degraded`
+  (`process_liveness_only`) rather than implying the tunnel is connected.
 - With `HealthTarget`, health performs a SOCKS5 CONNECT to the configured `host:port`.
   This verifies TCP reachability through the proxy, not TLS certificate validity,
   HTTP semantics, DNS privacy, full app routing, or sustained throughput. Pick a
