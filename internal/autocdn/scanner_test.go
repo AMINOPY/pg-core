@@ -96,3 +96,13 @@ func TestSelectCandidatesReturnsAtMostTwentyRoutes(t *testing.T) {
 		}
 	}
 }
+
+func TestSelectRejectsNegativeProbeLatency(t *testing.T) {
+	catalog := Catalog{SNIs: []string{"a.example"}, CDNIPs: []string{"1.1.1.1"}}
+	_, err := (Scanner{}).Select(context.Background(), catalog, func(context.Context, string, string) (time.Duration, error) {
+		return -time.Millisecond, nil
+	})
+	if err == nil {
+		t.Fatal("negative latency must not be treated as a healthy route")
+	}
+}
