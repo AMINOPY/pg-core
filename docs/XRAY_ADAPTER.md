@@ -64,3 +64,33 @@ never put them in UI action metadata or diagnostics.
 Do not mark the Xray engine as available just because its ID appears in a list.
 Check that the executable is installed and compatible, the profile validates,
 the process starts, and a tunnel-specific health check succeeds.
+
+
+## Run Xray through PG CORE's CDN/SNI settings
+
+The CLI can start an already-installed Xray executable with the core's validated
+`fronting.sni` and `fronting.edge_ips` settings applied to a TLS outbound. This
+reuses the existing profile's protocol, credentials, transport, WebSocket path,
+and other settings; SNI and edge IPs alone cannot create a server profile.
+
+The Xray profile must contain a valid TLS outbound and a loopback-only, no-auth
+SOCKS inbound (for example `127.0.0.1:1080`). Then run:
+
+```sh
+export CHIMERA_XRAY_BINARY=/path/to/xray
+export CHIMERA_XRAY_HEALTH_TARGET=example.com:443
+go run ./cmd/chimera --run --config config.json --profile xray-profile.json
+```
+
+If Xray is on `PATH`, `CHIMERA_XRAY_BINARY` may be omitted. On Windows
+PowerShell, use `$env:CHIMERA_XRAY_BINARY` and
+`$env:CHIMERA_XRAY_HEALTH_TARGET`. The health target should be a stable host
+and port you control or are authorized to test. It checks TCP reachability
+through the local SOCKS5 inbound; it does not prove system-wide routing or DNS
+privacy.
+
+This CLI path does not install Xray, create a TUN device, or change system
+routes/DNS. Apps must explicitly use the printed local SOCKS5 endpoint until
+platform-specific VPN/TUN integration is implemented and tested. A saved profile
+and server credentials are still required; this is not a zero-information
+connection method.

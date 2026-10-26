@@ -351,3 +351,20 @@ func TestPrepareConfigComposesFrontingAndLocalSOCKS(t *testing.T) {
 		t.Fatalf("SNI not applied: %#v", tls)
 	}
 }
+
+func TestLocalSOCKSAddressRequiresLoopbackNoAuth(t *testing.T) {
+	good := []byte(`{"inbounds":[{"listen":"127.0.0.1","port":1080,"protocol":"socks","settings":{"auth":"noauth"}}]}`)
+	addr, err := LocalSOCKSAddress(good)
+	if err != nil || addr != "127.0.0.1:1080" {
+		t.Fatalf("addr=%q err=%v", addr, err)
+	}
+	localhost := []byte(`{"inbounds":[{"listen":"localhost","port":1081,"protocol":"socks","settings":{"auth":"noauth"}}]}`)
+	addr, err = LocalSOCKSAddress(localhost)
+	if err != nil || addr != "127.0.0.1:1081" {
+		t.Fatalf("localhost addr=%q err=%v", addr, err)
+	}
+	bad := []byte(`{"inbounds":[{"listen":"0.0.0.0","port":1080,"protocol":"socks","settings":{"auth":"noauth"}}]}`)
+	if _, err := LocalSOCKSAddress(bad); err == nil {
+		t.Fatal("expected public SOCKS listener to be rejected")
+	}
+}
