@@ -28,7 +28,7 @@ See [docs/REMOTE_CONTROL_API.md](docs/REMOTE_CONTROL_API.md) for the tenant-scop
 
 ## Traffic fusion
 
-See [docs/TRAFFIC_FUSION.md](docs/TRAFFIC_FUSION.md). The `internal/fusion` package provides deterministic path selection, concurrency-safe active-flow reservations, and a `Router` that invokes path-specific context-aware dialers for new outbound connections. It releases leases on dial failure or connection close and refuses to remove routes while they still have active connections.
+See [docs/TRAFFIC_FUSION.md](docs/TRAFFIC_FUSION.md). The `internal/fusion` package provides deterministic path selection, concurrency-safe active-flow reservations, bounded route-quality probes (success rate, packet loss, mean RTT and jitter), and a `Router` that invokes path-specific context-aware dialers for new outbound connections. It releases leases on dial failure or connection close and refuses to remove routes while they still have active connections.
 
 This is flow-level routing: each connection uses one path. It does **not** bond multiple paths into one flow or implement packet-level aggregation. `fusion.RoutesFromSOCKS5` now binds route entries to already-running engine SOCKS5 listeners, and `fusion.ProbeSOCKS5Path` can test a TCP connection through a selected engine to a caller-chosen trusted target. `fusion.RefreshRoutes` refreshes supplied route snapshots with bounded, context-aware probes and protects against stale concurrent updates; the host still owns engine lifecycle, listener configuration, health snapshot collection, and probe scheduling. Only new TCP connections explicitly opened through `Router.DialContext` use this router. It is not a system-wide packet router and is not yet connected to OS TUN/routes/DNS or a live telemetry collector.
 
