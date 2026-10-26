@@ -148,6 +148,10 @@ func (s Scanner) Select(ctx context.Context, catalog Catalog, probe ProbeFunc) (
 // latency, then by optional static SNI weight. The caller must still verify
 // each route with the actual tunnel engine.
 func (s Scanner) SelectCandidates(ctx context.Context, catalog Catalog, probe ProbeFunc) ([]Route, error) {
+	// Treat a nil context as Background for parity with the other core APIs.
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := catalog.Validate(); err != nil {
 		return nil, err
 	}
@@ -286,6 +290,12 @@ func ProbeTLS(ctx context.Context, sni, ip string) (time.Duration, error) {
 	tlsLatency := time.Since(start)
 
 	if err := probeHTTPSHead(ctx, sni, ip); err != nil {
+		// A request deadline is a failed probe, not a healthy route. Only
+		// application-level HEAD failures are soft because some endpoints do
+		// not implement HEAD even though TLS is valid.
+		if ctx.Err() != nil {
+			return 0, ctx.Err()
+		}
 		// Preserve a successful, certificate-validated TLS candidate but nudge
 		// routes with a working HTTPS response ahead of otherwise equal routes.
 		return tlsLatency + 50*time.Millisecond, nil
