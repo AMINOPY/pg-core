@@ -13,7 +13,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -45,6 +47,7 @@ type Profile struct {
 type running struct {
 	ln        net.Listener
 	cancel    context.CancelFunc
+	done      chan struct{}
 	dialer    *Dialer
 	healthURL string
 }
@@ -75,6 +78,12 @@ func parseProfile(raw []byte) (Profile, error) {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&p); err != nil {
 		return p, errors.New("invalid native profile")
+	}
+	// A profile is exactly one JSON object. Reject concatenated values and
+	// trailing garbage instead of silently accepting a valid prefix.
+	var trailing any
+	if err := dec.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return p, errors.New("invalid native profile: trailing data")
 	}
 	if err := validateHealthURL(p.HealthURL); err != nil {
 		return p, err
@@ -124,15 +133,24 @@ func (a *Adapter) dialer(p Profile) (*Dialer, error) {
 	host, port := p.Server, ""
 	if h, pt, err := net.SplitHostPort(p.Server); err == nil {
 		host, port = h, pt
+	} else if net.ParseIP(p.Server) == nil && strings.Contains(p.Server, ":") {
+		// A colon in a non-IP host usually means a malformed host:port pair.
+		// Do not silently reinterpret values such as "edge.example:abc" as hosts.
+		return nil, errors.New("server must be a hostname, IP, or valid host:port")
+	}
+	if host == "" || strings.ContainsAny(host, "/\\\\ \t\r\n") {
+		return nil, errors.New("invalid server host")
 	}
 	d.SNI = host
 	d.EdgeIPs = []string{host}
-	if port != "" && d.Port == 0 {
-		var n int
-		if _, err := fmt.Sscanf(port, "%d", &n); err != nil || n < 1 || n > 65535 {
+	if port != "" {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
 			return nil, errors.New("invalid server port")
 		}
-		d.Port = n
+		if d.Port == 0 {
+			d.Port = n
+		}
 	}
 	return d, nil
 }
@@ -177,8 +195,12 @@ func (a *Adapter) Start(ctx context.Context, raw []byte) error {
 		return fmt.Errorf("listen: %w", err)
 	}
 	runCtx, cancel := context.WithCancel(context.Background())
-	go serveSOCKS5(runCtx, ln, d)
-	a.run = &running{ln: ln, cancel: cancel, dialer: d, healthURL: p.HealthURL}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		serveSOCKS5(runCtx, ln, d)
+	}()
+	a.run = &running{ln: ln, cancel: cancel, done: done, dialer: d, healthURL: p.HealthURL}
 	return nil
 }
 
@@ -224,7 +246,10 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 			rep.Status = engine.StatusHealthy
 		}
 	} else {
-		rep.Status = engine.StatusHealthy
+		// An edge TLS/WebSocket probe proves only that the edge handshake works.
+		// Do not report the engine as healthy until an HTTP request has traversed
+		// the local SOCKS listener to a configured destination.
+		rep.Status, rep.ErrorCode = engine.StatusDegraded, "data_plane_unverified"
 	}
 	rep.Latency = time.Since(start)
 	return rep, nil
@@ -235,12 +260,24 @@ func (a *Adapter) Stop(ctx context.Context) error {
 		return errors.New("context is required")
 	}
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	r := a.run
-	a.run = nil
-	a.mu.Unlock()
 	if r == nil {
 		return nil
 	}
+
+	// Keep ownership until all accepted SOCKS sessions have exited. If the
+	// caller's deadline expires, a later Stop can retry waiting for cleanup.
 	r.cancel()
-	return r.ln.Close()
+	closeErr := r.ln.Close()
+	if closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+		return fmt.Errorf("close native listener: %w", closeErr)
+	}
+	select {
+	case <-r.done:
+		a.run = nil
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

@@ -44,6 +44,27 @@ class PgCoreVpnBackendTest {
     }
 
     @Test
+    fun pathEndpointsMustBeLoopbackAndHaveAValidPort() {
+        assertTrue(VpnPathConfig(id = "local", endpoint = "127.0.0.1:1080").endpoint.isNotBlank())
+        assertTrue(VpnPathConfig(id = "local-v6", endpoint = "[::1]:1080").endpoint.isNotBlank())
+        assertTrue(VpnPathConfig(id = "localhost", endpoint = "localhost:1080").endpoint.isNotBlank())
+
+        listOf(
+            "vpn.example:1080",
+            "192.0.2.10:1080",
+            "127.0.0.1:0",
+            "127.0.0.1:65536",
+            "127.0.0.1:1080/path",
+            "user@127.0.0.1:1080",
+            "[2001:db8::1]:1080",
+        ).forEach { endpoint ->
+            assertThrows<IllegalArgumentException> {
+                VpnPathConfig(id = "unsafe", endpoint = endpoint)
+            }
+        }
+    }
+
+    @Test
     fun defaultRegistryUsesUnavailableBackendUntilHostRegistersOne() {
         val previous = PgCoreVpnBackendRegistry.factory
         try {
