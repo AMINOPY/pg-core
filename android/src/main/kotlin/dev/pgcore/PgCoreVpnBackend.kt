@@ -32,6 +32,8 @@ data class VpnBackendConfig(
     val enableIpv6: Boolean = true,
     val dnsServers: List<String> = emptyList(),
     val paths: List<VpnPathConfig> = emptyList(),
+    /** JSON profile consumed by the host-provided native engine bridge. */
+    val engineProfileJson: String = "",
 ) {
     init {
         require(sessionId.isNotBlank()) { "sessionId must not be blank" }
