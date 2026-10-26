@@ -111,3 +111,33 @@ func TestSelectRejectsNegativeProbeLatency(t *testing.T) {
 		t.Fatal("negative latency must not be treated as a healthy route")
 	}
 }
+
+func TestSelectCandidatesAcceptsNilContext(t *testing.T) {
+	catalog := Catalog{SNIs: []string{"a.example"}, CDNIPs: []string{"1.1.1.1"}}
+	routes, err := (Scanner{Budget: 1}).SelectCandidates(nil, catalog,
+		func(context.Context, string, string) (time.Duration, error) {
+			return time.Millisecond, nil
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("got %d routes, want 1", len(routes))
+	}
+}
+
+func TestScannerPropagatesCancelledProbeContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	catalog := Catalog{SNIs: []string{"a.example"}, CDNIPs: []string{"1.1.1.1"}}
+	_, err := (Scanner{Budget: 1}).SelectCandidates(ctx, catalog,
+		func(ctx context.Context, _, _ string) (time.Duration, error) {
+			<-ctx.Done()
+			return 0, ctx.Err()
+		},
+	)
+	if err == nil {
+		t.Fatal("expected cancellation error")
+	}
+}
