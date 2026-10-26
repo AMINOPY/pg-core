@@ -393,3 +393,52 @@ func BenchmarkNativeTunnelRoundTrip(b *testing.B) {
 	}
 	b.StopTimer()
 }
+
+
+func TestNativeCapabilitiesDoNotAdvertiseMissingDataPlane(t *testing.T) {
+	caps := New().Capabilities()
+	if caps.TUN || caps.DNS || caps.Routing {
+		t.Fatalf("native engine advertises unimplemented full-tunnel capabilities: %+v", caps)
+	}
+	if !caps.HealthChecks {
+		t.Fatalf("native engine should advertise its implemented health checks: %+v", caps)
+	}
+}
+
+func TestSOCKS5ExplicitlyRejectsUDPAssociate(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := socksHandshake(server)
+		done <- err
+	}()
+
+	if _, err := client.Write([]byte{5, 1, 0}); err != nil {
+		t.Fatal(err)
+	}
+	var greeting [2]byte
+	if _, err := io.ReadFull(client, greeting[:]); err != nil {
+		t.Fatal(err)
+	}
+	if greeting != [2]byte{5, 0} {
+		t.Fatalf("greeting reply = %v, want [5 0]", greeting)
+	}
+
+	// SOCKS5 UDP ASSOCIATE is command 3. It must not be mistaken for CONNECT.
+	if _, err := client.Write([]byte{5, 3, 0, 1, 127, 0, 0, 1, 0, 0}); err != nil {
+		t.Fatal(err)
+	}
+	var reply [10]byte
+	if _, err := io.ReadFull(client, reply[:]); err != nil {
+		t.Fatal(err)
+	}
+	if reply[0] != 5 || reply[1] != 7 {
+		t.Fatalf("UDP ASSOCIATE reply = %v, want command-not-supported (5,7)", reply)
+	}
+	if err := <-done; err == nil {
+		t.Fatal("UDP ASSOCIATE unexpectedly accepted by TCP-only engine")
+	}
+}
