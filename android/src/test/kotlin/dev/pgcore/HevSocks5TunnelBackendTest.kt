@@ -112,4 +112,56 @@ class HevSocks5TunnelBackendTest {
             cache.deleteRecursively()
         }
     }
+
+    @Test
+    fun engineStartFailureNeverStartsHev() {
+        val cache = createTempDir(prefix = "pgcore-hev-test")
+        try {
+            val engine = FakeEngine(startResult = EngineResult.failure("engine_start_failed", "test"))
+            val hev = FakeHev()
+            val backend = HevSocks5TunnelBackend(cache, engine, hev)
+            val result = backend.start(41, VpnBackendConfig("s", engineProfileJson = """{"server":"test"}""")) { true }
+            assertFalse(result.ok)
+            assertEquals(0, hev.starts)
+            assertEquals(0, engine.stops)
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun failedEndToEndHealthCheckRollsBackNativeAndEngine() {
+        val cache = createTempDir(prefix = "pgcore-hev-test")
+        try {
+            val engine = FakeEngine(healthResult = EngineResult.failure("health_failed", "no traffic"))
+            val hev = FakeHev()
+            val backend = HevSocks5TunnelBackend(cache, engine, hev)
+            val result = backend.start(41, VpnBackendConfig("s", engineProfileJson = """{"server":"test"}""")) { true }
+            assertFalse(result.ok)
+            assertEquals(1, hev.starts)
+            assertEquals(1, hev.stops)
+            assertEquals(1, engine.stops)
+            assertFalse(File(cache, "pgcore-hev-tun.yml").exists())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun failedNativeStartIsCleanedBeforeEngineShutdown() {
+        val cache = createTempDir(prefix = "pgcore-hev-test")
+        try {
+            val engine = FakeEngine()
+            val hev = FakeHev().apply { startResult = false }
+            val backend = HevSocks5TunnelBackend(cache, engine, hev)
+            val result = backend.start(41, VpnBackendConfig("s", engineProfileJson = """{"server":"test"}""")) { true }
+            assertFalse(result.ok)
+            assertEquals(1, hev.starts)
+            assertEquals(1, hev.stops)
+            assertEquals(1, engine.stops)
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
 }
