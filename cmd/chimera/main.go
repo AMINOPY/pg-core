@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"strings"
 	"time"
 
@@ -67,7 +66,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		ctx, stop := shutdownContext()
 		defer stop()
 		fmt.Printf("Chimera Quick Connect UI: http://%s\n", *quickConnectListen)
 		fmt.Println("Press Ctrl+C to stop the UI and tunnel.")
@@ -183,7 +182,7 @@ func runNative(cfg config.Config, profilePath string) {
 	}
 	a := native.New()
 	a.Fronting = cfg.Fronting
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := shutdownContext()
 	defer stop()
 	if err := a.Start(ctx, profile); err != nil {
 		fmt.Fprintf(os.Stderr, "start: %v\n", err)
@@ -233,7 +232,7 @@ func runXray(cfg config.Config, profilePath string) {
 	adapter := xray.New(binary)
 	adapter.Fronting = cfg.Fronting
 	adapter.HealthTarget = strings.TrimSpace(os.Getenv("CHIMERA_XRAY_HEALTH_TARGET"))
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := shutdownContext()
 	defer stop()
 	if err := adapter.Start(ctx, profile); err != nil {
 		fmt.Fprintf(os.Stderr, "start Xray: %v\n", err)
