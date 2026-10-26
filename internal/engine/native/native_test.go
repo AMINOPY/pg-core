@@ -394,7 +394,6 @@ func BenchmarkNativeTunnelRoundTrip(b *testing.B) {
 	b.StopTimer()
 }
 
-
 func TestNativeCapabilitiesDoNotAdvertiseMissingDataPlane(t *testing.T) {
 	caps := New().Capabilities()
 	if caps.TUN || caps.DNS || caps.Routing {
