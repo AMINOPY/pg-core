@@ -57,6 +57,7 @@ class PgCoreVpnService : VpnService() {
                     sessionId = UUID.randomUUID().toString(),
                     mtu = options.mtu,
                     dnsServers = options.dnsServers,
+                    engineProfileJson = options.engineProfileJson,
                 )
                 val builder = Builder().setSession("PG CORE").setMtu(config.mtu).setBlocking(true)
                 options.allowedApplications.forEach { builder.addAllowedApplication(it) }
