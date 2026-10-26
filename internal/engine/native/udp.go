@@ -9,7 +9,10 @@ import (
 	"time"
 )
 
-const udpModeMarker byte = 0xf0
+const (
+	udpModeMarker      byte = 0xf0
+	udpProtocolVersion byte = 1
+)
 
 // DialDatagram sends one UDP datagram through the native WebSocket tunnel and
 // returns the first response datagram. This mode is supported by the Go Server;
@@ -35,9 +38,10 @@ func (d *Dialer) DialDatagram(ctx context.Context, host string, port int, payloa
 	stopCancel := context.AfterFunc(ctx, func() { _ = ws.c.SetDeadline(time.Now()) })
 	defer stopCancel()
 
-	request := make([]byte, 1+len(target))
+	request := make([]byte, 2+len(target))
 	request[0] = udpModeMarker
-	copy(request[1:], target)
+	request[1] = udpProtocolVersion
+	copy(request[2:], target)
 	if err := writeAll(ws, request); err != nil {
 		return nil, err
 	}
@@ -46,7 +50,7 @@ func (d *Dialer) DialDatagram(ctx context.Context, host string, port int, payloa
 		return nil, fmt.Errorf("UDP tunnel handshake: %w", err)
 	}
 	if status[0] != 0 {
-		return nil, errors.New("server could not open UDP target")
+		return nil, fmt.Errorf("server rejected UDP tunnel handshake (status %d)", status[0])
 	}
 	var size [2]byte
 	binary.BigEndian.PutUint16(size[:], uint16(len(payload)))
