@@ -9,8 +9,8 @@ import (
 
 func TestClassifyAllSuccess(t *testing.T) {
 	report := Report{
-		Observations:	[]diagnostics.Result{{DNSOK: true, HTTPSOK: true}, {DNSOK: true, HTTPSOK: true}},
-		DNSSuccesses:	2,
+		Observations:  []diagnostics.Result{{DNSOK: true, HTTPSOK: true}, {DNSOK: true, HTTPSOK: true}},
+		DNSSuccesses:  2,
 		HTTPSuccesses:	2,
 	}
 	report.classify()
