@@ -169,7 +169,6 @@ func runNative(cfg config.Config, profilePath string) {
 	_ = a.Stop(context.Background())
 }
 
-
 // runXray starts the installed Xray executable with the core's validated CDN/SNI
 // settings applied by the adapter. The profile must include a loopback SOCKS5
 // inbound; this process does not configure system TUN/routes/DNS.
