@@ -375,6 +375,12 @@ func validateHealthTarget(target string) error {
 	return socksprobe.ValidateTarget(target)
 }
 
+// LocalSOCKSAddress returns a safe loopback no-auth SOCKS5 listener from an Xray profile.
+// It is intended for displaying the local endpoint and fails closed for public listeners.
+func LocalSOCKSAddress(cfg []byte) (string, error) {
+	return proxyAddress(cfg)
+}
+
 func proxyAddress(cfg []byte) (string, error) {
 	var root struct {
 		Inbounds []struct {
@@ -399,6 +405,9 @@ func proxyAddress(cfg []byte) (string, error) {
 			host = "127.0.0.1"
 		}
 		ip := net.ParseIP(host)
+		if strings.EqualFold(host, "localhost") {
+			ip = net.ParseIP("127.0.0.1")
+		}
 		if ip == nil || !ip.IsLoopback() {
 			continue
 		}
