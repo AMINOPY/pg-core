@@ -27,6 +27,13 @@ func (d *Dialer) DialDatagram(ctx context.Context, host string, port int, payloa
 		return nil, err
 	}
 	defer ws.Close()
+	deadline := time.Now().Add(d.timeout())
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	_ = ws.c.SetDeadline(deadline)
+	stopCancel := context.AfterFunc(ctx, func() { _ = ws.c.SetDeadline(time.Now()) })
+	defer stopCancel()
 
 	request := make([]byte, 1+len(target))
 	request[0] = udpModeMarker
@@ -49,11 +56,6 @@ func (d *Dialer) DialDatagram(ctx context.Context, host string, port int, payloa
 	if err := writeAll(ws, payload); err != nil {
 		return nil, err
 	}
-	if deadline, ok := ctx.Deadline(); ok {
-		_ = ws.c.SetReadDeadline(deadline)
-	}
-	stopCancel := context.AfterFunc(ctx, func() { _ = ws.c.SetReadDeadline(time.Now()) })
-	defer stopCancel()
 	if _, err := io.ReadFull(ws, size[:]); err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
