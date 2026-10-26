@@ -39,3 +39,26 @@ Before adopting it, make an explicit toolchain decision, pin a reviewed version,
 - [ ] Android UI reports connected only after the backend's end-to-end health check passes.
 
 Until these checks pass, the VPN service should continue to fail closed rather than imply full-tunnel protection.
+
+## Dependency review update (2026-10-26)
+
+The upstream `xjasonlyu/tun2socks` v2.6.0 release is MIT-licensed, but its `go.mod` declares Go 1.23.1 while this repository declares Go 1.22. Its public `engine.Start()` and `engine.Stop()` wrappers call fatal logging on errors, so they are not safe lifecycle boundaries for an Android library. The repository also does not currently contain an Android-specific `device.Device` adapter that accepts the borrowed Android `VpnService` TUN file descriptor and guarantees that the service retains descriptor ownership.
+
+References reviewed:
+- https://github.com/xjasonlyu/tun2socks/releases/tag/v2.6.0
+- https://github.com/xjasonlyu/tun2socks/blob/v2.6.0/go.mod
+- https://github.com/xjasonlyu/tun2socks/blob/v2.6.0/engine/engine.go
+- https://github.com/xjasonlyu/tun2socks/blob/v2.6.0/LICENSE
+
+### Decision
+
+Do not add the upstream CLI/release binary or call the fatal engine wrapper from the Android service. The viable next implementation is a separately owned, error-returning Go adapter around the lower-level gVisor stack/device APIs (or a reviewed Android-compatible library that already provides this contract), exposed to Kotlin through a pinned gomobile/JNI build. It must consume the borrowed TUN FD without closing it, route all upstream sockets through a protect-before-connect callback, and stop workers deterministically. This requires an explicit Go toolchain/Android ABI build decision and an actual device integration test; a dependency declaration alone would not complete the data plane.
+
+### Release gate status
+
+- [x] Android service remains fail-closed when no data-plane backend is installed.
+- [x] Backend interface defines borrowed TUN FD ownership, socket protection, start/stop, and health checks.
+- [ ] Android TUN-to-IP-stack packet reader/writer implementation and packaged JNI/AAR artifacts.
+- [ ] End-to-end TCP, UDP, DNS, IPv4, and IPv6 tests through the Android TUN.
+- [ ] Network transition/recovery, leak checks, and sustained physical-device test.
+- [ ] Promote PR from Draft only after the above gates pass.
