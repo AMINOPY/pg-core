@@ -1,5 +1,8 @@
 package dev.pgcore
 
+import java.net.InetAddress
+import java.net.URI
+
 /**
  * Data-plane contract for the Android VpnService.
  * The backend must forward packets between TUN and a real engine; process liveness is insufficient.
@@ -55,7 +58,28 @@ data class VpnPathConfig(
     val weight: Int = 1,
     val enabled: Boolean = true,
 ) {
-    init { require(weight in 1..100) { "weight must be between 1 and 100" } }
+    init {
+        require(weight in 1..100) { "weight must be between 1 and 100" }
+        require(isLoopbackEndpoint(endpoint)) {
+            "endpoint must be a loopback host:port; remote endpoints are not allowed"
+        }
+    }
+
+    private fun isLoopbackEndpoint(value: String): Boolean {
+        if (value.isBlank() || value.any { it.isWhitespace() }) return false
+        val uri = runCatching { URI("tcp://$value") }.getOrNull() ?: return false
+        if (uri.rawUserInfo != null || uri.rawPath.isNullOrEmpty().not() ||
+            uri.rawQuery != null || uri.rawFragment != null) return false
+        val host = uri.host ?: return false
+        val port = uri.port
+        if (port !in 1..65535) return false
+        if (host.equals("localhost", ignoreCase = true)) return true
+        // Only numeric literals are accepted here: never resolve a supplied
+        // hostname while validating an endpoint used by the VPN data plane.
+        if (host.any { it.isLetter() && it !in 'a'..'f' && it !in 'A'..'F' }) return false
+        val address = runCatching { InetAddress.getByName(host) }.getOrNull() ?: return false
+        return address.isLoopbackAddress
+    }
 }
 
 /** Safe default: no TUN packet-forwarding backend/JNI library is bundled yet. */
