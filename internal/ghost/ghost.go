@@ -141,7 +141,7 @@ func (r *Report) classify() {
 	if len(policyResponses) > 0 {
 		r.Findings = append(r.Findings, Finding{
 			Code: "http_policy_response", Severity: "medium", Confidence: "low",
-			Summary: "An HTTP 403/451 response was observed. Server policy, a gateway, or filtering may explain it, but DPI is not proven.",
+			Summary:  "An HTTP 403/451 response was observed. Server policy, a gateway, or filtering may explain it, but DPI is not proven.",
 			Evidence: unique(policyResponses),
 		})
 		r.Recommendations = append(r.Recommendations, "Check the target site's access policy and compare with a known-good host; an HTTP policy response proves an HTTP response was received, not that DPI caused it.")
@@ -150,7 +150,7 @@ func (r *Report) classify() {
 		if len(policyResponses) == 0 {
 			r.Findings = append(r.Findings, Finding{
 				Code: "https_reachable", Severity: "info", Confidence: "high",
-				Summary: "DNS and HTTPS succeeded in all samples; this hostname showed no reachability failure during this test.",
+				Summary:  "DNS and HTTPS succeeded in all samples; this hostname showed no reachability failure during this test.",
 				Evidence: []string{fmt.Sprintf("HTTPS succeeded in %d of %d samples", r.HTTPSuccesses, n)},
 			})
 			r.Recommendations = append(r.Recommendations,
