@@ -77,7 +77,7 @@ func TestCoordinatorRollsBackOnStartFailure(t *testing.T) {
     c, events := newCoordinatorTest(t, a, b)
     err := c.Start(context.Background(), []EnginePlan{{ID:"alpha",Config:[]byte("{}")},{ID:"beta",Config:[]byte("{}")}})
     if err == nil { t.Fatal("expected start error") }
-    want := []string{"validate:alpha","validate:beta","start:alpha","health:alpha","start:beta","stop:alpha"}
+    want := []string{"validate:alpha","validate:beta","start:alpha","health:alpha","start:beta","stop:beta","stop:alpha"}
     if !reflect.DeepEqual(*events, want) { t.Fatalf("events = %v, want %v", *events, want) }
 }
 
