@@ -1,16 +1,18 @@
 # Android Kotlin integration
 
-This directory contains the Kotlin boundary and Android VpnService lifecycle
-integration. It is source code for inclusion in a host Android application,
-not yet a standalone Gradle application.
+This directory contains the Kotlin boundary, Android VpnService lifecycle integration,
+and `PgCoreVpnController` helper for embedding in a host Android application. It is
+an Android library module, not a standalone end-user VPN application. See
+[Android host-app integration](../docs/ANDROID_APP_INTEGRATION.md).
 
 ## VPN service
 
 PgCoreVpnService owns the Android VPN lifecycle: foreground notification,
 TUN establishment, permission-revocation handling, health-gated startup, and
 cleanup. The host must first call VpnService.prepare(context) and obtain
-consent, then start the service with ACTION_START. To disconnect, send
-ACTION_STOP.
+consent, then start the service with ACTION_START. Host apps can use `PgCoreVpnController`
+to check permission, launch the consent flow, start with validated options, and
+request a stop. To disconnect manually, send ACTION_STOP.
 
 Android-specific options can be passed as intent extras defined in VpnServiceOptions:
 MTU, numeric DNS server addresses, an allowed-app list, or a disallowed-app
