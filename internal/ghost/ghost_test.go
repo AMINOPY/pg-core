@@ -19,6 +19,21 @@ func TestClassifyAllSuccess(t *testing.T) {
 	}
 }
 
+func TestClassifyHTTPPolicyStatusDoesNotClaimDPI(t *testing.T) {
+	report := Report{
+		Observations: []diagnostics.Result{{DNSOK: true, HTTPSOK: true, HTTPStatus: 451}},
+		DNSSuccesses: 1,
+		HTTPSuccesses: 1,
+	}
+	report.classify()
+	if len(report.Findings) != 1 || report.Findings[0].Code != "http_policy_response" {
+		t.Fatalf("unexpected findings: %#v", report.Findings)
+	}
+	if report.Findings[0].Confidence == "high" {
+		t.Fatal("HTTP 451 must not be treated as proof of DPI")
+	}
+}
+
 func TestClassifyDNSFailureDoesNotClaimDPI(t *testing.T) {
 	report := Report{
 		Observations: []diagnostics.Result{{Error: "DNS: timeout"}},
