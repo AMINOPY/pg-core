@@ -16,8 +16,8 @@ func (adaptiveTestDialer) DialContext(context.Context, string, string) (net.Conn
 
 func adaptivePath(id string, healthy bool) AdaptivePath {
 	return AdaptivePath{
-		Route: Route{Path: Path{ID: id, Healthy: healthy, Weight: 1}, Dialer: adaptiveTestDialer{}},
-		Quality: QualityReport{Samples: 5, Successes: 5, SuccessRate: 1, PacketLoss: 0, MeanRTT: 40 * time.Millisecond},
+		Route:	Route{Path: Path{ID: id, Healthy: healthy, Weight: 1}, Dialer: adaptiveTestDialer{}},
+		Quality:	QualityReport{Samples: 5, Successes: 5, SuccessRate: 1, PacketLoss: 0, MeanRTT: 40 * time.Millisecond},
 	}
 }
 
