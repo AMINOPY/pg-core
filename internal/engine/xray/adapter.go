@@ -166,7 +166,6 @@ func (a *Adapter) applyFronting(cfg []byte) ([]byte, error) {
 	return json.Marshal(root)
 }
 
-
 // prepareConfig composes core-owned transport settings in a deterministic order.
 func (a *Adapter) prepareConfig(cfg []byte) ([]byte, error) {
 	prepared, err := a.applyFronting(cfg)
