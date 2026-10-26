@@ -1,0 +1,25 @@
+name: Windows Go CI
+
+on:
+  pull_request:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-go:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache: false
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
