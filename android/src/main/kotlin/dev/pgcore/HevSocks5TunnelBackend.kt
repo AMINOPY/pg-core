@@ -140,8 +140,13 @@ class HevSocks5TunnelBackend(
             if (!api.isRunning()) {
                 running.set(false)
                 EngineResult.failure("hev_tunnel_not_running", "Hev no longer reports a running tunnel")
-            } else engine.endToEndHealthCheck()
+            } else {
+                val result = engine.endToEndHealthCheck()
+                if (!result.ok) running.set(false)
+                result
+            }
         } catch (e: Exception) {
+            running.set(false)
             EngineResult.failure("hev_health_check_failed", e.message)
         }
     }
