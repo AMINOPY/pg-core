@@ -62,3 +62,26 @@ Do not add the upstream CLI/release binary or call the fatal engine wrapper from
 - [ ] End-to-end TCP, UDP, DNS, IPv4, and IPv6 tests through the Android TUN.
 - [ ] Network transition/recovery, leak checks, and sustained physical-device test.
 - [ ] Promote PR from Draft only after the above gates pass.
+
+## Android-native candidate review: HevSocks5Tunnel
+
+A second candidate was reviewed at https://github.com/heiher/hev-socks5-tunnel. Its README documents Android NDK builds, MIT licensing, IPv4/IPv6, TCP redirection, and UDP redirection. Its C API accepts the Android TUN file descriptor directly via `hev_socks5_tunnel_main_from_str(config, length, tun_fd)`, runs until an explicit quit call, and reports an error return instead of requiring the Go CLI's fatal wrapper. This is a closer platform fit than embedding the upstream tun2socks Go CLI.
+
+However, it is **not yet safe to register as the production backend**. Its upstream JNI interface starts the engine using a config file path and does not expose this repository's required `VpnService.protect(fd)` callback for each outbound socket before connect. A plain integration could route its own proxy sockets back into the VPN, causing a loop or leak. The native build also depends on pinned recursive submodules and must be built and packaged for every supported Android ABI.
+
+### Required implementation before enabling this candidate
+
+1. Pin an audited upstream commit and all recursive submodule commits; preserve MIT notices and record the exact source provenance.
+2. Add an error-returning JNI bridge that accepts the borrowed TUN FD and generated configuration, owns the native worker thread, supports idempotent stop, and exposes running/stats/error state.
+3. Add a reviewed native socket-creation hook that calls the Kotlin `VpnService.protect(fd)` synchronously for each upstream socket before connect. If protection fails, close that socket and fail the path closed. Do not rely on socket marks as a substitute on Android.
+4. Confirm the native library does not close the service-owned TUN FD; test cancellation and stop/join behavior under blocked TCP and UDP I/O.
+5. Add Gradle/NDK builds and CI packaging for every supported ABI, then test TCP, UDP, DNS, IPv4, IPv6, DNS leakage, network handover, repeated start/stop, and sustained operation on real devices.
+
+References:
+- https://github.com/heiher/hev-socks5-tunnel
+- https://github.com/heiher/hev-socks5-tunnel/blob/main/src/hev-main.h
+- https://github.com/heiher/hev-socks5-tunnel/blob/main/src/hev-jni.c
+- https://github.com/heiher/hev-socks5-tunnel/blob/main/Android.mk
+- https://github.com/heiher/hev-socks5-tunnel/blob/main/LICENSE
+
+This review narrows the implementation path but does not change the release gate: the Android service must remain fail-closed until the socket-protection hook, native artifacts, and end-to-end tests are in place.
