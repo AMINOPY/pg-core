@@ -132,20 +132,35 @@ func (r *Report) classify() {
 		)
 		return
 	}
-	if r.HTTPSuccesses == n {
+	var policyResponses []string
+	for _, observation := range r.Observations {
+		if observation.HTTPStatus == 403 || observation.HTTPStatus == 451 {
+			policyResponses = append(policyResponses, fmt.Sprintf("HTTP %d", observation.HTTPStatus))
+		}
+	}
+	if len(policyResponses) > 0 {
 		r.Findings = append(r.Findings, Finding{
-			Code: "https_reachable", Severity: "info", Confidence: "high",
-			Summary:  "DNS and HTTPS succeeded in all samples; this hostname showed no reachability failure during this test.",
-			Evidence: []string{fmt.Sprintf("HTTPS succeeded in %d of %d samples", r.HTTPSuccesses, n)},
+			Code: "http_policy_response", Severity: "medium", Confidence: "low",
+			Summary: "An HTTP 403/451 response was observed. Server policy, a gateway, or filtering may explain it, but DPI is not proven.",
+			Evidence: unique(policyResponses),
 		})
-		r.Recommendations = append(r.Recommendations,
-			"If the application still fails, test its actual configured endpoint and protocol; a healthy HTTPS hostname does not prove the tunnel data path is healthy.",
-		)
+		r.Recommendations = append(r.Recommendations, "Check the target site's access policy and compare with a known-good host; an HTTP policy response proves an HTTP response was received, not that DPI caused it.")
+	}
+	if r.HTTPSuccesses == n {
+		if len(policyResponses) == 0 {
+			r.Findings = append(r.Findings, Finding{
+				Code: "https_reachable", Severity: "info", Confidence: "high",
+				Summary: "DNS and HTTPS succeeded in all samples; this hostname showed no reachability failure during this test.",
+				Evidence: []string{fmt.Sprintf("HTTPS succeeded in %d of %d samples", r.HTTPSuccesses, n)},
+			})
+			r.Recommendations = append(r.Recommendations,
+				"If the application still fails, test its actual configured endpoint and protocol; a healthy HTTPS hostname does not prove the tunnel data path is healthy.",
+			)
+		}
 		return
 	}
 
-	var timeout, tls, reset, policyStatus int
-	var statuses []string
+	var timeout, tls, reset int
 	for _, observation := range r.Observations {
 		if observation.HTTPSOK {
 			continue
@@ -160,19 +175,6 @@ func (r *Report) classify() {
 		if strings.Contains(errText, "reset") || strings.Contains(errText, "eof") || strings.Contains(errText, "refused") {
 			reset++
 		}
-		if observation.HTTPStatus == 403 || observation.HTTPStatus == 451 {
-			policyStatus++
-		}
-		if observation.HTTPStatus != 0 {
-			statuses = append(statuses, fmt.Sprintf("HTTP %d", observation.HTTPStatus))
-		}
-	}
-	if policyStatus > 0 {
-		r.Findings = append(r.Findings, Finding{
-			Code: "http_policy_response", Severity: "medium", Confidence: "low",
-			Summary:  "At least one HTTP 403/451 response was observed; server policy, a gateway, or filtering may explain it, but DPI is not proven.",
-			Evidence: unique(statuses),
-		})
 	}
 	if timeout > 0 {
 		r.Findings = append(r.Findings, Finding{
