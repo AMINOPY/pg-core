@@ -36,7 +36,12 @@ jobs:
       - name: Format check
         shell: bash
         run: |
-          gofmt -d internal/ghost/ghost.go internal/ghost/ghost_test.go
+          files="$(gofmt -l .)"
+          if [[ -n "$files" ]]; then
+            echo "These Go files need gofmt:"
+            echo "$files"
+            exit 1
+          fi
       - name: Integration package tests
         run: go test ./pkg/integration
       - name: Vet
