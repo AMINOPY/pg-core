@@ -4,7 +4,7 @@ This document is an implementation gate, not a claim that TUN forwarding is alre
 
 ## Current hard boundary
 
-The native engine now supports SOCKS5 TCP CONNECT and a loopback SOCKS5 UDP ASSOCIATE path. UDP uses a separate bounded WebSocket tunnel per datagram through the Go `Dialer` and VPS-side `Server`; local UDP echo and SOCKS5 UDP-association regression tests cover this path. This is an initial implementation, not a high-performance multiplexed UDP transport. `deploy/cloudflare-worker.js` remains TCP-only, so UDP mode requires the Go VPS-side server. Android TUN still has no packet-forwarding backend/JNI integration, so these SOCKS features do **not** mean the Android full-tunnel VPN is complete.
+The native engine now supports SOCKS5 TCP CONNECT and a loopback SOCKS5 UDP ASSOCIATE path. UDP uses a separate bounded WebSocket tunnel per datagram through the Go `Dialer` and VPS-side `Server`; local UDP echo and SOCKS5 UDP-association regression tests cover this path, including IPv4/domain/IPv6 packet parsing and malformed/fragmented packet rejection. Server protocol negotiation and UDP response reads have bounded deadlines. This is an initial implementation, not a high-performance multiplexed UDP transport. `deploy/cloudflare-worker.js` remains TCP-only, so UDP mode requires the Go VPS-side server. Android TUN still has no packet-forwarding backend/JNI integration, so these SOCKS features do **not** mean the Android full-tunnel VPN is complete.
 
 The Android service must keep its fail-closed default until a real backend is registered. Do not show “connected” based only on a live service, an established TUN descriptor, or a successful TLS/WebSocket handshake.
 
