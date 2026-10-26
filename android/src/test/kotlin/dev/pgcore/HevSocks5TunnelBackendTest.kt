@@ -148,7 +148,7 @@ class HevSocks5TunnelBackendTest {
     }
 
     @Test
-    fun failedNativeStartIsCleanedBeforeEngineShutdown() {
+    fun failedNativeStartDoesNotStopInactiveNativeServiceAndCleansEngine() {
         val cache = createTempDir(prefix = "pgcore-hev-test")
         try {
             val engine = FakeEngine()
@@ -157,13 +157,13 @@ class HevSocks5TunnelBackendTest {
             val result = backend.start(41, VpnBackendConfig("s", engineProfileJson = """{"server":"test"}""")) { true }
             assertFalse(result.ok)
             assertEquals(1, hev.starts)
-            assertEquals(1, hev.stops)
+            // FakeHev confirms it never entered the running state, so stop() is not needed.
+            assertEquals(0, hev.stops)
             assertEquals(1, engine.stops)
         } finally {
             cache.deleteRecursively()
         }
     }
-
 
     @Test
     fun failedHealthProbeMarksBackendNotRunning() {
@@ -181,5 +181,4 @@ class HevSocks5TunnelBackendTest {
             cache.deleteRecursively()
         }
     }
-
 }
