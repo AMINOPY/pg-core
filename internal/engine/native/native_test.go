@@ -625,7 +625,6 @@ func TestParseSOCKSUDPAddressFormsAndRejectsMalformedPackets(t *testing.T) {
 	}
 }
 
-
 // TestNativeUDPDatagramTimesOutWhenTargetDoesNotReply verifies that the VPS
 // server bounds UDP response waits instead of leaving a tunnel worker blocked.
 func TestNativeUDPDatagramTimesOutWhenTargetDoesNotReply(t *testing.T) {
