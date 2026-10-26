@@ -84,20 +84,20 @@ func (c *Coordinator) Start(ctx context.Context, plans []EnginePlan) error {
     for i, adapter := range adapters {
         plan := ordered[i]
         if err := ctx.Err(); err != nil {
-            c.rollback(started)
+            c.running = c.rollback(started)
             return err
         }
         c.states[plan.ID] = EngineState{ID: plan.ID, Status: StatusStarting}
         if err := adapter.Start(ctx, append([]byte(nil), plan.Config...)); err != nil {
             c.states[plan.ID] = EngineState{ID: plan.ID, Status: StatusFailed, Error: "start_failed"}
-            c.rollback(started)
+            c.running = c.rollback(append(started, adapter))
             return fmt.Errorf("start engine %q: %w", plan.ID, err)
         }
         started = append(started, adapter)
         report, err := adapter.Health(ctx)
         if err != nil || report.Status != StatusHealthy {
             c.states[plan.ID] = EngineState{ID: plan.ID, Status: StatusDegraded, Error: "health_check_failed"}
-            c.rollback(started)
+            c.running = c.rollback(started)
             if err != nil { return fmt.Errorf("health check engine %q: %w", plan.ID, err) }
             return fmt.Errorf("health check engine %q returned status %q", plan.ID, report.Status)
         }
@@ -107,14 +107,20 @@ func (c *Coordinator) Start(ctx context.Context, plans []EnginePlan) error {
     return nil
 }
 
-func (c *Coordinator) rollback(started []Adapter) {
+func (c *Coordinator) rollback(started []Adapter) []Adapter {
     ctx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
     defer cancel()
+    remaining := make([]Adapter, 0)
     for i := len(started)-1; i >= 0; i-- {
         adapter := started[i]
-        _ = adapter.Stop(ctx)
+        if err := adapter.Stop(ctx); err != nil {
+            c.states[adapter.ID()] = EngineState{ID: adapter.ID(), Status: StatusFailed, Error: "rollback_stop_failed"}
+            remaining = append(remaining, adapter)
+            continue
+        }
         c.states[adapter.ID()] = EngineState{ID: adapter.ID(), Status: StatusStopped}
     }
+    return remaining
 }
 
 // Stop attempts every stop in reverse startup order. Failed stops remain marked
