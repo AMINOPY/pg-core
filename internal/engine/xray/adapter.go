@@ -378,7 +378,7 @@ func validateHealthTarget(target string) error {
 // LocalSOCKSAddress returns a safe loopback no-auth SOCKS5 listener from an Xray profile.
 // It is intended for displaying the local endpoint and fails closed for public listeners.
 func LocalSOCKSAddress(cfg []byte) (string, error) {
-\treturn proxyAddress(cfg)
+	return proxyAddress(cfg)
 }
 
 func proxyAddress(cfg []byte) (string, error) {
