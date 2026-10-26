@@ -33,6 +33,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
+	timeout := s.DialTimeout
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	// Bound protocol negotiation and UDP request/response reads. Otherwise a
+	// client can hold a worker goroutine and socket open indefinitely.
+	if err := ws.c.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return
+	}
+
 	var first [1]byte
 	if _, err := io.ReadFull(ws, first[:]); err != nil {
 		return
@@ -47,10 +57,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		return
-	}
-	timeout := s.DialTimeout
-	if timeout == 0 {
-		timeout = 10 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
@@ -104,5 +110,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		target.Close()
 		return
 	}
+	_ = ws.c.SetDeadline(time.Time{})
 	pipe(ws, target)
 }
