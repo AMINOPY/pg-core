@@ -1,0 +1,54 @@
+name: Android Go mobile bridge
+
+on:
+  pull_request:
+    paths:
+      - "mobile/**"
+      - "internal/engine/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/android-mobile-bridge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-mobile-aar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.0"
+          cache: true
+      - name: Install Android SDK and NDK
+        run: |
+          set -euo pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - name: Install pinned Go mobile binding tools
+        env:
+          MOBILE_VERSION: "v0.0.0-20261011034528-197770444867"
+        run: |
+          set -euo pipefail
+          go install "golang.org/x/mobile/cmd/gomobile@$MOBILE_VERSION"
+          go install "golang.org/x/mobile/cmd/gobind@$MOBILE_VERSION"
+          go mod edit -require="golang.org/x/mobile@$MOBILE_VERSION"
+          gomobile init
+      - name: Build Android AAR from mobile engine
+        run: |
+          set -euo pipefail
+          gomobile bind -v -target=android -androidapi 23 -javapkg dev.pgcore.mobile -o mobile-engine.aar ./mobile
+          test -s mobile-engine.aar
+      - name: Upload generated bridge for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgcore-mobile-engine-android-aar
+          path: mobile-engine.aar
+          if-no-files-found: error
+          retention-days: 14
