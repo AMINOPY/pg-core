@@ -12,7 +12,8 @@ import (
 )
 
 // Server is the VPS-side counterpart (use it behind a CDN or TLS terminator).
-// The Cloudflare Worker in deploy/ speaks the same protocol, so no VPS is needed.
+// The Go server supports TCP and one-datagram UDP mode; deploy/cloudflare-worker.js
+// currently supports TCP only.
 type Server struct {
 	// Path is the secret URL path, for example "/s3cr3t". Anything else gets 404.
 	Path string
