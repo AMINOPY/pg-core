@@ -51,10 +51,26 @@ jobs:
           set -euo pipefail
           gomobile bind -v -target=android -androidapi 23 -javapkg dev.pgcore.mobile -o mobile-engine.aar ./mobile
           test -s mobile-engine.aar
-      - name: Upload generated bridge for inspection
+      - name: Inspect generated binding API
+        run: |
+          set -euo pipefail
+          unzip -p mobile-engine.aar classes.jar > mobile-engine-classes.jar
+          jar tf mobile-engine-classes.jar > mobile-engine-classes.txt
+          grep -E '(Engine|SocketProtector)\.class$' mobile-engine-classes.txt
+          : > mobile-engine-api.txt
+          while IFS= read -r entry; do
+            class_name="${entry%.class}"
+            class_name="${class_name//\//.}"
+            javap -classpath mobile-engine-classes.jar "$class_name" >> mobile-engine-api.txt
+          done < <(grep -E '(Engine|SocketProtector)\.class$' mobile-engine-classes.txt)
+          grep -E 'start\(|Start\(|protect\(|Protect\(|addr\(|Addr\(|health\(|Health\(|stop\(|Stop\(' mobile-engine-api.txt
+      - name: Upload generated bridge and API contract
         uses: actions/upload-artifact@v4
         with:
           name: pgcore-mobile-engine-android-aar
-          path: mobile-engine.aar
+          path: |
+            mobile-engine.aar
+            mobile-engine-api.txt
+            mobile-engine-classes.txt
           if-no-files-found: error
           retention-days: 14
