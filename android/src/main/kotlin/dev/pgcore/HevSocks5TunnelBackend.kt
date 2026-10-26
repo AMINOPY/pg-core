@@ -1,6 +1,5 @@
 package dev.pgcore
 
-import android.content.Context
 import java.io.File
 import java.io.IOException
 import java.lang.reflect.InvocationTargetException
@@ -56,11 +55,11 @@ class ReflectiveHevTunnelApi(
  * ownership of tunFd; this class must never close it.
  */
 class HevSocks5TunnelBackend(
-    context: Context,
+    cacheDir: File,
     private val engine: PgCoreSocksEngine,
     private val api: HevTunnelApi = ReflectiveHevTunnelApi(),
 ) : PgCoreVpnBackend {
-    private val configFile: File = File(context.cacheDir, "pgcore-hev-tun.yml")
+    private val configFile: File = File(cacheDir, "pgcore-hev-tun.yml")
     private val running = AtomicBoolean(false)
     @Volatile private var engineStarted = false
     @Volatile private var nativeStarted = false
