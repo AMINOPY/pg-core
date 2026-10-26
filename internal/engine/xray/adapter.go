@@ -375,7 +375,7 @@ func validateHealthTarget(target string) error {
 	return socksprobe.ValidateTarget(target)
 }
 
-func proxyAddress(cfg []byte) (string, error) {
+// LocalSOCKSAddress returns a safe loopback no-auth SOCKS5 listener from an Xray profile.\n// It is intended for displaying the local endpoint and fails closed for public listeners.\nfunc LocalSOCKSAddress(cfg []byte) (string, error) {\n\treturn proxyAddress(cfg)\n}\n\nfunc proxyAddress(cfg []byte) (string, error) {
 	var root struct {
 		Inbounds []struct {
 			Listen   string `json:"listen"`
