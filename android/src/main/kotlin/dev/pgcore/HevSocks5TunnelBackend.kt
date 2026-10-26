@@ -86,6 +86,8 @@ class HevSocks5TunnelBackend(
                 ?: throw IOException("Engine returned an invalid loopback SOCKS endpoint")
             configFile.writeText(buildConfig(config, socks.first, socks.second))
             if (!api.start(configFile.absolutePath, tunFd)) {
+                // Native startup may partially succeed even when its return value is false.
+                nativeStarted = runCatching { api.isRunning() }.getOrDefault(true)
                 throw IOException("Hev refused to start")
             }
             nativeStarted = true
@@ -177,7 +179,8 @@ class HevSocks5TunnelBackend(
 
 /**
  * Implement this with the pinned gomobile/JNI binding for package mobile.
- * It must protect each upstream socket before connect and must not own the TUN fd.
+ * It must protect each upstream socket before connect, must not own the TUN fd,
+ * and healthCheck() must verify end-to-end traffic through TUN, not just a live upstream.
  */
 interface PgCoreSocksEngine {
     fun start(profileJson: String, protectSocket: (socketFd: Int) -> Boolean): EngineResult
