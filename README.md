@@ -26,6 +26,10 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 
 See [docs/REMOTE_CONTROL_API.md](docs/REMOTE_CONTROL_API.md) for the tenant-scoped HTTP/JSON API foundation for app announcements, release metadata, and app-local user status. The `cmd/controlplane` service supports a durable single-instance file store and loopback-only serving. Multi-instance database storage, operator login/MFA, rate limiting, key rotation, audit persistence, and production deployment hardening remain before production.
 
+## Adaptive dual-path support
+
+See [docs/ADAPTIVE_DUAL_PATH.md](docs/ADAPTIVE_DUAL_PATH.md). The fusion policy can choose primary, backup, dual-flow, or offline based on bounded route-quality reports and explicit thresholds. Dual-flow distributes new TCP connections; it does not bond one connection across multiple paths, and the helper is not yet wired to an automatic platform DPI detector or OS-wide VPN routing.
+
 ## Traffic fusion
 
 See [docs/TRAFFIC_FUSION.md](docs/TRAFFIC_FUSION.md). The `internal/fusion` package provides deterministic path selection, concurrency-safe active-flow reservations, bounded route-quality probes (success rate, packet loss, mean RTT and jitter), and a `Router` that invokes path-specific context-aware dialers for new outbound connections. It releases leases on dial failure or connection close and refuses to remove routes while they still have active connections.
