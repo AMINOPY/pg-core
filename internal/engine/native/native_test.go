@@ -440,3 +440,44 @@ func TestSOCKS5ExplicitlyRejectsUDPAssociate(t *testing.T) {
 		t.Fatal("UDP ASSOCIATE unexpectedly accepted by TCP-only engine")
 	}
 }
+
+
+func TestNativeUDPDatagramRoundTrip(t *testing.T) {
+	e := newEnv(t)
+	udp, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer udp.Close()
+	go func() {
+		buf := make([]byte, 65507)
+		for {
+			n, addr, err := udp.ReadFrom(buf)
+			if err != nil {
+				return
+			}
+			response := []byte(strings.ToUpper(string(buf[:n])))
+			if _, err := udp.WriteTo(response, addr); err != nil {
+				return
+			}
+		}
+	}()
+
+	host, portText, err := net.SplitHostPort(udp.LocalAddr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	got, err := e.dialer("127.0.0.1").DialDatagram(ctx, host, port, []byte("udp tunnel"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "UDP TUNNEL" {
+		t.Fatalf("UDP response = %q, want %q", got, "UDP TUNNEL")
+	}
+}
