@@ -13,9 +13,9 @@ import (
 type AdaptiveMode string
 
 const (
-	AdaptiveOffline  AdaptiveMode = "offline"
-	AdaptivePrimary  AdaptiveMode = "primary"
-	AdaptiveDualFlow AdaptiveMode = "dual-flow"
+	AdaptiveOffline	AdaptiveMode = "offline"
+	AdaptivePrimary	AdaptiveMode = "primary"
+	AdaptiveDualFlow	AdaptiveMode = "dual-flow"
 	AdaptiveBackup   AdaptiveMode = "backup"
 )
 
@@ -29,13 +29,13 @@ type AdaptiveThresholds struct {
 
 // AdaptivePath is a route and its recent bounded quality measurement.
 type AdaptivePath struct {
-	Route   Route
-	Quality QualityReport
+	Route	Route
+	Quality	QualityReport
 }
 
 // AdaptiveDecision explains which path(s) should carry newly opened flows.
 type AdaptiveDecision struct {
-	Mode      AdaptiveMode
+	Mode	AdaptiveMode
 	PrimaryID string
 	BackupID  string
 	Reason    string
