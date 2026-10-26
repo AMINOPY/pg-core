@@ -44,3 +44,36 @@ never put them in UI action metadata or diagnostics.
 Do not mark the Xray engine as available just because its ID appears in a list.
 Check that the executable is installed and compatible, the profile validates,
 the process starts, and a tunnel-specific health check succeeds.
+
+
+## Run Xray through the core's local SOCKS tunnel
+
+The CLI can launch an Xray profile through the same shared configuration that carries CDN/SNI settings. This uses the installed Xray binary and the profile's existing protocol credentials; SNI and edge IPs do not create a usable Xray account by themselves.
+
+Example config.xray.json:
+
+```json
+{
+  "schema_version": 1,
+  "profile": "xray-fronting",
+  "active_engine": "xray",
+  "fronting": {
+    "sni": "cdn.example.com",
+    "edge_ips": ["203.0.113.10"]
+  }
+}
+```
+
+The separate Xray profile passed to --profile must contain a TLS-enabled single-server outbound supported by the adapter and an explicit loopback-only SOCKS inbound, for example 127.0.0.1:1080 with protocol socks and no authentication. Keep protocol credentials private. The adapter rewrites the outbound server address to the chosen edge IP and tlsSettings.serverName to the configured SNI while preserving the rest of the transport profile, including WebSocket path and Host header.
+
+```sh
+# Optional if the executable is not named xray or is not on PATH:
+export CHIMERA_XRAY_BINARY=/path/to/xray
+go run ./cmd/chimera --config config.xray.json --run --profile ./private-xray-profile.json
+```
+
+Set CHIMERA_XRAY_HEALTH_TARGET=example.com:443 only when you want a TCP CONNECT check through the loopback no-auth SOCKS inbound. Without it, the report intentionally says process-liveness-only/degraded. The CLI prints the local SOCKS address so a desktop app can opt into it. It does not install system routes, TUN, or Android VpnService.
+
+## Relationship to Quick Connect
+
+--quick-connect remains the no-profile, two-field native TLS/WebSocket tunnel and requires CHIMERA_TUNNEL_KEY plus a matching server/Worker. It is not silently switched to Xray: Xray needs a real Xray profile with protocol and authentication settings. The CLI's --run path is the direct Xray integration when such a profile is available.

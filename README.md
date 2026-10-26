@@ -44,7 +44,7 @@ The adapter does **not** install or pin sing-box, configure OS routes, install s
 
 ## Xray integration
 
-See [docs/XRAY_ADAPTER.md](docs/XRAY_ADAPTER.md). The Xray adapter wraps an already-installed executable, validates and stores a private temporary profile, and manages its process lifecycle. It does not install Xray, create TUN, configure system routes/DNS, or prove end-to-end connectivity. Platform-specific validation remains outstanding.
+See [docs/XRAY_ADAPTER.md](docs/XRAY_ADAPTER.md). The Xray adapter wraps an already-installed executable, validates and stores a private temporary profile, and manages its process lifecycle. It does not install Xray, create TUN, configure system routes/DNS, or prove end-to-end connectivity. Platform-specific validation remains outstanding. The CLI now supports `--run` with `active_engine: "xray"` and `--profile <xray.json>`: it applies the shared `fronting` SNI/edge-IP settings, requires a loopback-only SOCKS inbound, starts Xray, and reports the local proxy address. See the run instructions in [docs/XRAY_ADAPTER.md](docs/XRAY_ADAPTER.md).
 
 ## CDN/SNI and transport profiles
 
