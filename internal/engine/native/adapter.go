@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -75,6 +76,12 @@ func parseProfile(raw []byte) (Profile, error) {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&p); err != nil {
 		return p, errors.New("invalid native profile")
+	}
+	// A profile is exactly one JSON object. Reject concatenated values and
+	// trailing garbage instead of silently accepting a valid prefix.
+	var trailing any
+	if err := dec.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return p, errors.New("invalid native profile: trailing data")
 	}
 	if err := validateHealthURL(p.HealthURL); err != nil {
 		return p, err
