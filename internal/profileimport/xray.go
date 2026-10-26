@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
