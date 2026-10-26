@@ -246,7 +246,10 @@ func (a *Adapter) Health(ctx context.Context) (engine.HealthReport, error) {
 			rep.Status = engine.StatusHealthy
 		}
 	} else {
-		rep.Status = engine.StatusHealthy
+		// An edge TLS/WebSocket probe proves only that the edge handshake works.
+		// Do not report the engine as healthy until an HTTP request has traversed
+		// the local SOCKS listener to a configured destination.
+		rep.Status, rep.ErrorCode = engine.StatusDegraded, "data_plane_unverified"
 	}
 	rep.Latency = time.Since(start)
 	return rep, nil
