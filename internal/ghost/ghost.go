@@ -13,36 +13,36 @@ import (
 )
 
 const (
-	defaultSamples = 5
-	maxSamples     = 20
-	defaultInterval = 200 * time.Millisecond
+	defaultSamples\t= 5
+	maxSamples\t= 20
+	defaultInterval\t= 200 * time.Millisecond
 )
 
 type Finding struct {
-	Code       string   `json:"code"`
-	Severity   string   `json:"severity"`
-	Confidence string   `json:"confidence"`
-	Summary    string   `json:"summary"`
-	Evidence   []string `json:"evidence"`
+	Code\tstring\t`json:"code"`
+	Severity\tstring\t`json:"severity"`
+	Confidence\tstring\t`json:"confidence"`
+	Summary\tstring\t`json:"summary"`
+	Evidence\t[]string\t`json:"evidence"`
 }
 
 type Report struct {
-	Domain          string               `json:"domain"`
-	Samples         int                  `json:"samples"`
-	DNSSuccesses    int                  `json:"dns_successes"`
-	HTTPSuccesses   int                  `json:"https_successes"`
-	MeanDNSMillis   int64                `json:"mean_dns_ms,omitempty"`
-	MeanHTTPSMillis int64                `json:"mean_https_ms,omitempty"`
-	Findings        []Finding            `json:"findings"`
-	Recommendations []string             `json:"recommendations"`
-	Observations    []diagnostics.Result `json:"observations"`
-	Disclaimer      string               `json:"disclaimer"`
+	Domain\tstring\t`json:"domain"`
+	Samples\tint\t`json:"samples"`
+	DNSSuccesses\tint\t`json:"dns_successes"`
+	HTTPSuccesses\tint\t`json:"https_successes"`
+	MeanDNSMillis\tint64\t`json:"mean_dns_ms,omitempty"`
+	MeanHTTPSMillis\tint64\t`json:"mean_https_ms,omitempty"`
+	Findings\t[]Finding\t`json:"findings"`
+	Recommendations\t[]string\t`json:"recommendations"`
+	Observations\t[]diagnostics.Result\t`json:"observations"`
+	Disclaimer\tstring\t`json:"disclaimer"`
 }
 
 type Runner struct {
-	Checker  diagnostics.Checker
-	Samples  int
-	Interval time.Duration
+	Checker\tdiagnostics.Checker
+	Samples\tint
+	Interval\ttime.Duration
 }
 
 func (r Runner) sampleCount() int {
