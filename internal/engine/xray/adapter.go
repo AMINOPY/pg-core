@@ -167,7 +167,7 @@ func (a *Adapter) applyFronting(cfg []byte) ([]byte, error) {
 }
 
 
- // prepareConfig composes core-owned transport settings in a deterministic order.
+// prepareConfig composes core-owned transport settings in a deterministic order.
 func (a *Adapter) prepareConfig(cfg []byte) ([]byte, error) {
 	prepared, err := a.applyFronting(cfg)
 	if err != nil {
@@ -222,9 +222,9 @@ func applyLocalSOCKS(cfg []byte, port int) ([]byte, error) {
 		return nil, errors.New("local SOCKS port conflicts with an existing Xray inbound")
 	}
 	root["inbounds"] = append(inbounds, map[string]any{
-		"tag": "pgcore-local-socks",
-		"listen": "127.0.0.1",
-		"port": port,
+		"tag":      "pgcore-local-socks",
+		"listen":   "127.0.0.1",
+		"port":     port,
 		"protocol": "socks",
 		"settings": map[string]any{"auth": "noauth", "udp": true},
 	})
