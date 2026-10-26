@@ -99,3 +99,14 @@ func TestToXrayJSONAcceptsIPv6LoopbackInbound(t *testing.T) {
 		t.Fatalf("loopback IPv6 inbound should be accepted: %v", err)
 	}
 }
+
+func TestToXrayJSONRejectsMalformedInboundsField(t *testing.T) {
+	for _, input := range []string{
+		`{"inbounds":"0.0.0.0","outbounds":[{"protocol":"freedom"}]}`,
+		`{"inbounds":{"listen":"127.0.0.1","protocol":"socks","port":1080},"outbounds":[{"protocol":"freedom"}]}`,
+	} {
+		if _, err := ToXrayJSON([]byte(input)); err == nil {
+			t.Errorf("expected malformed inbounds to be rejected: %s", input)
+		}
+	}
+}
