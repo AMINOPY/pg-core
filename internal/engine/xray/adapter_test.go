@@ -280,7 +280,6 @@ while :; do sleep 1; done`)
 	}
 }
 
-
 func TestApplyLocalSOCKSAddsLoopbackOnlyInbound(t *testing.T) {
 	cfg := []byte(`{"outbounds":[{"protocol":"freedom"}]}`)
 	got, err := applyLocalSOCKS(cfg, 18080)
