@@ -2,9 +2,9 @@ package native
 
 import (
 	"context"
-	"encoding/binary"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/json"
 	"io"
 	"net"
