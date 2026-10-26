@@ -188,7 +188,9 @@ func shareLinkToXray(raw string) ([]byte, error) {
 		}
 		outbound["protocol"] = "trojan"
 		outbound["settings"] = map[string]any{"servers": []any{map[string]any{"address": host, "port": port, "password": password}}}
-		if err := applyStream(query, stream); err != nil { return nil, err }
+		if err := applyStream(query, stream); err != nil {
+			return nil, err
+		}
 	case "ss":
 		if query.Get("plugin") != "" {
 			return nil, errors.New("Shadowsocks plugin options are not supported by this importer")
@@ -248,7 +250,9 @@ func shareLinkToXray(raw string) ([]byte, error) {
 		q.Set("path", vm.Path)
 		q.Set("security", vm.TLS)
 		q.Set("sni", vm.SNI)
-		if err := applyStream(q, stream); err != nil { return nil, err }
+		if err := applyStream(q, stream); err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unsupported share URI scheme %q", protocol)
 	}
