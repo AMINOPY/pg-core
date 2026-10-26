@@ -1,11 +1,11 @@
 package native
 
 import (
-	"context"
 	"bytes"
+	"context"
+	"crypto/subtle"
 	"encoding/binary"
 	"io"
-	"crypto/subtle"
 	"net"
 	"net/http"
 	"time"
@@ -89,7 +89,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		binary.BigEndian.PutUint16(size[:], uint16(got))
-		if _, err := ws.Write(append(size[:], response[:got]...)); err != nil {
+		if err := writeAll(ws, append(size[:], response[:got]...)); err != nil {
 			return
 		}
 		return
