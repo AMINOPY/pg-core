@@ -74,7 +74,7 @@ func MeasureRouteQuality(
 		if ctx.Err() != nil {
 			return QualityReport{}, ctx.Err()
 		}
-		if err != nil || rtt < 0 {
+		if err != nil || rtt < 0 || rtt > timeout {
 			report.Failures++
 			continue
 		}
