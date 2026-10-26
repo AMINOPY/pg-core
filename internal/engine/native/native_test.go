@@ -441,7 +441,6 @@ func TestSOCKS5ExplicitlyRejectsUDPAssociate(t *testing.T) {
 	}
 }
 
-
 func TestNativeUDPDatagramRoundTrip(t *testing.T) {
 	e := newEnv(t)
 	udp, err := net.ListenPacket("udp", "127.0.0.1:0")
