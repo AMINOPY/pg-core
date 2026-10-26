@@ -16,6 +16,7 @@ import (
 	"github.com/AMINOPY/pg-core/internal/engine/native"
 	"github.com/AMINOPY/pg-core/internal/engine/xray"
 	"github.com/AMINOPY/pg-core/internal/fronting"
+	"github.com/AMINOPY/pg-core/internal/profileimport"
 	"github.com/AMINOPY/pg-core/internal/quickconnect"
 )
 
@@ -187,6 +188,11 @@ func runXray(cfg config.Config, profilePath string) {
 	profile, err := os.ReadFile(profilePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "read Xray profile: %v\n", err)
+		os.Exit(2)
+	}
+	profile, err = profileimport.ToXrayJSON(profile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "import Xray/NPV profile: %v\n", err)
 		os.Exit(2)
 	}
 	proxyAddr, err := xray.LocalSOCKSAddress(profile)
