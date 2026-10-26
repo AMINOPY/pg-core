@@ -19,30 +19,30 @@ const (
 )
 
 type Finding struct {
-	Code	string	`json:"code"`
-	Severity	string	`json:"severity"`
-	Confidence	string	`json:"confidence"`
-	Summary	string	`json:"summary"`
-	Evidence	[]string	`json:"evidence"`
+	Code       string   `json:"code"`
+	Severity   string   `json:"severity"`
+	Confidence string   `json:"confidence"`
+	Summary    string   `json:"summary"`
+	Evidence   []string `json:"evidence"`
 }
 
 type Report struct {
-	Domain	string	`json:"domain"`
-	Samples	int	`json:"samples"`
-	DNSSuccesses	int	`json:"dns_successes"`
-	HTTPSuccesses	int	`json:"https_successes"`
-	MeanDNSMillis	int64	`json:"mean_dns_ms,omitempty"`
-	MeanHTTPSMillis	int64	`json:"mean_https_ms,omitempty"`
-	Findings	[]Finding	`json:"findings"`
-	Recommendations	[]string	`json:"recommendations"`
-	Observations	[]diagnostics.Result	`json:"observations"`
-	Disclaimer	string	`json:"disclaimer"`
+	Domain          string               `json:"domain"`
+	Samples         int                  `json:"samples"`
+	DNSSuccesses    int                  `json:"dns_successes"`
+	HTTPSuccesses   int                  `json:"https_successes"`
+	MeanDNSMillis   int64                `json:"mean_dns_ms,omitempty"`
+	MeanHTTPSMillis int64                `json:"mean_https_ms,omitempty"`
+	Findings        []Finding            `json:"findings"`
+	Recommendations []string             `json:"recommendations"`
+	Observations    []diagnostics.Result `json:"observations"`
+	Disclaimer      string               `json:"disclaimer"`
 }
 
 type Runner struct {
-	Checker	diagnostics.Checker
-	Samples	int
-	Interval	time.Duration
+	Checker  diagnostics.Checker
+	Samples  int
+	Interval time.Duration
 }
 
 func (r Runner) sampleCount() int {
