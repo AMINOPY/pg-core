@@ -16,6 +16,7 @@ type coordinatorTestAdapter struct {
 	startErr     error
 	healthStatus Status
 	healthErr    error
+	healthHook   func(context.Context)
 	stopErr      error
 }
 
@@ -29,8 +30,11 @@ func (a *coordinatorTestAdapter) Start(context.Context, []byte) error {
 	*a.events = append(*a.events, "start:"+a.id)
 	return a.startErr
 }
-func (a *coordinatorTestAdapter) Health(context.Context) (HealthReport, error) {
+func (a *coordinatorTestAdapter) Health(ctx context.Context) (HealthReport, error) {
 	*a.events = append(*a.events, "health:"+a.id)
+	if a.healthHook != nil {
+		a.healthHook(ctx)
+	}
 	return HealthReport{EngineID: a.id, Status: a.healthStatus, CheckedAt: time.Now()}, a.healthErr
 }
 func (a *coordinatorTestAdapter) Stop(context.Context) error {
@@ -132,5 +136,21 @@ func TestCoordinatorStopFailureRetainsRetryOwnership(t *testing.T) {
 	}
 	if err := c.Stop(context.Background()); !errors.Is(err, stopErr) {
 		t.Fatalf("retry Stop error = %v, want %v", err, stopErr)
+	}
+}
+
+func TestCoordinatorRollsBackIfContextCancelsDuringHealthCheck(t *testing.T) {
+	a := &coordinatorTestAdapter{id: "alpha", caps: Capabilities{HealthChecks: true}, healthStatus: StatusHealthy}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	a.healthHook = func(context.Context) { cancel() }
+	c, events := newCoordinatorTest(t, a)
+	err := c.Start(ctx, []EnginePlan{{ID: "alpha", Config: []byte("{}")}})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Start error = %v, want context.Canceled", err)
+	}
+	want := []string{"validate:alpha", "start:alpha", "health:alpha", "stop:alpha"}
+	if !reflect.DeepEqual(*events, want) {
+		t.Fatalf("events = %v, want %v", *events, want)
 	}
 }
