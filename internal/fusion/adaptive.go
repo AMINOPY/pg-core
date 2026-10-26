@@ -78,7 +78,11 @@ func DecideAdaptivePaths(
 		}
 		q := p.Quality
 		if q.Samples < 0 || q.Successes < 0 || q.Failures < 0 ||
-			q.Successes+q.Failures > q.Samples || q.MeanRTT < 0 || q.MeanJitter < 0 {
+			q.Successes+q.Failures > q.Samples || q.MeanRTT < 0 || q.MeanJitter < 0 ||
+			math.IsNaN(q.SuccessRate) || math.IsInf(q.SuccessRate, 0) ||
+			q.SuccessRate < 0 || q.SuccessRate > 1 ||
+			math.IsNaN(q.PacketLoss) || math.IsInf(q.PacketLoss, 0) ||
+			q.PacketLoss < 0 || q.PacketLoss > 1 {
 			return AdaptiveDecision{}, fmt.Errorf("%w: invalid quality report for %q", ErrInvalidPaths, id)
 		}
 		byID[id] = p
