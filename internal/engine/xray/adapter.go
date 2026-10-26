@@ -472,6 +472,9 @@ func proxyAddress(cfg []byte) (string, error) {
 		if host == "" {
 			host = "127.0.0.1"
 		}
+		if strings.EqualFold(host, "localhost") {
+			host = "127.0.0.1"
+		}
 		ip := net.ParseIP(host)
 		if ip == nil || !ip.IsLoopback() {
 			continue
