@@ -28,6 +28,9 @@ class PgCoreVpnService : VpnService() {
     private val stopping = AtomicBoolean(false)
     private val generation = AtomicLong(0)
     private val lifecycleLock = Any()
+    // Every ACTION_STOP caller must wait for the same cleanup attempt to finish.
+    // Keep callbacks queued across failures so a later successful retry can finish them.
+    private val pendingStopCallbacks = mutableListOf<() -> Unit>()
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     @Volatile private var tun: ParcelFileDescriptor? = null
     @Volatile private var backend: PgCoreVpnBackend? = null
@@ -146,6 +149,7 @@ class PgCoreVpnService : VpnService() {
      */
     private fun stopVpn(onComplete: (() -> Unit)? = null) {
         synchronized(lifecycleLock) {
+            onComplete?.let(pendingStopCallbacks::add)
             if (!stopping.compareAndSet(false, true)) return
             generation.incrementAndGet()
             startTask?.cancel(true)
@@ -187,12 +191,19 @@ class PgCoreVpnService : VpnService() {
                 return@submit
             }
 
-            synchronized(lifecycleLock) {
+            val callbacks = synchronized(lifecycleLock) {
                 if (backend === oldBackend) backend = null
                 if (tun === oldTun) tun = null
+                pendingStopCallbacks.toList().also { pendingStopCallbacks.clear() }
             }
             stopForegroundCompat()
-            onComplete?.invoke()
+            callbacks.forEach { callback ->
+                try {
+                    callback()
+                } catch (e: Exception) {
+                    Log.e(TAG, "VPN stop completion callback failed", e)
+                }
+            }
         }
     }
 
