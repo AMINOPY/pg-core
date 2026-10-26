@@ -7,23 +7,34 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"sync"
 	"time"
 )
 
 // serveSOCKS5 accepts SOCKS5 CONNECT requests (no authentication) and sends
 // them through the tunnel. It must only listen on a loopback address.
 func serveSOCKS5(ctx context.Context, ln net.Listener, d *Dialer) {
+	var handlers sync.WaitGroup
 	for {
 		c, err := ln.Accept()
 		if err != nil {
-			return
+			break
 		}
-		go handleSOCKS(ctx, c, d)
+		handlers.Add(1)
+		go func() {
+			defer handlers.Done()
+			handleSOCKS(ctx, c, d)
+		}()
 	}
+	// Do not report the listener as fully stopped while accepted connections
+	// still own sockets or tunnel streams.
+	handlers.Wait()
 }
 
 func handleSOCKS(ctx context.Context, c net.Conn, d *Dialer) {
 	defer c.Close()
+	stopOnCancel := context.AfterFunc(ctx, func() { _ = c.Close() })
+	defer stopOnCancel()
 	_ = c.SetDeadline(time.Now().Add(15 * time.Second))
 	host, port, err := socksHandshake(c)
 	if err != nil {
