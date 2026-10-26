@@ -14,6 +14,7 @@ import (
 
 	"github.com/AMINOPY/pg-core/internal/config"
 	"github.com/AMINOPY/pg-core/internal/engine/xray"
+	"github.com/AMINOPY/pg-core/internal/fronting"
 )
 
 // runXray starts an installed Xray executable with a supplied profile. The
@@ -50,7 +51,7 @@ func runXray(cfg config.Config, profilePath string) {
 	}
 	fmt.Printf("Xray local SOCKS5 proxy: %s\n", proxyAddr)
 	if cfg.Fronting != nil && cfg.Fronting.Enabled() {
-		ips, _ := parseFrontingIPs(cfg)
+		ips, _ := fronting.ParseIPs(cfg.Fronting.EdgeIPs)
 		fmt.Printf("CDN/SNI fronting enabled: SNI=%s edge-IP-count=%d\n", cfg.Fronting.SNI, len(ips))
 	}
 	report, healthErr := adapter.Health(ctx)
