@@ -25,7 +25,11 @@ jobs:
       - name: Install Android SDK and NDK
         run: |
           set -euo pipefail
+          # sdkmanager exits after all licenses are accepted, which can close
+          # the pipe before yes exits; keep the SDK manager's status authoritative.
+          set +o pipefail
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+          set -o pipefail
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
             "platforms;android-35" \
             "build-tools;35.0.0" \
