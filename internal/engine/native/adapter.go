@@ -16,6 +16,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -131,15 +132,24 @@ func (a *Adapter) dialer(p Profile) (*Dialer, error) {
 	host, port := p.Server, ""
 	if h, pt, err := net.SplitHostPort(p.Server); err == nil {
 		host, port = h, pt
+	} else if net.ParseIP(p.Server) == nil && strings.Contains(p.Server, ":") {
+		// A colon in a non-IP host usually means a malformed host:port pair.
+		// Do not silently reinterpret values such as "edge.example:abc" as hosts.
+		return nil, errors.New("server must be a hostname, IP, or valid host:port")
+	}
+	if host == "" || strings.ContainsAny(host, "/\\\\ \t\r\n") {
+		return nil, errors.New("invalid server host")
 	}
 	d.SNI = host
 	d.EdgeIPs = []string{host}
-	if port != "" && d.Port == 0 {
-		var n int
-		if _, err := fmt.Sscanf(port, "%d", &n); err != nil || n < 1 || n > 65535 {
+	if port != "" {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
 			return nil, errors.New("invalid server port")
 		}
-		d.Port = n
+		if d.Port == 0 {
+			d.Port = n
+		}
 	}
 	return d, nil
 }
