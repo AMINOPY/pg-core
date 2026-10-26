@@ -139,9 +139,13 @@ func shareLinkToXray(raw string) ([]byte, error) {
 	}
 	protocol := strings.ToLower(u.Scheme)
 	host := u.Hostname()
-	port, err := strconv.Atoi(u.Port())
-	if err != nil || port < 1 || port > 65535 || host == "" || net.ParseIP(host) == nil && strings.ContainsAny(host, " /\\\\") {
-		return nil, errors.New("share URI must include a valid server host and port")
+	port := 0
+	if protocol != "vmess" {
+		var err error
+		port, err = strconv.Atoi(u.Port())
+		if err != nil || port < 1 || port > 65535 || host == "" || net.ParseIP(host) == nil && strings.ContainsAny(host, " /\\\\") {
+			return nil, errors.New("share URI must include a valid server host and port")
+		}
 	}
 	query := u.Query()
 	name := u.Fragment
