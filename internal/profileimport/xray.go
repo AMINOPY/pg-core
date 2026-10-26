@@ -172,11 +172,20 @@ func shareLinkToXray(raw string) ([]byte, error) {
 		}
 		outbound["protocol"] = "vless"
 		outbound["settings"] = map[string]any{"vnext": []any{map[string]any{"address": host, "port": port, "users": []any{user}}}}
-		if err := applyStream(query, stream); err != nil { return nil, err }
+		if err := applyStream(query, stream); err != nil {
+			return nil, err
+		}
 	case "trojan":
 		password := ""
-		if u.User != nil { password, _ = u.User.Password(); if password == "" { password = u.User.Username() } }
-		if password == "" { return nil, errors.New("Trojan URI is missing its password") }
+		if u.User != nil {
+			password, _ = u.User.Password()
+			if password == "" {
+				password = u.User.Username()
+			}
+		}
+		if password == "" {
+			return nil, errors.New("Trojan URI is missing its password")
+		}
 		outbound["protocol"] = "trojan"
 		outbound["settings"] = map[string]any{"servers": []any{map[string]any{"address": host, "port": port, "password": password}}}
 		if err := applyStream(query, stream); err != nil { return nil, err }
@@ -209,33 +218,43 @@ func shareLinkToXray(raw string) ([]byte, error) {
 	case "vmess":
 		payload := strings.SplitN(strings.TrimPrefix(raw, "vmess://"), "#", 2)[0]
 		decoded, err := decodeBase64(payload)
-		if err != nil { return nil, errors.New("VMess URI payload is not valid base64 JSON") }
-		var vm struct {
-			Address string `json:"add"`
-			Port json.RawMessage `json:"port"`
-			ID string `json:"id"`
-			AlterID json.RawMessage `json:"aid"`
-			Network string `json:"net"`
-			Host string `json:"host"`
-			Path string `json:"path"`
-			TLS string `json:"tls"`
-			SNI string `json:"sni"`
+		if err != nil {
+			return nil, errors.New("VMess URI payload is not valid base64 JSON")
 		}
-		if err := json.Unmarshal(decoded, &vm); err != nil || vm.Address == "" || vm.ID == "" { return nil, errors.New("VMess URI is missing address or UUID") }
+		var vm struct {
+			Address string          `json:"add"`
+			Port    json.RawMessage `json:"port"`
+			ID      string          `json:"id"`
+			AlterID json.RawMessage `json:"aid"`
+			Network string          `json:"net"`
+			Host    string          `json:"host"`
+			Path    string          `json:"path"`
+			TLS     string          `json:"tls"`
+			SNI     string          `json:"sni"`
+		}
+		if err := json.Unmarshal(decoded, &vm); err != nil || vm.Address == "" || vm.ID == "" {
+			return nil, errors.New("VMess URI is missing address or UUID")
+		}
 		vmPort, err := rawInt(vm.Port)
-		if err != nil || vmPort < 1 || vmPort > 65535 { return nil, errors.New("VMess URI has invalid port") }
+		if err != nil || vmPort < 1 || vmPort > 65535 {
+			return nil, errors.New("VMess URI has invalid port")
+		}
 		aid, _ := rawInt(vm.AlterID)
 		outbound["protocol"] = "vmess"
 		outbound["settings"] = map[string]any{"vnext": []any{map[string]any{"address": vm.Address, "port": vmPort, "users": []any{map[string]any{"id": vm.ID, "alterId": aid, "security": "auto"}}}}}
 		q := url.Values{}
-		q.Set("type", vm.Network); q.Set("host", vm.Host); q.Set("path", vm.Path); q.Set("security", vm.TLS); q.Set("sni", vm.SNI)
+		q.Set("type", vm.Network)
+		q.Set("host", vm.Host)
+		q.Set("path", vm.Path)
+		q.Set("security", vm.TLS)
+		q.Set("sni", vm.SNI)
 		if err := applyStream(q, stream); err != nil { return nil, err }
 	default:
 		return nil, fmt.Errorf("unsupported share URI scheme %q", protocol)
 	}
 	root := map[string]any{
-		"log": map[string]any{"loglevel": "warning"},
-		"inbounds": []any{map[string]any{"tag":"pg-core-socks-in", "listen":"127.0.0.1", "port":1080, "protocol":"socks", "settings":map[string]any{"auth":"noauth","udp":false}}},
+		"log":       map[string]any{"loglevel": "warning"},
+		"inbounds":  []any{map[string]any{"tag": "pg-core-socks-in", "listen": "127.0.0.1", "port": 1080, "protocol": "socks", "settings": map[string]any{"auth": "noauth", "udp": false}}},
 		"outbounds": []any{outbound},
 	}
 	_ = name
@@ -244,8 +263,12 @@ func shareLinkToXray(raw string) ([]byte, error) {
 
 func applyStream(query url.Values, stream map[string]any) error {
 	network := query.Get("type")
-	if network == "" { network = query.Get("network") }
-	if network == "" { network = "tcp" }
+	if network == "" {
+		network = query.Get("network")
+	}
+	if network == "" {
+		network = "tcp"
+	}
 	switch network {
 	case "tcp", "ws", "grpc", "http", "h2":
 	case "kcp", "quic":
@@ -253,24 +276,46 @@ func applyStream(query url.Values, stream map[string]any) error {
 	default:
 		return fmt.Errorf("unknown transport %q", network)
 	}
-	if network == "h2" { network = "http" }
+	if network == "h2" {
+		network = "http"
+	}
 	stream["network"] = network
 	security := strings.ToLower(query.Get("security"))
-	if security == "" && query.Get("tls") == "tls" { security = "tls" }
+	if security == "" && query.Get("tls") == "tls" {
+		security = "tls"
+	}
 	if security == "tls" {
 		tls := map[string]any{}
-		if sni := query.Get("sni"); sni != "" { tls["serverName"] = sni } else if sni := query.Get("servername"); sni != "" { tls["serverName"] = sni }
-		if fp := query.Get("fp"); fp != "" { tls["fingerprint"] = fp }
-		if alpn := query.Get("alpn"); alpn != "" { tls["alpn"] = strings.Split(alpn, ",") }
+		if sni := query.Get("sni"); sni != "" {
+			tls["serverName"] = sni
+		} else if sni := query.Get("servername"); sni != "" {
+			tls["serverName"] = sni
+		}
+		if fp := query.Get("fp"); fp != "" {
+			tls["fingerprint"] = fp
+		}
+		if alpn := query.Get("alpn"); alpn != "" {
+			tls["alpn"] = strings.Split(alpn, ",")
+		}
 		stream["security"] = "tls"
 		stream["tlsSettings"] = tls
 	} else if security == "reality" {
 		reality := map[string]any{}
-		if sni := query.Get("sni"); sni != "" { reality["serverName"] = sni }
-		if key := query.Get("pbk"); key != "" { reality["publicKey"] = key }
-		if sid := query.Get("sid"); sid != "" { reality["shortId"] = sid }
-		if fp := query.Get("fp"); fp != "" { reality["fingerprint"] = fp }
-		if reality["serverName"] == nil || reality["publicKey"] == nil { return errors.New("REALITY URI requires sni and pbk parameters") }
+		if sni := query.Get("sni"); sni != "" {
+			reality["serverName"] = sni
+		}
+		if key := query.Get("pbk"); key != "" {
+			reality["publicKey"] = key
+		}
+		if sid := query.Get("sid"); sid != "" {
+			reality["shortId"] = sid
+		}
+		if fp := query.Get("fp"); fp != "" {
+			reality["fingerprint"] = fp
+		}
+		if reality["serverName"] == nil || reality["publicKey"] == nil {
+			return errors.New("REALITY URI requires sni and pbk parameters")
+		}
 		stream["security"] = "reality"
 		stream["realitySettings"] = reality
 	} else if security != "" && security != "none" {
@@ -279,20 +324,36 @@ func applyStream(query url.Values, stream map[string]any) error {
 	switch network {
 	case "ws":
 		ws := map[string]any{}
-		if path := query.Get("path"); path != "" { ws["path"] = path }
+		if path := query.Get("path"); path != "" {
+			ws["path"] = path
+		}
 		headers := map[string]any{}
-		if host := query.Get("host"); host != "" { headers["Host"] = host }
-		if len(headers) > 0 { ws["headers"] = headers }
+		if host := query.Get("host"); host != "" {
+			headers["Host"] = host
+		}
+		if len(headers) > 0 {
+			ws["headers"] = headers
+		}
 		stream["wsSettings"] = ws
 	case "grpc":
 		grpc := map[string]any{}
-		if service := query.Get("serviceName"); service != "" { grpc["serviceName"] = service } else if service := query.Get("service"); service != "" { grpc["serviceName"] = service }
-		if authority := query.Get("authority"); authority != "" { grpc["authority"] = authority }
+		if service := query.Get("serviceName"); service != "" {
+			grpc["serviceName"] = service
+		} else if service := query.Get("service"); service != "" {
+			grpc["serviceName"] = service
+		}
+		if authority := query.Get("authority"); authority != "" {
+			grpc["authority"] = authority
+		}
 		stream["grpcSettings"] = grpc
 	case "http":
 		http := map[string]any{}
-		if path := query.Get("path"); path != "" { http["path"] = path }
-		if host := query.Get("host"); host != "" { http["host"] = strings.Split(host, ",") }
+		if path := query.Get("path"); path != "" {
+			http["path"] = path
+		}
+		if host := query.Get("host"); host != "" {
+			http["host"] = strings.Split(host, ",")
+		}
 		stream["httpSettings"] = http
 	}
 	return nil
@@ -300,15 +361,21 @@ func applyStream(query url.Values, stream map[string]any) error {
 
 func decodeBase64(s string) ([]byte, error) {
 	for _, enc := range []*base64.Encoding{base64.RawURLEncoding, base64.URLEncoding, base64.RawStdEncoding, base64.StdEncoding} {
-		if b, err := enc.DecodeString(strings.TrimSpace(s)); err == nil { return b, nil }
+		if b, err := enc.DecodeString(strings.TrimSpace(s)); err == nil {
+			return b, nil
+		}
 	}
 	return nil, errors.New("invalid base64")
 }
 
 func rawInt(raw json.RawMessage) (int, error) {
 	var n int
-	if err := json.Unmarshal(raw, &n); err == nil { return n, nil }
+	if err := json.Unmarshal(raw, &n); err == nil {
+		return n, nil
+	}
 	var s string
-	if err := json.Unmarshal(raw, &s); err == nil { return strconv.Atoi(s) }
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return strconv.Atoi(s)
+	}
 	return 0, errors.New("invalid integer")
 }
