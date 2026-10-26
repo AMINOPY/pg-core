@@ -163,10 +163,17 @@ func runNative(cfg config.Config, profilePath string) {
 		os.Exit(1)
 	}
 	fmt.Printf("SOCKS5 proxy listening on %s (Ctrl+C to stop)\n", a.Addr())
-	rep, _ := a.Health(ctx)
+	rep, err := a.Health(ctx)
+	if err != nil {
+		_ = a.Stop(context.Background())
+		fmt.Fprintf(os.Stderr, "native engine health check: %v\n", err)
+		return
+	}
 	fmt.Printf("edge check: %s %s\n", rep.Status, rep.ErrorCode)
 	<-ctx.Done()
-	_ = a.Stop(context.Background())
+	if err := a.Stop(context.Background()); err != nil {
+		fmt.Fprintf(os.Stderr, "native engine cleanup warning: %v\n", err)
+	}
 }
 
 // runXray starts the installed Xray executable with the core's validated CDN/SNI
@@ -179,12 +186,12 @@ func runXray(cfg config.Config, profilePath string) {
 	}
 	profile, err := os.ReadFile(profilePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "read Xray profile: %v\\n", err)
+		fmt.Fprintf(os.Stderr, "read Xray profile: %v\n", err)
 		os.Exit(2)
 	}
 	proxyAddr, err := xray.LocalSOCKSAddress(profile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Xray profile must expose a loopback no-auth SOCKS5 inbound: %v\\n", err)
+		fmt.Fprintf(os.Stderr, "Xray profile must expose a loopback no-auth SOCKS5 inbound: %v\n", err)
 		os.Exit(2)
 	}
 	binary := strings.TrimSpace(os.Getenv("CHIMERA_XRAY_BINARY"))
@@ -197,25 +204,25 @@ func runXray(cfg config.Config, profilePath string) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	if err := adapter.Start(ctx, profile); err != nil {
-		fmt.Fprintf(os.Stderr, "start Xray: %v\\n", err)
+		fmt.Fprintf(os.Stderr, "start Xray: %v\n", err)
 		os.Exit(1)
 	}
 	defer func() {
 		if err := adapter.Stop(context.Background()); err != nil {
-			fmt.Fprintf(os.Stderr, "stop Xray cleanup warning: %v\\n", err)
+			fmt.Fprintf(os.Stderr, "stop Xray cleanup warning: %v\n", err)
 		}
 	}()
-	fmt.Printf("Xray local SOCKS5 proxy listening on %s (Ctrl+C to stop)\\n", proxyAddr)
+	fmt.Printf("Xray local SOCKS5 proxy listening on %s (Ctrl+C to stop)\n", proxyAddr)
 	if cfg.Fronting != nil && cfg.Fronting.Enabled() {
-		fmt.Printf("CDN/SNI applied: SNI=%s edge-IP-count=%d\\n", cfg.Fronting.SNI, len(cfg.Fronting.EdgeIPs))
+		fmt.Printf("CDN/SNI applied: SNI=%s edge-IP-count=%d\n", cfg.Fronting.SNI, len(cfg.Fronting.EdgeIPs))
 	}
 	report, err := adapter.Health(ctx)
 	if err != nil {
 		_ = adapter.Stop(context.Background())
-		fmt.Fprintf(os.Stderr, "Xray health check: %v\\n", err)
+		fmt.Fprintf(os.Stderr, "Xray health check: %v\n", err)
 		return
 	}
-	fmt.Printf("Xray health: %s %s\\n", report.Status, report.ErrorCode)
+	fmt.Printf("Xray health: %s %s\n", report.Status, report.ErrorCode)
 	if report.Status == "degraded" {
 		fmt.Fprintln(os.Stderr, "Warning: set CHIMERA_XRAY_HEALTH_TARGET=host:port to verify TCP connectivity through SOCKS; process liveness alone is not tunnel health.")
 	}
