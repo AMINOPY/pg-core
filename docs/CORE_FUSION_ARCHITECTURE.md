@@ -35,6 +35,10 @@ Each adapter must provide:
 
 Adapters must not silently mutate shared configuration or start duplicate VPN services. One coordinator owns connection state and the TUN descriptor.
 
+## Implemented coordinator milestone
+
+`internal/engine/coordinator.go` now provides a serialized multi-adapter lifecycle coordinator. It validates all selected configurations and declared capabilities before starting any adapter, starts in deterministic ID order, requires every started adapter's health report to be `healthy`, rolls back in reverse order on failure, and retains ownership when shutdown/rollback fails so a caller can retry. State snapshots are sorted and do not include config contents. Unit tests cover validation-before-start, startup order, health-gate rollback, partial-start cleanup, reverse shutdown, and retry ownership. This is a lifecycle/control-plane primitive; it does not by itself provide TUN packet forwarding or guarantee that adapters can safely share a single VPN session.
+
 ## Current repository reality
 
 The repository currently has a native TLS/WebSocket SOCKS transport, a Go-side UDP relay prototype, Android service/backend contracts, and a fail-closed unavailable backend. Android TUN-to-engine packet forwarding and a bundled JNI/native implementation are not present. The current UDP transport opens a WebSocket per datagram and is not a production multiplexed transport. Existing path configuration is not proof of real multipath bonding.
