@@ -93,7 +93,7 @@ class HevSocks5TunnelBackend(
             nativeStarted = true
             if (!api.isRunning()) throw IOException("Hev did not report a running data plane")
 
-            val engineHealth = engine.healthCheck()
+            val engineHealth = engine.endToEndHealthCheck()
             if (!engineHealth.ok) throw IOException(engineHealth.message ?: engineHealth.code)
             running.set(true)
             return EngineResult.success()
@@ -140,7 +140,7 @@ class HevSocks5TunnelBackend(
             if (!api.isRunning()) {
                 running.set(false)
                 EngineResult.failure("hev_tunnel_not_running", "Hev no longer reports a running tunnel")
-            } else engine.healthCheck()
+            } else engine.endToEndHealthCheck()
         } catch (e: Exception) {
             EngineResult.failure("hev_health_check_failed", e.message)
         }
@@ -185,6 +185,6 @@ class HevSocks5TunnelBackend(
 interface PgCoreSocksEngine {
     fun start(profileJson: String, protectSocket: (socketFd: Int) -> Boolean): EngineResult
     fun socksEndpoint(): String
-    fun healthCheck(): EngineResult
+    fun endToEndHealthCheck(): EngineResult
     fun stop(): EngineResult
 }
