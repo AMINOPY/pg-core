@@ -40,6 +40,10 @@ type Adapter struct {
 	Binary   string
 	Fronting *fronting.Settings
 
+	// LocalSOCKSPort opts into a loopback-only, no-auth SOCKS5 inbound for the
+	// embedding app. Zero leaves the supplied profile unchanged.
+	LocalSOCKSPort int
+
 	// HealthTarget optionally enables a TCP data-path probe through a loopback,
 	// no-auth SOCKS5 inbound (for example, "example.com:443"). Empty preserves
 	// process-liveness-only health. Use a stable endpoint you are authorized to test.
@@ -66,7 +70,7 @@ func (a *Adapter) ValidateConfig(ctx context.Context, cfg []byte) error {
 	if err := validateInput(ctx, a.Binary, cfg); err != nil {
 		return err
 	}
-	prepared, err := a.applyFronting(cfg)
+	prepared, err := a.prepareConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -162,6 +166,70 @@ func (a *Adapter) applyFronting(cfg []byte) ([]byte, error) {
 	return json.Marshal(root)
 }
 
+// prepareConfig composes core-owned transport settings in a deterministic order.
+func (a *Adapter) prepareConfig(cfg []byte) ([]byte, error) {
+	prepared, err := a.applyFronting(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return applyLocalSOCKS(prepared, a.LocalSOCKSPort)
+}
+
+// applyLocalSOCKS adds an app-facing SOCKS inbound bound strictly to IPv4
+// loopback. It never exposes an unauthenticated proxy on a LAN/public interface.
+func applyLocalSOCKS(cfg []byte, port int) ([]byte, error) {
+	if port == 0 {
+		return cfg, nil
+	}
+	if port < 1 || port > 65535 {
+		return nil, errors.New("local SOCKS port must be in 1..65535")
+	}
+	dec := json.NewDecoder(bytes.NewReader(cfg))
+	dec.UseNumber()
+	var root map[string]any
+	if err := dec.Decode(&root); err != nil || root == nil {
+		return nil, errors.New("xray profile is not a valid JSON object")
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		return nil, errors.New("xray profile contains trailing JSON data")
+	}
+	inbounds, ok := root["inbounds"].([]any)
+	if !ok {
+		inbounds = []any{}
+	}
+	for _, item := range inbounds {
+		in, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		rawPort, ok := in["port"].(json.Number)
+		if !ok {
+			continue
+		}
+		existingPort, err := strconv.Atoi(string(rawPort))
+		if err != nil || existingPort != port {
+			continue
+		}
+		listen, _ := in["listen"].(string)
+		protocol, _ := in["protocol"].(string)
+		settings, _ := in["settings"].(map[string]any)
+		auth, _ := settings["auth"].(string)
+		if listen == "127.0.0.1" && protocol == "socks" && auth == "noauth" {
+			return json.Marshal(root)
+		}
+		return nil, errors.New("local SOCKS port conflicts with an existing Xray inbound")
+	}
+	root["inbounds"] = append(inbounds, map[string]any{
+		"tag":      "pgcore-local-socks",
+		"listen":   "127.0.0.1",
+		"port":     port,
+		"protocol": "socks",
+		"settings": map[string]any{"auth": "noauth", "udp": true},
+	})
+	return json.Marshal(root)
+}
+
 func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 	a.lifecycle.Lock()
 	defer a.lifecycle.Unlock()
@@ -182,7 +250,7 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 	}
 	a.mu.Unlock()
 
-	prepared, err := a.applyFronting(cfg)
+	prepared, err := a.prepareConfig(cfg)
 	if err != nil {
 		return err
 	}

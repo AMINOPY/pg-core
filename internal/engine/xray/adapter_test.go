@@ -279,3 +279,75 @@ while :; do sleep 1; done`)
 		t.Fatalf("status after Stop = %v, want stopped", report.Status)
 	}
 }
+
+func TestApplyLocalSOCKSAddsLoopbackOnlyInbound(t *testing.T) {
+	cfg := []byte(`{"outbounds":[{"protocol":"freedom"}]}`)
+	got, err := applyLocalSOCKS(cfg, 18080)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var root map[string]any
+	if err := json.Unmarshal(got, &root); err != nil {
+		t.Fatal(err)
+	}
+	inbounds := root["inbounds"].([]any)
+	if len(inbounds) != 1 {
+		t.Fatalf("inbounds count = %d", len(inbounds))
+	}
+	in := inbounds[0].(map[string]any)
+	if in["listen"] != "127.0.0.1" || in["protocol"] != "socks" || in["tag"] != "pgcore-local-socks" {
+		t.Fatalf("unexpected local inbound: %#v", in)
+	}
+	settings := in["settings"].(map[string]any)
+	if settings["auth"] != "noauth" || settings["udp"] != true {
+		t.Fatalf("unexpected SOCKS settings: %#v", settings)
+	}
+}
+
+func TestApplyLocalSOCKSDisabledAndPortValidation(t *testing.T) {
+	cfg := []byte(`{"outbounds":[{"protocol":"freedom"}]}`)
+	got, err := applyLocalSOCKS(cfg, 0)
+	if err != nil || string(got) != string(cfg) {
+		t.Fatalf("disabled setting should preserve profile: got=%s err=%v", got, err)
+	}
+	for _, port := range []int{-1, 65536} {
+		if _, err := applyLocalSOCKS(cfg, port); err == nil {
+			t.Errorf("expected invalid port %d to be rejected", port)
+		}
+	}
+}
+
+func TestApplyLocalSOCKSRejectsPortConflict(t *testing.T) {
+	cfg := []byte(`{"inbounds":[{"listen":"0.0.0.0","port":18080,"protocol":"socks","settings":{"auth":"noauth"}}],"outbounds":[{"protocol":"freedom"}]}`)
+	if _, err := applyLocalSOCKS(cfg, 18080); err == nil {
+		t.Fatal("expected non-loopback listener conflict to be rejected")
+	}
+}
+
+func TestPrepareConfigComposesFrontingAndLocalSOCKS(t *testing.T) {
+	a := New("unused")
+	a.Fronting = &fronting.Settings{SNI: "cdn.example.com", EdgeIPs: []string{"104.16.0.1"}}
+	a.LocalSOCKSPort = 18080
+	cfg := []byte(`{"outbounds":[{"protocol":"vless","settings":{"vnext":[{"address":"origin.example.com","port":443,"users":[{"id":"test-id"}]}]},"streamSettings":{"network":"ws","security":"tls","tlsSettings":{},"wsSettings":{"path":"/tunnel","headers":{"Host":"origin.example.com"}}}}]}`)
+	got, err := a.prepareConfig(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var root map[string]any
+	if err := json.Unmarshal(got, &root); err != nil {
+		t.Fatal(err)
+	}
+	inbounds := root["inbounds"].([]any)
+	if len(inbounds) != 1 || inbounds[0].(map[string]any)["listen"] != "127.0.0.1" {
+		t.Fatalf("local app inbound missing: %#v", inbounds)
+	}
+	out := root["outbounds"].([]any)[0].(map[string]any)
+	server := out["settings"].(map[string]any)["vnext"].([]any)[0].(map[string]any)
+	if server["address"] != "104.16.0.1" {
+		t.Fatalf("fronting edge IP not applied: %#v", server)
+	}
+	tls := out["streamSettings"].(map[string]any)["tlsSettings"].(map[string]any)
+	if tls["serverName"] != "cdn.example.com" {
+		t.Fatalf("SNI not applied: %#v", tls)
+	}
+}

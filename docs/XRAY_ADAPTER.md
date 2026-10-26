@@ -13,7 +13,27 @@ or an OS VPN installer.
 - Avoid returning upstream command output because it can include sensitive config.
 - Optionally apply the existing core CDN/SNI settings to a single TLS `vnext`
   outbound. Certificate verification is not disabled.
+- Optionally compose an app-facing SOCKS5 inbound at `127.0.0.1:<LocalSOCKSPort>`
+  directly into the same Xray profile, so the host app can send local proxy traffic
+  through the Xray outbound that received the CDN edge IP and SNI settings.
 - Optionally verify the TCP data path through a loopback, no-auth SOCKS5 inbound when `Adapter.HealthTarget` is configured; the target is an explicit `host:port` and is probed after process liveness.
+
+## Local app tunnel and CDN/SNI composition
+
+Set `Adapter.LocalSOCKSPort` to a free port (for example `18080`) and set
+`Adapter.Fronting` to the SNI plus one explicitly configured edge IP. `ValidateConfig`
+and `Start` then run the same preparation pipeline: validate the inputs, rewrite the
+TLS outbound address to the edge IP, set `tlsSettings.serverName`, preserve the
+existing transport settings (including WebSocket path/Host), and add a SOCKS5 inbound
+bound only to `127.0.0.1`. The embedding app can point its local proxy setting at
+`127.0.0.1:<port>`. Set `HealthTarget` as well if you want a bounded SOCKS CONNECT
+probe after startup. The port must be free; a conflicting inbound is rejected.
+
+This connects the app to Xray through a local proxy, not through Android `VpnService`
+or system-wide routing. Apps that require full-device VPN still need a real TUN packet
+forwarder and platform-specific socket protection/route management. Multiple CDN IPs
+should be tried as separate bounded profile attempts; the adapter intentionally accepts
+one edge IP per attempt.
 
 ## Important limitations
 
