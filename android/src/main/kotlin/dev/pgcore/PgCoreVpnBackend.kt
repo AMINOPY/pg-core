@@ -37,6 +37,7 @@ data class VpnBackendConfig(
 ) {
     init {
         require(sessionId.isNotBlank()) { "sessionId must not be blank" }
+        require(engineProfileJson.length <= MAX_ENGINE_PROFILE_CHARS) { "engine profile is too large" }
         require(mtu in MIN_MTU..MAX_MTU) { "mtu out of range" }
         require(enableIpv4 || enableIpv6) { "at least one IP family must be enabled" }
         require(paths.size <= MAX_PATHS) { "too many paths" }
@@ -50,6 +51,7 @@ data class VpnBackendConfig(
         const val MIN_MTU = 576
         const val MAX_MTU = 9000
         const val MAX_PATHS = 8
+        const val MAX_ENGINE_PROFILE_CHARS = 262144
     }
 }
 
