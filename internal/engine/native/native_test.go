@@ -166,8 +166,8 @@ func TestAdapterLifecycleAndHealth(t *testing.T) {
 	}
 	a.run.dialer.TLSConfig = &tls.Config{RootCAs: e.pool}
 	rep, err = a.Health(ctx)
-	if err != nil || rep.Status != engine.StatusHealthy {
-		t.Fatalf("health: %+v %v", rep, err)
+	if err != nil || rep.Status != engine.StatusDegraded || rep.ErrorCode != "data_plane_unverified" {
+		t.Fatalf("health without end-to-end data-plane URL: %+v %v", rep, err)
 	}
 	if err := a.Stop(ctx); err != nil {
 		t.Fatal(err)
