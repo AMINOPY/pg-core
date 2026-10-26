@@ -11,7 +11,7 @@ func TestClassifyAllSuccess(t *testing.T) {
 	report := Report{
 		Observations:  []diagnostics.Result{{DNSOK: true, HTTPSOK: true}, {DNSOK: true, HTTPSOK: true}},
 		DNSSuccesses:  2,
-		HTTPSuccesses:	2,
+		HTTPSuccesses: 2,
 	}
 	report.classify()
 	if len(report.Findings) != 1 || report.Findings[0].Code != "https_reachable" {
