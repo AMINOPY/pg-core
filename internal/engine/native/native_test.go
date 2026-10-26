@@ -570,7 +570,6 @@ func TestSOCKS5UDPAssociateEndToEnd(t *testing.T) {
 	}
 }
 
-
 func TestParseSOCKSUDPAddressFormsAndRejectsMalformedPackets(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -581,19 +580,25 @@ func TestParseSOCKSUDPAddressFormsAndRejectsMalformedPackets(t *testing.T) {
 		wantError bool
 	}{
 		{
-			name: "IPv4",
-			packet: []byte{0, 0, 0, 1, 127, 0, 0, 1, 0, 53, 'q'},
-			wantHost: "127.0.0.1", wantPort: 53, wantBody: "q",
+			name:     "IPv4",
+			packet:   []byte{0, 0, 0, 1, 127, 0, 0, 1, 0, 53, 'q'},
+			wantHost: "127.0.0.1",
+			wantPort: 53,
+			wantBody: "q",
 		},
 		{
-			name: "domain",
-			packet: []byte{0, 0, 0, 3, 3, 'd', 'n', 's', 0, 53, 'q'},
-			wantHost: "dns", wantPort: 53, wantBody: "q",
+			name:     "domain",
+			packet:   []byte{0, 0, 0, 3, 3, 'd', 'n', 's', 0, 53, 'q'},
+			wantHost: "dns",
+			wantPort: 53,
+			wantBody: "q",
 		},
 		{
-			name: "IPv6",
-			packet: []byte{0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 53, 'q'},
-			wantHost: "::1", wantPort: 53, wantBody: "q",
+			name:     "IPv6",
+			packet:   []byte{0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 53, 'q'},
+			wantHost: "::1",
+			wantPort: 53,
+			wantBody: "q",
 		},
 		{name: "fragmented", packet: []byte{0, 0, 1, 1, 127, 0, 0, 1, 0, 53, 'q'}, wantError: true},
 		{name: "unknown address type", packet: []byte{0, 0, 0, 9, 1, 2, 3}, wantError: true},
