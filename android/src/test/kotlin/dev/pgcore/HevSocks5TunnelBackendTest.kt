@@ -164,4 +164,21 @@ class HevSocks5TunnelBackendTest {
         }
     }
 
+
+    @Test
+    fun failedHealthProbeMarksBackendNotRunning() {
+        val cache = createTempDir(prefix = "pgcore-hev-test")
+        try {
+            val engine = FakeEngine()
+            val hev = FakeHev()
+            val backend = HevSocks5TunnelBackend(cache, engine, hev)
+            assertTrue(backend.start(41, VpnBackendConfig("s", engineProfileJson = """{"server":"test"}""")) { true }.ok)
+            engine.healthResult = EngineResult.failure("health_failed", "traffic probe failed")
+            assertFalse(backend.healthCheck().ok)
+            assertEquals("hev_backend_not_running", backend.healthCheck().code)
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
 }
