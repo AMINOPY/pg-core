@@ -23,7 +23,7 @@ Check Cloudflare's current terms and free-plan limits before relying on it. On a
 
 ## Run
 
-Basic local SOCKS5 profile (edge handshake only):
+Basic local SOCKS5 profile (edge handshake only; health remains degraded because end-to-end data-plane traffic is not verified):
 
 ```sh
 go run ./cmd/chimera --config config.native.example.json --profile profile.native.example.json --run
@@ -35,7 +35,7 @@ To also check a real HTTP destination through the active SOCKS5 tunnel, use the 
 go run ./cmd/chimera --config config.native.example.json --profile profile.native.healthcheck.example.json --run
 ```
 
-The example checks `https://example.com/`; change it to an HTTPS endpoint you control if you prefer. A successful health check requires an HTTP 2xx response through the tunnel, not just a live process or successful edge handshake. Remote health endpoints must use HTTPS; plain HTTP is accepted only for loopback test targets. Redirects are not followed. This is an optional destination probe, not proof of system-wide VPN routing or DNS-leak protection.
+The example checks `https://example.com/`; change it to an HTTPS endpoint you control if you prefer. A successful health check requires an HTTP 2xx response through the tunnel, not just a live process or successful edge handshake. Remote health endpoints must use HTTPS; plain HTTP is accepted only for loopback test targets. Redirects are not followed. Without `health_url`, an edge handshake alone is reported as `data_plane_unverified` (degraded), not healthy. This destination probe is not proof of system-wide VPN routing or DNS-leak protection.
 
 ## What is and is not included
 
