@@ -1,5 +1,7 @@
 # Chimera Core (pg-core)
 
+[فارسی / Persian](docs/README.fa.md) | [English](docs/README.en.md)
+
 **Status: early scaffold / not production-ready.**
 
 Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. Initial sing-box and Xray subprocess adapters are available, but Chimera is not yet a production-ready VPN client.
@@ -13,6 +15,8 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Start validation, health checks, failure cleanup, and serialized lifecycle operations
 - Deterministic route-candidate selection based on health and latency
 - Bounded DNS/HTTPS diagnostics and HTTPS transfer samples with timing breakdown, cancellation, redirect rejection, URL redaction, and strict byte/time limits
+- Ghost network symptom analysis: repeated bounded DNS/HTTPS observations, cautious evidence-based findings, and recovery recommendations without treating failures as proof of DPI
+- Ghost Plus (C) conservative classifier for caller-supplied observations, plus Ghost Ultra Plus (Kotlin/Python) bilingual local reporting; see [docs/GHOST_PLUS.md](docs/GHOST_PLUS.md)
 - sing-box and Xray adapters: config validation, private temporary profiles, process start/health/stop
 - Native TLS+WebSocket tunnel, local SOCKS5, and CDN/SNI support
 - Native tunnel WebSocket framing tuned to 64 KiB chunks, with a reproducible framing/masking benchmark
@@ -21,6 +25,12 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Persistent monotonic manifest-sequence storage to reject rollback across restarts, when the host persists and uses the store
 - Validated Auto/Direct/CDN Fronting and regional auto-ir/auto-us candidate modes with bounded TLS probes and stable latency ranking (planning/probing, not a complete tunnel)
 - Unit tests, fuzz targets, and GitHub Actions workflow
+
+## Ghost network analysis
+
+[فارسی](docs/README.fa.md) | [English](docs/README.en.md)
+
+See [docs/GHOST.md](docs/GHOST.md). Run `go run ./cmd/chimera --ghost example.com --samples 5` to collect bounded DNS/HTTPS observations and receive cautious findings. Ghost does not prove DPI from a single symptom, intercept traffic, alter system networking, or guarantee circumvention.
 
 ## Remote control API
 

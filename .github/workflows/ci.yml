@@ -27,12 +27,16 @@ jobs:
         run: python -m unittest discover -s tools/corecheck -p 'test_*.py'
       - name: Python control API SDK tests
         run: python -m unittest discover -s integrations/python -p 'test_*.py'
+      - name: Ghost Ultra Plus Python tests
+        run: python -m unittest discover -s tools/ghost_ultra_plus -p 'test_*.py'
       - name: Native C ABI tests
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic native/cdn_validation.c native/test_cdn_validation.c -o /tmp/pg-core-c-test
           /tmp/pg-core-c-test
           cc -std=c11 -Wall -Wextra -Werror -pedantic native/fusion_frame.c native/test_fusion_frame.c -o /tmp/pg-core-fusion-test
           /tmp/pg-core-fusion-test
+          cc -std=c11 -Wall -Wextra -Werror -pedantic native/ghost_plus.c native/test_ghost_plus.c -o /tmp/pg-core-ghost-plus-test
+          /tmp/pg-core-ghost-plus-test
       - name: Format check
         shell: bash
         run: |

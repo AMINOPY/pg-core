@@ -16,6 +16,7 @@ import (
 	"github.com/AMINOPY/pg-core/internal/engine/native"
 	"github.com/AMINOPY/pg-core/internal/engine/xray"
 	"github.com/AMINOPY/pg-core/internal/fronting"
+	"github.com/AMINOPY/pg-core/internal/ghost"
 	"github.com/AMINOPY/pg-core/internal/profileimport"
 	"github.com/AMINOPY/pg-core/internal/quickconnect"
 )
@@ -25,6 +26,7 @@ func main() {
 	run := flag.Bool("run", false, "run the selected native or Xray engine (local SOCKS5) using --config and --profile")
 	profilePath := flag.String("profile", "", "path to a native or Xray engine profile (JSON), used with --run")
 	diagnose := flag.String("diagnose", "", "run bounded DNS + HTTPS checks for a hostname")
+	ghostHost := flag.String("ghost", "", "run Ghost network symptom analysis for a hostname (not proof of DPI)")
 	aiScan := flag.String("ai-scan", "", "run bounded, explainable network diagnostics for a hostname")
 	samples := flag.Int("samples", 5, "number of diagnostic samples (1-20)")
 	downloadURL := flag.String("download-url", "", "optional trusted HTTPS download-test endpoint (max 10 MiB by default)")
@@ -36,6 +38,29 @@ func main() {
 	flag.Parse()
 
 	switch {
+	case *ghostHost != "":
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		runner := ghost.Runner{
+			Checker:  diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1},
+			Samples:  *samples,
+			Interval: 200 * time.Millisecond,
+		}
+		report, err := runner.Run(ctx, *ghostHost)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Ghost analysis failed: %v\n", err)
+			os.Exit(2)
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "encode Ghost report: %v\n", err)
+			os.Exit(1)
+		}
+		if report.HTTPSuccesses == 0 {
+			os.Exit(1)
+		}
+		return
 	case *quickConnect:
 		server, err := quickconnect.NewFromEnv()
 		if err != nil {
@@ -109,6 +134,7 @@ func main() {
 		fmt.Println("Use --config config.example.json to validate a configuration.")
 		fmt.Println("Use --diagnose example.com for a bounded DNS/HTTPS check.")
 		fmt.Println("Use --ai-scan example.com for bounded, explainable network diagnostics.")
+		fmt.Println("Use --ghost example.com for cautious network symptom analysis (not definitive DPI detection).")
 		fmt.Println("Add --download-url and/or --upload-url to opt in to bounded throughput measurements.")
 		fmt.Println("Use --quick-connect for the two-field CDN/SNI UI (set CHIMERA_TUNNEL_KEY first).")
 		return
