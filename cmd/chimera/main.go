@@ -13,13 +13,14 @@ import (
 	"github.com/AMINOPY/pg-core/internal/config"
 	"github.com/AMINOPY/pg-core/internal/diagnostics"
 	"github.com/AMINOPY/pg-core/internal/engine/native"
+	"github.com/AMINOPY/pg-core/internal/engine/xray"
 	"github.com/AMINOPY/pg-core/internal/fronting"
 	"github.com/AMINOPY/pg-core/internal/quickconnect"
 )
 
 func main() {
 	configPath := flag.String("config", "", "path to a Chimera JSON configuration file (validation only)")
-	run := flag.Bool("run", false, "run the native engine (local SOCKS5) using --config and --profile")
+	run := flag.Bool("run", false, "run the selected native or Xray engine (local SOCKS5) using --config and --profile")
 	profilePath := flag.String("profile", "", "path to a native engine profile (JSON), used with --run")
 	diagnose := flag.String("diagnose", "", "run bounded DNS + HTTPS checks for a hostname")
 	aiScan := flag.String("ai-scan", "", "run bounded, explainable network diagnostics for a hostname")
@@ -135,8 +136,12 @@ func main() {
 }
 
 func runNative(cfg config.Config, profilePath string) {
+	if cfg.ActiveEngine == config.EngineXray {
+		runXray(cfg, profilePath)
+		return
+	}
 	if cfg.ActiveEngine != config.EngineNative {
-		fmt.Fprintln(os.Stderr, "--run needs active_engine \"native\"")
+		fmt.Fprintln(os.Stderr, "--run supports active_engine \"native\" or \"xray\"")
 		os.Exit(2)
 	}
 	if profilePath == "" {
@@ -161,4 +166,57 @@ func runNative(cfg config.Config, profilePath string) {
 	fmt.Printf("edge check: %s %s\n", rep.Status, rep.ErrorCode)
 	<-ctx.Done()
 	_ = a.Stop(context.Background())
+}
+
+
+// runXray starts the installed Xray executable with the core's shared CDN/SNI
+// settings applied by the adapter. The profile must include a loopback SOCKS5
+// inbound; this process does not configure system TUN/routes/DNS.
+func runXray(cfg config.Config, profilePath string) {
+	if profilePath == "" {
+		fmt.Fprintln(os.Stderr, "--run with active_engine \"xray\" needs --profile")
+		os.Exit(2)
+	}
+	profile, err := os.ReadFile(profilePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "read Xray profile: %v\\n", err)
+		os.Exit(2)
+	}
+	proxyAddr, err := xray.LocalSOCKSAddress(profile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Xray profile must expose a loopback no-auth SOCKS5 inbound: %v\\n", err)
+		os.Exit(2)
+	}
+	binary := strings.TrimSpace(os.Getenv("CHIMERA_XRAY_BINARY"))
+	if binary == "" {
+		binary = "xray"
+	}
+	adapter := xray.New(binary)
+	adapter.Fronting = cfg.Fronting
+	adapter.HealthTarget = strings.TrimSpace(os.Getenv("CHIMERA_XRAY_HEALTH_TARGET"))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := adapter.Start(ctx, profile); err != nil {
+		fmt.Fprintf(os.Stderr, "start Xray: %v\\n", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := adapter.Stop(context.Background()); err != nil {
+			fmt.Fprintf(os.Stderr, "stop Xray cleanup warning: %v\\n", err)
+		}
+	}()
+	fmt.Printf("Xray local SOCKS5 proxy listening on %s (Ctrl+C to stop)\\n", proxyAddr)
+	if cfg.Fronting != nil && cfg.Fronting.Enabled() {
+		fmt.Printf("CDN/SNI applied: SNI=%s edge-IP-count=%d\\n", cfg.Fronting.SNI, len(cfg.Fronting.EdgeIPs))
+	}
+	report, err := adapter.Health(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Xray health check: %v\\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Xray health: %s %s\\n", report.Status, report.ErrorCode)
+	if report.Status == "degraded" {
+		fmt.Fprintln(os.Stderr, "Warning: configure CHIMERA_XRAY_HEALTH_TARGET=host:port to verify TCP connectivity through the local SOCKS5 proxy; process liveness alone is not tunnel health.")
+	}
+	<-ctx.Done()
 }
