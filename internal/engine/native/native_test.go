@@ -624,3 +624,65 @@ func TestParseSOCKSUDPAddressFormsAndRejectsMalformedPackets(t *testing.T) {
 		})
 	}
 }
+
+
+// TestNativeUDPDatagramTimesOutWhenTargetDoesNotReply verifies that the VPS
+// server bounds UDP response waits instead of leaving a tunnel worker blocked.
+func TestNativeUDPDatagramTimesOutWhenTargetDoesNotReply(t *testing.T) {
+	udpSink, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer udpSink.Close()
+	received := make(chan struct{}, 1)
+	go func() {
+		buf := make([]byte, 65507)
+		_, _, err := udpSink.ReadFrom(buf)
+		if err == nil {
+			received <- struct{}{}
+		}
+		// Deliberately do not send a response.
+	}()
+
+	srv := httptest.NewTLSServer(&Server{Path: "/secret", DialTimeout: 150 * time.Millisecond})
+	defer srv.Close()
+	pool := x509.NewCertPool()
+	pool.AddCert(srv.Certificate())
+	_, portText, err := net.SplitHostPort(srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := &Dialer{
+		SNI: "example.com", EdgeIPs: []string{"127.0.0.1"}, Port: port,
+		Path: "/secret", Timeout: 2 * time.Second,
+		TLSConfig: &tls.Config{RootCAs: pool},
+	}
+	host, targetPortText, err := net.SplitHostPort(udpSink.LocalAddr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetPort, err := strconv.Atoi(targetPortText)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	started := time.Now()
+	_, err = d.DialDatagram(ctx, host, targetPort, []byte("no reply expected"))
+	if err == nil {
+		t.Fatal("expected UDP response timeout to be reported")
+	}
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("UDP response timeout took too long: %v", elapsed)
+	}
+	select {
+	case <-received:
+	case <-time.After(time.Second):
+		t.Fatal("UDP request never reached the target socket")
+	}
+}
