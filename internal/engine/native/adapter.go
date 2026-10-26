@@ -47,6 +47,7 @@ type Profile struct {
 type running struct {
 	ln        net.Listener
 	cancel    context.CancelFunc
+	done      chan struct{}
 	dialer    *Dialer
 	healthURL string
 }
@@ -194,8 +195,12 @@ func (a *Adapter) Start(ctx context.Context, raw []byte) error {
 		return fmt.Errorf("listen: %w", err)
 	}
 	runCtx, cancel := context.WithCancel(context.Background())
-	go serveSOCKS5(runCtx, ln, d)
-	a.run = &running{ln: ln, cancel: cancel, dialer: d, healthURL: p.HealthURL}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		serveSOCKS5(runCtx, ln, d)
+	}()
+	a.run = &running{ln: ln, cancel: cancel, done: done, dialer: d, healthURL: p.HealthURL}
 	return nil
 }
 
@@ -252,12 +257,24 @@ func (a *Adapter) Stop(ctx context.Context) error {
 		return errors.New("context is required")
 	}
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	r := a.run
-	a.run = nil
-	a.mu.Unlock()
 	if r == nil {
 		return nil
 	}
+
+	// Keep ownership until all accepted SOCKS sessions have exited. If the
+	// caller's deadline expires, a later Stop can retry waiting for cleanup.
 	r.cancel()
-	return r.ln.Close()
+	closeErr := r.ln.Close()
+	if closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+		return fmt.Errorf("close native listener: %w", closeErr)
+	}
+	select {
+	case <-r.done:
+		a.run = nil
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
