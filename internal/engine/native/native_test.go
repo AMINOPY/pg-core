@@ -356,7 +356,6 @@ func TestStopWaitsForActiveSOCKSSessions(t *testing.T) {
 	}
 }
 
-
 // BenchmarkNativeTunnelRoundTrip measures payload throughput over the complete
 // native TLS/WebSocket tunnel to a local TCP echo target. It is a local
 // regression baseline, not a claim about Internet or mobile-network speed.
