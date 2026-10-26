@@ -320,3 +320,39 @@ func TestSOCKS5RejectsMalformedRequestFields(t *testing.T) {
 		})
 	}
 }
+
+
+func TestStopWaitsForActiveSOCKSSessions(t *testing.T) {
+	a := New()
+	profile := []byte(`{"key":"secret","server":"127.0.0.1:443","listen":"127.0.0.1:0"}`)
+	if err := a.Start(context.Background(), profile); err != nil {
+		t.Fatal(err)
+	}
+
+	// A client that stalls mid-handshake must be closed when Stop cancels the
+	// engine, and Stop must not return while the handler still owns resources.
+	client, err := net.Dial("tcp", a.Addr())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	if _, err := client.Write([]byte{5, 1, 0}); err != nil {
+		t.Fatal(err)
+	}
+	var reply [2]byte
+	if _, err := io.ReadFull(client, reply[:]); err != nil {
+		t.Fatal(err)
+	}
+	if reply != [2]byte{5, 0} {
+		t.Fatalf("SOCKS greeting reply = %v", reply)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := a.Stop(ctx); err != nil {
+		t.Fatalf("Stop did not finish cleanup: %v", err)
+	}
+	if a.Addr() != "" {
+		t.Fatal("engine still reports a listener after Stop")
+	}
+}
