@@ -176,6 +176,7 @@ class HevSocks5TunnelBackendTest {
             engine.healthResult = EngineResult.failure("health_failed", "traffic probe failed")
             assertFalse(backend.healthCheck().ok)
             assertEquals("hev_backend_not_running", backend.healthCheck().code)
+            assertTrue(backend.stop().ok)
         } finally {
             cache.deleteRecursively()
         }
