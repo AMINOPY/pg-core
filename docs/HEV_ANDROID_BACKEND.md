@@ -1,94 +1,55 @@
 # Android Hev tun2socks adapter integration
 
-## What this change provides
+## Implemented on this branch
 
-This branch adds a Kotlin adapter for the public JNI contract exposed by
-[heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel), plus
-unit tests for lifecycle ordering, loopback endpoint validation, and cleanup.
-The adapter starts the host-provided protected SOCKS engine first, then starts
-Hev against the service-owned Android TUN descriptor. It stops Hev before the
-SOCKS engine and never closes the TUN descriptor.
+- Kotlin lifecycle adapter for the pinned Hev JNI API; the TUN FD remains owned by VpnService.
+- Reflective adapter for generated gomobile API dev.pgcore.mobile.mobile.Engine and SocketProtector, avoiding compile-time coupling to a generated AAR.
+- Socket protection callback maps generated protect(long) to the Android VpnService.protect(fd) callback. A false result rejects the outbound connection.
+- CI builds the generated Go Android AAR for ARMv7, ARM64, x86, and x86_64 and inspects its generated Java API.
+- CI validates the pinned Hev 2.19.3 AAR and checksum.
 
-The adapter is deliberately **not registered by default**. The existing
-`UnavailableVpnBackend` remains the safe default until an app supplies both
-a working engine bridge and the native AAR.
+This is NOT yet a production-ready VPN. The adapter is intentionally not registered as the default backend. The generated AAR is a CI artifact, not yet reproducibly bundled by this Android library/host app.
 
-## Verified Hev release pin
+## Artifact and source pins
 
-The integration is pinned to upstream release **2.19.3** (released 2026-10-25),
-not a moving `latest` URL:
+- Hev release: https://github.com/heiher/hev-socks5-tunnel/releases/tag/2.19.3
+- Hev AAR: https://github.com/heiher/hev-socks5-tunnel/releases/download/2.19.3/hev-socks5-tunnel.aar
+- Hev AAR SHA-256: ab6c581e6157680cfe5687ee7bbdcf95405c006c2db3701879ec44b9e5f83836
+- Hev source and MIT license: https://github.com/heiher/hev-socks5-tunnel/tree/2.19.3
+- Latest Go bridge build: https://github.com/AMINOPY/pg-core/actions/runs/40369604917
+- Branch CI: https://github.com/AMINOPY/pg-core/actions?query=branch%3Awork%2Fandroid-hev-tun-backend
 
-- Release: https://github.com/heiher/hev-socks5-tunnel/releases/tag/2.19.3
-- AAR asset: https://github.com/heiher/hev-socks5-tunnel/releases/download/2.19.3/hev-socks5-tunnel.aar
-- AAR SHA-256: `ab6c581e6157680cfe5687ee7bbdcf95405c006c2db3701879ec44b9e5f83836`
-- Upstream source and MIT license: https://github.com/heiher/hev-socks5-tunnel/tree/2.19.3
+Preserve upstream copyright/license notices in redistributable builds. Do not use a moving latest URL.
 
-The upstream release API reports that checksum for the published AAR. The
-`hev-artifact-validation.yml` workflow downloads the exact version, verifies
-the digest, and checks that the expected JNI class and method signatures exist.
-This validation does **not** mean the AAR has been bundled into the Android
-library or that device traffic has been tested.
+## Host integration
 
-## Go mobile bridge build
-
-The `android-mobile-bridge.yml` workflow uses pinned Go mobile tooling and an
-Android NDK to compile `mobile/engine.go` into an Android AAR. It uploads a
-short-lived build artifact for inspection, along with generated Java API
-signatures. The artifact is a build/compatibility check only; it is not wired
-into the Android library, is not a release binary, and does not prove the
-VPN's end-to-end packet path. Check the workflow result before relying on a
-particular artifact.
-
-Preserve the upstream MIT license and copyright notices in any distributable
-build. Do not download a moving release during production builds.
-
-## Host wiring
-
-The host application must implement `PgCoreSocksEngine` using the generated
-binding for this repository's `mobile` Go package. That bridge must:
-- start the native SOCKS listener using the supplied profile JSON;
-- synchronously call Android `VpnService.protect(fd)` for every upstream socket
-  before connecting;
-- return a loopback SOCKS endpoint only;
-- stop idempotently and retain ownership if shutdown fails;
-- provide `endToEndHealthCheck()` that proves packets traverse the complete TUN
-  data plane, not merely an upstream TLS/WebSocket check.
-
-Before calling `PgCoreVpnController.start`, the host must register the backend
-and pass its engine profile in `VpnServiceOptions.engineProfileJson`:
+The consuming Android host must bundle the generated Go AAR and pinned Hev AAR, then instantiate the adapter with a real end-to-end TUN traffic probe:
 
 ```kotlin
-PgCoreVpnBackendRegistry.factory = {
-    HevSocks5TunnelBackend(
-        cacheDir = applicationContext.cacheDir,
-        engine = registeredPgCoreSocksEngine,
-    )
-}
-
-PgCoreVpnController.start(
-    context = applicationContext,
-    options = VpnServiceOptions(engineProfileJson = profileJson),
+val nativeEngine = ReflectiveGoMobileSocksEngine(
+    endToEndProbe = {
+        // Run a bounded TCP + UDP/DNS probe through this VPN's TUN path.
+        // Return success only after the expected test endpoint confirms traffic.
+        runConfiguredTunTrafficProbe()
+    },
+)
+val backend = HevSocks5TunnelBackend(
+    cacheDir = applicationContext.cacheDir,
+    engine = nativeEngine,
 )
 ```
 
-The sample is intentionally incomplete until the host has a concrete
-`registeredPgCoreSocksEngine` backed by the compiled native bridge. Do not
-substitute a fake or no-op implementation.
+runConfiguredTunTrafficProbe() is an application-specific integration point, not a helper supplied by this library. Do not replace it with a successful stub or an upstream TLS/WebSocket handshake. Engine.health() validates native engine/upstream health; it cannot prove that packets traversed Android TUN.
 
-## Remaining release gates
+Before invoking PgCoreVpnController.start, the host must register the backend and pass VpnServiceOptions.engineProfileJson. Register the backend only after the AARs are bundled and the probe is implemented. Until then UnavailableVpnBackend remains the safe default.
 
-This adapter does not itself bundle the AAR, wire the generated bridge into a
-host application, or prove that packets traverse the complete path. Before
-this is production-ready, CI and device tests must verify:
+## Release gates requiring a consuming app and physical Android device
 
-- the pinned Hev AAR digest and JNI API contract pass artifact validation;
-- the gomobile AAR builds reproducibly and its generated API is compatible with
-  a concrete Kotlin bridge in the host app;
-- TCP, UDP, DNS, IPv4, IPv6, and configured app filtering work end-to-end;
-- every upstream socket is protected before connect and no routing loop occurs;
-- stop/start, cancellation, failed native startup, network loss/recovery, and
-  cleanup retries do not leak descriptors or leave workers running;
-- a real-device leak/soak test passes before the UI can report connected.
+- Bundle and verify both pinned AARs for each supported ABI and preserve license/provenance.
+- Run a real end-to-end probe through TUN for TCP, UDP, DNS, IPv4, and IPv6.
+- Verify every upstream socket is protected before connect and fails closed when VpnService.protect(fd) returns false.
+- Verify no traffic escapes outside the VPN during connect, reconnect, stop, network loss, or engine failure.
+- Test app filtering, cancellation, repeated start/stop, descriptor/thread cleanup, network recovery, and soak stability.
+- Capture test logs/results from at least one physical device per supported ABI family before calling this production-ready.
 
-Until these gates pass, keep `UnavailableVpnBackend` as the default and do not
-claim that a production full-tunnel VPN is complete.
+Repository CI can verify compilation, unit tests, native AAR generation, and artifact signatures. It cannot substitute for a real Android device or prove leak-free network behavior. Do not report the VPN as connected or production-complete until these gates pass.
