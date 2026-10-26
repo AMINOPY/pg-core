@@ -102,13 +102,20 @@ func ensureLocalSOCKS(cfg []byte) ([]byte, error) {
 			if !ok {
 				continue
 			}
-			settings, _ := in["settings"].(map[string]any)
 			protocol, _ := in["protocol"].(string)
 			listen, _ := in["listen"].(string)
-			if protocol == "socks" && (listen == "127.0.0.1" || listen == "localhost" || listen == "::1") {
-				return json.Marshal(root)
+			if protocol != "socks" {
+				continue
 			}
-			_ = settings
+			if listen != "127.0.0.1" && listen != "localhost" && listen != "::1" {
+				return nil, errors.New("refusing to import a SOCKS inbound that is not bound to loopback")
+			}
+			settings, _ := in["settings"].(map[string]any)
+			auth, _ := settings["auth"].(string)
+			if auth != "" && auth != "noauth" {
+				return nil, errors.New("existing local SOCKS inbound must use no-auth for this local-only runner")
+			}
+			return json.Marshal(root)
 		}
 	}
 	root["inbounds"] = append(anySlice(root["inbounds"]), map[string]any{
@@ -169,8 +176,34 @@ func shareLinkToXray(raw string) ([]byte, error) {
 		outbound["protocol"] = "trojan"
 		outbound["settings"] = map[string]any{"servers": []any{map[string]any{"address": host, "port": port, "password": password}}}
 		if err := applyStream(query, stream); err != nil { return nil, err }
+	case "ss":
+		if query.Get("plugin") != "" {
+			return nil, errors.New("Shadowsocks plugin options are not supported by this importer")
+		}
+		if u.User == nil {
+			return nil, errors.New("Shadowsocks URI is missing method and password")
+		}
+		method := u.User.Username()
+		password, hasPassword := u.User.Password()
+		if !hasPassword {
+			decoded, decodeErr := decodeBase64(method)
+			if decodeErr != nil {
+				return nil, errors.New("Shadowsocks URI credentials are malformed")
+			}
+			parts := strings.SplitN(string(decoded), ":", 2)
+			if len(parts) != 2 {
+				return nil, errors.New("Shadowsocks URI must encode method:password")
+			}
+			method, password = parts[0], parts[1]
+		}
+		if method == "" || password == "" {
+			return nil, errors.New("Shadowsocks URI is missing method or password")
+		}
+		outbound["protocol"] = "shadowsocks"
+		outbound["settings"] = map[string]any{"servers": []any{map[string]any{"address": host, "port": port, "method": method, "password": password}}}
+		stream["network"] = "tcp"
 	case "vmess":
-		payload := strings.TrimPrefix(raw, "vmess://")
+		payload := strings.SplitN(strings.TrimPrefix(raw, "vmess://"), "#", 2)[0]
 		decoded, err := decodeBase64(payload)
 		if err != nil { return nil, errors.New("VMess URI payload is not valid base64 JSON") }
 		var vm struct {
