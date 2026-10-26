@@ -21,8 +21,8 @@ func TestClassifyAllSuccess(t *testing.T) {
 
 func TestClassifyHTTPPolicyStatusDoesNotClaimDPI(t *testing.T) {
 	report := Report{
-		Observations: []diagnostics.Result{{DNSOK: true, HTTPSOK: true, HTTPStatus: 451}},
-		DNSSuccesses: 1,
+		Observations:  []diagnostics.Result{{DNSOK: true, HTTPSOK: true, HTTPStatus: 451}},
+		DNSSuccesses:  1,
 		HTTPSuccesses: 1,
 	}
 	report.classify()
