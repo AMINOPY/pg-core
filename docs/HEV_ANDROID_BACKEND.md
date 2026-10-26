@@ -10,22 +10,27 @@ Hev against the service-owned Android TUN descriptor. It stops Hev before the
 SOCKS engine and never closes the TUN descriptor.
 
 The adapter is deliberately **not registered by default**. The existing
-`UnavailableVpnBackend` remains the safe default until an app supplies both a
-working engine bridge and the native AAR.
+`UnavailableVpnBackend` remains the safe default until an app supplies both
+a working engine bridge and the native AAR.
 
-## Pinned native dependency
+## Verified Hev release pin
 
-The upstream repository documents a self-contained Android AAR and the
-`hev.htproxy.TProxyService` JNI class. The upstream release list currently
-shows version `2.18.0` as latest:
-- https://github.com/heiher/hev-socks5-tunnel/releases/tag/2.18.0
-- https://github.com/heiher/hev-socks5-tunnel/blob/2.18.0/README.md
+The integration is pinned to upstream release **2.19.3** (released 2026-10-25),
+not a moving `latest` URL:
 
-Before shipping, the host build must fetch and pin the exact AAR artifact from
-the selected release, verify its checksum against a trusted release record,
-retain the upstream MIT license/copyright notices, and verify that the class
-and method signatures match this adapter. Do not use an unpinned `latest`
-artifact or silently download a moving release during production builds.
+- Release: https://github.com/heiher/hev-socks5-tunnel/releases/tag/2.19.3
+- AAR asset: https://github.com/heiher/hev-socks5-tunnel/releases/download/2.19.3/hev-socks5-tunnel.aar
+- AAR SHA-256: `ab6c581e6157680cfe5687ee7bbdcf95405c006c2db3701879ec44b9e5f83836`
+- Upstream source and MIT license: https://github.com/heiher/hev-socks5-tunnel/tree/2.19.3
+
+The upstream release API reports that checksum for the published AAR. The
+`hev-artifact-validation.yml` workflow downloads the exact version, verifies
+the digest, and checks that the expected JNI class and method signatures exist.
+This validation does **not** mean the AAR has been bundled into the Android
+library or that device traffic has been tested.
+
+Preserve the upstream MIT license and copyright notices in any distributable
+build. Do not download a moving release during production builds.
 
 ## Host wiring
 
@@ -62,12 +67,11 @@ substitute a fake or no-op implementation.
 
 ## Remaining release gates
 
-This adapter does not by itself bundle the AAR, generate the gomobile/JNI
+This adapter does not itself bundle the AAR, generate the gomobile/JNI
 binding, or prove that packets traverse the complete path. Before this is
 production-ready, CI and device tests must verify:
 
-- the selected AAR is pinned, checksummed, included for supported ABIs, and
-  loads on each ABI;
+- the pinned AAR digest and JNI API contract pass artifact validation;
 - the Go mobile engine bridge is built and registered by a real host app;
 - TCP, UDP, DNS, IPv4, IPv6, and configured app filtering work end-to-end;
 - every upstream socket is protected before connect and no routing loop occurs;
