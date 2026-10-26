@@ -79,3 +79,23 @@ func TestToXrayJSONRejectsUnsupportedOrLossyFormats(t *testing.T) {
 		}
 	}
 }
+
+func TestToXrayJSONRejectsAnyPublicInbound(t *testing.T) {
+	cases := []string{
+		`{"inbounds":[{"listen":"127.0.0.1","port":1080,"protocol":"socks","settings":{"auth":"noauth"}},{"listen":"0.0.0.0","port":9000,"protocol":"dokodemo-door"}],"outbounds":[{"protocol":"freedom"}]}`,
+		`{"inbounds":[{"port":1080,"protocol":"socks","settings":{"auth":"noauth"}}],"outbounds":[{"protocol":"freedom"}]}`,
+		`{"inbounds":[{"listen":"192.0.2.10","port":1080,"protocol":"socks","settings":{"auth":"noauth"}}],"outbounds":[{"protocol":"freedom"}]}`,
+	}
+	for _, input := range cases {
+		if _, err := ToXrayJSON([]byte(input)); err == nil {
+			t.Errorf("expected public or wildcard inbound to be rejected: %s", input)
+		}
+	}
+}
+
+func TestToXrayJSONAcceptsIPv6LoopbackInbound(t *testing.T) {
+	input := `{"inbounds":[{"listen":"::1","port":1080,"protocol":"socks","settings":{"auth":"noauth"}}],"outbounds":[{"protocol":"freedom"}]}`
+	if _, err := ToXrayJSON([]byte(input)); err != nil {
+		t.Fatalf("loopback IPv6 inbound should be accepted: %v", err)
+	}
+}
