@@ -96,27 +96,42 @@ func ensureLocalSOCKS(cfg []byte) ([]byte, error) {
 	if !ok || len(outbounds) == 0 {
 		return nil, errors.New("Xray profile must contain at least one outbound")
 	}
+	hasLocalSOCKS := false
 	if inbounds, ok := root["inbounds"].([]any); ok {
 		for _, item := range inbounds {
 			in, ok := item.(map[string]any)
 			if !ok {
-				continue
+				return nil, errors.New("refusing to import malformed Xray inbound")
+			}
+			listen, _ := in["listen"].(string)
+			listen = strings.TrimSpace(listen)
+			ip := net.ParseIP(listen)
+			if strings.EqualFold(listen, "localhost") {
+				ip = net.ParseIP("127.0.0.1")
+			}
+			// Empty listen addresses can mean wildcard binds. Reject all
+			// non-loopback inbounds, including auxiliary protocols.
+			if ip == nil || !ip.IsLoopback() {
+				return nil, errors.New("refusing to import an Xray inbound that is not explicitly bound to loopback")
 			}
 			protocol, _ := in["protocol"].(string)
-			listen, _ := in["listen"].(string)
 			if protocol != "socks" {
 				continue
 			}
-			if listen != "127.0.0.1" && listen != "localhost" && listen != "::1" {
-				return nil, errors.New("refusing to import a SOCKS inbound that is not bound to loopback")
+			port, ok := in["port"].(float64)
+			if !ok || port < 1 || port > 65535 || port != float64(int(port)) {
+				return nil, errors.New("existing local SOCKS inbound has an invalid port")
 			}
 			settings, _ := in["settings"].(map[string]any)
 			auth, _ := settings["auth"].(string)
 			if auth != "" && auth != "noauth" {
 				return nil, errors.New("existing local SOCKS inbound must use no-auth for this local-only runner")
 			}
-			return json.Marshal(root)
+			hasLocalSOCKS = true
 		}
+	}
+	if hasLocalSOCKS {
+		return json.Marshal(root)
 	}
 	root["inbounds"] = append(anySlice(root["inbounds"]), map[string]any{
 		"tag": "pg-core-socks-in", "listen": "127.0.0.1", "port": 1080,
