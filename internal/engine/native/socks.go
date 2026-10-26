@@ -237,7 +237,7 @@ func parseSOCKSUDP(packet []byte) (string, int, []byte, error) {
 	if len(r) < i+2 {
 		return "", 0, nil, io.ErrUnexpectedEOF
 	}
-	port := int(binary.BigEndian.Uint16(r[i:i+2]))
+	port := int(binary.BigEndian.Uint16(r[i : i+2]))
 	if port == 0 || len(r) == i+2 {
 		return "", 0, nil, errors.New("invalid SOCKS UDP destination or empty payload")
 	}
