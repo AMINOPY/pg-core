@@ -52,8 +52,10 @@ jobs:
         run: go vet ./...
       - name: Test
         run: go test ./...
-      - name: Native tunnel benchmark smoke test
-        run: go test -run '^
+      - name: Native tunnel framing benchmark smoke test
+        run: go test -run '^$' -bench '^BenchmarkWebSocketTunnelWrite$' -benchtime=1x ./internal/engine/native
+      - name: Native full-tunnel benchmark smoke test
+        run: go test -run '^$' -bench '^BenchmarkNativeTunnelRoundTrip$' -benchtime=1x ./internal/engine/native
       - name: Windows cross-compile tests
         run: GOOS=windows GOARCH=amd64 go test -exec=true ./...
       - name: Linux ARM64 cross-compile tests
