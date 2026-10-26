@@ -29,13 +29,23 @@ the digest, and checks that the expected JNI class and method signatures exist.
 This validation does **not** mean the AAR has been bundled into the Android
 library or that device traffic has been tested.
 
+## Go mobile bridge build
+
+The `android-mobile-bridge.yml` workflow uses pinned Go mobile tooling and an
+Android NDK to compile `mobile/engine.go` into an Android AAR. It uploads a
+short-lived build artifact for inspection, along with generated Java API
+signatures. The artifact is a build/compatibility check only; it is not wired
+into the Android library, is not a release binary, and does not prove the
+VPN's end-to-end packet path. Check the workflow result before relying on a
+particular artifact.
+
 Preserve the upstream MIT license and copyright notices in any distributable
 build. Do not download a moving release during production builds.
 
 ## Host wiring
 
-The host application must implement `PgCoreSocksEngine` using a pinned,
-tested binding of this repository's `mobile` Go package. That bridge must:
+The host application must implement `PgCoreSocksEngine` using the generated
+binding for this repository's `mobile` Go package. That bridge must:
 - start the native SOCKS listener using the supplied profile JSON;
 - synchronously call Android `VpnService.protect(fd)` for every upstream socket
   before connecting;
@@ -67,12 +77,13 @@ substitute a fake or no-op implementation.
 
 ## Remaining release gates
 
-This adapter does not itself bundle the AAR, generate the gomobile/JNI
-binding, or prove that packets traverse the complete path. Before this is
-production-ready, CI and device tests must verify:
+This adapter does not itself bundle the AAR, wire the generated bridge into a
+host application, or prove that packets traverse the complete path. Before
+this is production-ready, CI and device tests must verify:
 
-- the pinned AAR digest and JNI API contract pass artifact validation;
-- the Go mobile engine bridge is built and registered by a real host app;
+- the pinned Hev AAR digest and JNI API contract pass artifact validation;
+- the gomobile AAR builds reproducibly and its generated API is compatible with
+  a concrete Kotlin bridge in the host app;
 - TCP, UDP, DNS, IPv4, IPv6, and configured app filtering work end-to-end;
 - every upstream socket is protected before connect and no routing loop occurs;
 - stop/start, cancellation, failed native startup, network loss/recovery, and
