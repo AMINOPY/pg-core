@@ -12,7 +12,8 @@ Chimera should be polyglot by component, not by rewriting the same logic in ever
 | Windows desktop/service integration | C# | Native Windows UX and service APIs | Planned |
 | Optional web configuration UI | TypeScript | UI ecosystem and type-safe client logic | Planned |
 | Local reporting, test helpers and tooling | Python | Supporting diagnostics and repeatable experiments | Supporting code only; not a tunnel data plane |
-| Narrow native validation/classification helpers | C | Keep small native ABI helpers where a concrete integration needs them | Limited helpers exist; not a complete transport or tunnel |\n| Linux platform adapter | Rust or a small Go adapter, selected after prototype | TUN, routes, DNS and privilege handling need platform tests first | Undecided |
+| Narrow native validation/classification helpers | C | Keep small native ABI helpers where a concrete integration needs them | Limited helpers exist; not a complete transport or tunnel |
+| Linux platform adapter | Rust or a small Go adapter, selected after prototype | TUN, routes, DNS and privilege handling need platform tests first | Undecided |
 
 C, C++, PHP, Ruby, and R are not planned by default. They should only be introduced when a concrete platform SDK, integration boundary, or measured requirement justifies them. Adding languages for their own sake would increase risk rather than capability.
 
