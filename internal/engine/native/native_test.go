@@ -480,3 +480,92 @@ func TestNativeUDPDatagramRoundTrip(t *testing.T) {
 		t.Fatalf("UDP response = %q, want %q", got, "UDP TUNNEL")
 	}
 }
+
+
+func TestSOCKS5UDPAssociateEndToEnd(t *testing.T) {
+	e := newEnv(t)
+	udpEcho, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer udpEcho.Close()
+	go func() {
+		buf := make([]byte, 65507)
+		for {
+			n, addr, err := udpEcho.ReadFrom(buf)
+			if err != nil {
+				return
+			}
+			if _, err := udpEcho.WriteTo([]byte(strings.ToUpper(string(buf[:n]))), addr); err != nil {
+				return
+			}
+		}
+	}()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go serveSOCKS5(ctx, ln, e.dialer("127.0.0.1"))
+
+	control, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer control.Close()
+	if _, err := control.Write([]byte{5, 1, 0}); err != nil {
+		t.Fatal(err)
+	}
+	var greeting [2]byte
+	if _, err := io.ReadFull(control, greeting[:]); err != nil || greeting != [2]byte{5, 0} {
+		t.Fatalf("SOCKS greeting = %v, err=%v", greeting, err)
+	}
+	if _, err := control.Write([]byte{5, 3, 0, 1, 0, 0, 0, 0, 0, 0}); err != nil {
+		t.Fatal(err)
+	}
+	var reply [10]byte
+	if _, err := io.ReadFull(control, reply[:]); err != nil || reply[1] != 0 {
+		t.Fatalf("UDP ASSOCIATE reply = %v, err=%v", reply, err)
+	}
+	relayPort := int(binary.BigEndian.Uint16(reply[8:10]))
+	relay := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: relayPort}
+	client, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	_ = client.SetDeadline(time.Now().Add(4 * time.Second))
+
+	host, portText, err := net.SplitHostPort(udpEcho.LocalAddr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := encodeTarget(host, port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet := append([]byte{0, 0, 0}, target...)
+	packet = append(packet, []byte("udp associate")...)
+	if _, err := client.WriteTo(packet, relay); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 65535)
+	n, _, err := client.ReadFrom(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, payload, err := parseSOCKSUDP(buf[:n])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(payload) != "UDP ASSOCIATE" {
+		t.Fatalf("UDP payload = %q", payload)
+	}
+}
