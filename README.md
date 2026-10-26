@@ -6,6 +6,21 @@
 
 Chimera Core is a modular network-engine coordinator. It includes strict configuration validation, an engine adapter contract, a serialized lifecycle manager, deterministic health-aware candidate selection, bounded network diagnostics, unit tests, and CI. Initial sing-box and Xray subprocess adapters are available, but Chimera is not yet a production-ready VPN client.
 
+## Languages
+
+PG CORE is intentionally polyglot only where a language has a clear boundary. The current repository status is:
+
+| Language | Current role | Reality check |
+|---|---|---|
+| Go | Main core, CLI, configuration, engine adapters, diagnostics, orchestration, and tests | Primary implementation; this does not yet mean every engine has a production data plane |
+| C | Narrow native validation/classification helpers | Limited native helpers only; not a complete tunnel implementation |
+| Kotlin | Android VPN-service lifecycle, options, and supporting contracts/tests | Android scaffolding exists, but the default VPN backend is deliberately unavailable until a real TUN packet forwarder is installed and tested |
+| Python | Supporting local reporting/tooling | Not the core tunnel data plane |
+| Rust | Under evaluation for measured low-level/platform needs | No production Rust data plane is claimed |
+| C# / TypeScript | Potential Windows host and web UI | Planned, not implemented production components |
+
+The Android service must fail closed when no real backend is registered; a successfully established Android TUN descriptor alone does not forward packets. Likewise, process liveness for Xray/sing-box is not proof of end-to-end connectivity. See [Language strategy](docs/LANGUAGE_STRATEGY.md) and [Roadmap](docs/ROADMAP.md) for the remaining work.
+
 ## Current implementation
 
 - Strict JSON parsing with unknown-field and trailing-value rejection
