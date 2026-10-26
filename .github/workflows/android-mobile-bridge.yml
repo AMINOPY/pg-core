@@ -40,9 +40,11 @@ jobs:
           MOBILE_VERSION: "v0.0.0-20261011034528-197770444867"
         run: |
           set -euo pipefail
+          # Newer gomobile requires x/mobile to be a package in this module's
+          # dependency graph, not merely present as a globally installed tool.
+          go get -tool "golang.org/x/mobile/cmd/gobind@$MOBILE_VERSION"
           go install "golang.org/x/mobile/cmd/gomobile@$MOBILE_VERSION"
           go install "golang.org/x/mobile/cmd/gobind@$MOBILE_VERSION"
-          go mod edit -require="golang.org/x/mobile@$MOBILE_VERSION"
           gomobile init
       - name: Build Android AAR from mobile engine
         run: |
