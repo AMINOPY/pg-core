@@ -13,6 +13,7 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Start validation, health checks, failure cleanup, and serialized lifecycle operations
 - Deterministic route-candidate selection based on health and latency
 - Bounded DNS/HTTPS diagnostics and HTTPS transfer samples with timing breakdown, cancellation, redirect rejection, URL redaction, and strict byte/time limits
+- Ghost network symptom analysis: repeated bounded DNS/HTTPS observations, cautious evidence-based findings, and recovery recommendations without treating failures as proof of DPI
 - sing-box and Xray adapters: config validation, private temporary profiles, process start/health/stop
 - Native TLS+WebSocket tunnel, local SOCKS5, and CDN/SNI support
 - Native tunnel WebSocket framing tuned to 64 KiB chunks, with a reproducible framing/masking benchmark
@@ -21,6 +22,10 @@ Chimera Core is a modular network-engine coordinator. It includes strict configu
 - Persistent monotonic manifest-sequence storage to reject rollback across restarts, when the host persists and uses the store
 - Validated Auto/Direct/CDN Fronting and regional auto-ir/auto-us candidate modes with bounded TLS probes and stable latency ranking (planning/probing, not a complete tunnel)
 - Unit tests, fuzz targets, and GitHub Actions workflow
+
+## Ghost network analysis
+
+See [docs/GHOST.md](docs/GHOST.md). Run `go run ./cmd/chimera --ghost example.com --samples 5` to collect bounded DNS/HTTPS observations and receive cautious findings. Ghost does not prove DPI from a single symptom, intercept traffic, alter system networking, or guarantee circumvention.
 
 ## Remote control API
 
