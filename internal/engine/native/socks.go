@@ -210,23 +210,33 @@ func parseSOCKSUDP(packet []byte) (string, int, []byte, error) {
 	var i int
 	switch r[0] {
 	case 1:
-		if len(r) < 7 { return "", 0, nil, io.ErrUnexpectedEOF }
+		if len(r) < 7 {
+			return "", 0, nil, io.ErrUnexpectedEOF
+		}
 		host, i = netip.AddrFrom4([4]byte{r[1], r[2], r[3], r[4]}).String(), 5
 	case 4:
-		if len(r) < 19 { return "", 0, nil, io.ErrUnexpectedEOF }
+		if len(r) < 19 {
+			return "", 0, nil, io.ErrUnexpectedEOF
+		}
 		var a [16]byte
 		copy(a[:], r[1:17])
 		host, i = netip.AddrFrom16(a).String(), 17
 	case 3:
-		if len(r) < 2 || r[1] == 0 { return "", 0, nil, errors.New("invalid SOCKS UDP domain") }
+		if len(r) < 2 || r[1] == 0 {
+			return "", 0, nil, errors.New("invalid SOCKS UDP domain")
+		}
 		n := int(r[1])
-		if len(r) < 2+n+2 { return "", 0, nil, io.ErrUnexpectedEOF }
+		if len(r) < 2+n+2 {
+			return "", 0, nil, io.ErrUnexpectedEOF
+		}
 		host, i = string(r[2:2+n]), 2+n
 	default:
 		return "", 0, nil, errors.New("unsupported SOCKS UDP address type")
 	}
 	if len(r) < i+2 { return "", 0, nil, io.ErrUnexpectedEOF }
 	port := int(binary.BigEndian.Uint16(r[i:i+2]))
-	if port == 0 || len(r) == i+2 { return "", 0, nil, errors.New("invalid SOCKS UDP destination or empty payload") }
+	if port == 0 || len(r) == i+2 {
+		return "", 0, nil, errors.New("invalid SOCKS UDP destination or empty payload")
+	}
 	return host, port, r[i+2:], nil
 }
