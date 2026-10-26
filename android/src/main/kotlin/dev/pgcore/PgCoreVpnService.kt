@@ -145,16 +145,20 @@ class PgCoreVpnService : VpnService() {
      * so the host can retry instead of reporting a false clean shutdown.
      */
     private fun stopVpn(onComplete: (() -> Unit)? = null) {
-        val oldBackend: PgCoreVpnBackend?
-        val oldTun: ParcelFileDescriptor?
         synchronized(lifecycleLock) {
             if (!stopping.compareAndSet(false, true)) return
             generation.incrementAndGet()
             startTask?.cancel(true)
-            oldBackend = backend
-            oldTun = tun
         }
         executor.submit {
+            // Read owned resources when this task actually runs. The cancelled
+            // startup task may still need to publish resources for cleanup.
+            val oldBackend: PgCoreVpnBackend?
+            val oldTun: ParcelFileDescriptor?
+            synchronized(lifecycleLock) {
+                oldBackend = backend
+                oldTun = tun
+            }
             var backendStopped = true
             if (oldBackend != null) {
                 try {
