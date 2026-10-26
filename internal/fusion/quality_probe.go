@@ -18,13 +18,13 @@ const (
 // probes count toward PacketLoss and reduce SuccessRate; they are never
 // interpreted as zero-latency successes.
 type QualityReport struct {
-	Samples       int
-	Successes     int
-	Failures      int
-	SuccessRate   float64
-	PacketLoss    float64
-	MeanRTT       time.Duration
-	MeanJitter    time.Duration
+	Samples     int
+	Successes   int
+	Failures    int
+	SuccessRate float64
+	PacketLoss  float64
+	MeanRTT     time.Duration
+	MeanJitter  time.Duration
 }
 
 // MeasureRouteQuality runs a small, sequential probe batch through a route.
