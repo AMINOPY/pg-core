@@ -42,19 +42,19 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		runner := ghost.Runner{
-			Checker: diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1},
-			Samples: *samples,
+			Checker:  diagnostics.Checker{Timeout: 5 * time.Second, Workers: 1},
+			Samples:  *samples,
 			Interval: 200 * time.Millisecond,
 		}
 		report, err := runner.Run(ctx, *ghostHost)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Ghost analysis failed: %v\\n", err)
+			fmt.Fprintf(os.Stderr, "Ghost analysis failed: %v\n", err)
 			os.Exit(2)
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(report); err != nil {
-			fmt.Fprintf(os.Stderr, "encode Ghost report: %v\\n", err)
+			fmt.Fprintf(os.Stderr, "encode Ghost report: %v\n", err)
 			os.Exit(1)
 		}
 		if report.HTTPSuccesses == 0 {
