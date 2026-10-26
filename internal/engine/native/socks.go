@@ -226,10 +226,10 @@ func parseSOCKSUDP(packet []byte) (string, int, []byte, error) {
 			return "", 0, nil, errors.New("invalid SOCKS UDP domain")
 		}
 		n := int(r[1])
-		if len(r) < 2+n+2 {
+		if len(r) < 2 + n + 2 {
 			return "", 0, nil, io.ErrUnexpectedEOF
 		}
-		host, i = string(r[2:2+n]), 2+n
+		host, i = string(r[2:2 + n]), 2 + n
 	default:
 		return "", 0, nil, errors.New("unsupported SOCKS UDP address type")
 	}
