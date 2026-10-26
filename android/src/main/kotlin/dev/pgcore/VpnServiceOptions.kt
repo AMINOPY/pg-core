@@ -18,6 +18,7 @@ data class VpnServiceOptions(
 ) {
     init {
         require(mtu in VpnBackendConfig.MIN_MTU..VpnBackendConfig.MAX_MTU) { "mtu out of range" }
+        require(engineProfileJson.length <= MAX_ENGINE_PROFILE_CHARS) { "engine profile is too large" }
         require(dnsServers.size <= MAX_DNS_SERVERS) { "too many DNS servers" }
         require(allowedApplications.size <= MAX_APP_RULES) { "too many allowed applications" }
         require(disallowedApplications.size <= MAX_APP_RULES) { "too many disallowed applications" }
@@ -39,6 +40,7 @@ data class VpnServiceOptions(
         const val EXTRA_ENGINE_PROFILE_JSON = "dev.pgcore.vpn.ENGINE_PROFILE_JSON"
         const val MAX_DNS_SERVERS = 4
         const val MAX_APP_RULES = 256
+        const val MAX_ENGINE_PROFILE_CHARS = 262144
 
         fun fromIntent(intent: Intent?): VpnServiceOptions = VpnServiceOptions(
             mtu = intent?.getIntExtra(EXTRA_MTU, VpnBackendConfig.DEFAULT_MTU)
