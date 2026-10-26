@@ -11,11 +11,15 @@
 
 ## Components
 
-- internal/config: strict JSON loading, rejection of unknown fields, and structural validation.
-- internal/engine: adapter contract and common health model.
-- internal/orchestrator: serialized engine lifecycle, health refresh, and bounded cleanup after startup failures.
-- internal/policy: deterministic candidate selection that prefers healthy engines, then lower measured latency, and uses degraded engines only as fallback.
-- cmd/chimera: validation-only CLI in this scaffold.
+- `internal/config`: strict JSON loading, rejection of unknown fields, and structural validation.
+- `internal/engine`: adapter contract, capability declarations, and common health model.
+- `internal/orchestrator`: serialized engine lifecycle, health refresh, bounded cleanup, resource claims, and ordered failover.
+- `internal/policy`: deterministic candidate selection; when the caller supplies verified metrics it prefers success rate, packet loss, latency, jitter, and throughput in that order.
+- `internal/diagnostics`: bounded DNS/HTTPS checks and opt-in, capped HTTPS transfer samples.
+- `internal/engine/native`: native TLS/WebSocket tunnel primitives and tests; these are not by themselves an operating-system VPN data plane.
+- `android/`: Kotlin Android `VpnService` lifecycle and TUN setup, with a backend interface. The default backend deliberately fails closed.
+- `native/`: C ABI validation and fusion-frame primitives; not a complete C VPN implementation.
+- `integrations/python/`: dependency-free client SDK for the tenant-scoped control API.
 
 ## Engine roles
 
@@ -39,6 +43,13 @@ stopped -> starting -> healthy / degraded / failed -> stopping -> stopped
 - Stop: release resources and restore system state. Fleet resource claims stay reserved after a failed health check until an explicit `Fleet.Stop` succeeds; a failed probe alone is not proof that OS-level TUN, DNS, or route state was released.
 - Recovery: bounded retries with backoff; never create unbounded reconnect loops.
 
-## Current status
+## Implemented vs. incomplete
 
-Implemented: strict config loading/validation, engine adapter contract, lifecycle coordinator, deterministic candidate selection, unit tests, and CI workflow. Not implemented: TUN integration, DNS proxy, OS route management, VPN service, real health probes, or third-party engine adapters.
+Implemented in this repository: strict profile/config validation, adapter and lifecycle contracts, failover and exclusive resource-claim coordination, deterministic selection with optional caller-verified quality metrics, native TLS/WebSocket tunnel primitives, bounded network diagnostics, a Kotlin Android VPN-service lifecycle, and CI/unit tests for these components.
+
+Still incomplete and not to be represented as production-ready:
+- The Android service defaults to `UnavailableVpnBackend`; a complete, bundled TUN-to-engine packet-forwarding backend is not present.
+- The Go fleet coordinates engine lifecycles and resource claims; it does not merge traffic from multiple engines or provide true packet-level multipath bonding.
+- DNS/route behavior and packet forwarding must be validated end-to-end on each target OS. Windows/Linux service integration and Android host-app wiring remain platform-specific integration work.
+- The repository does not yet establish real-world throughput gains. In-memory benchmarks and capped HTTPS samples are not substitutes for repeatable tests over a real tunnel on representative networks/devices.
+- A complete release build, rollback verification, and physical-device tests for DNS, IPv4/IPv6, network changes, disconnect cleanup, and route restoration remain required.

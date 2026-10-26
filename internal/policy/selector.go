@@ -3,6 +3,7 @@ package policy
 
 import (
 	"errors"
+	"math"
 	"sort"
 	"time"
 
@@ -15,15 +16,27 @@ type Candidate struct {
 	ID      string
 	Status  engine.Status
 	Latency time.Duration
+
+	// MetricsValid marks optional measurements as available and independently
+	// verified by the caller. PacketLoss and SuccessRate are fractions in [0,1];
+	// ThroughputMbps is decimal megabits per second. Missing metrics never
+	// masquerade as zero-loss or 100% success.
+	MetricsValid   bool
+	Jitter         time.Duration
+	PacketLoss     float64
+	SuccessRate    float64
+	ThroughputMbps float64
 }
 
-// Select chooses a healthy candidate with the lowest non-negative latency.
-// Degraded candidates are considered only when no healthy candidate exists.
-// Input order is not used as a tie-breaker; ID provides deterministic ordering.
+// Select chooses a healthy candidate before any degraded candidate. When
+// comparable verified metrics exist, it prefers higher success rate, lower
+// packet loss, lower latency, lower jitter, and then higher throughput. When
+// metrics are unavailable, it preserves the latency-based ordering.
+// ID provides a deterministic final tie-breaker; input order is never used.
 func Select(candidates []Candidate) (Candidate, error) {
 	eligible := make([]Candidate, 0, len(candidates))
 	for _, c := range candidates {
-		if c.ID == "" || c.Latency < 0 {
+		if !validCandidate(c) {
 			continue
 		}
 		if c.Status == engine.StatusHealthy || c.Status == engine.StatusDegraded {
@@ -35,15 +48,51 @@ func Select(candidates []Candidate) (Candidate, error) {
 	}
 
 	sort.Slice(eligible, func(i, j int) bool {
-		hi := eligible[i].Status == engine.StatusHealthy
-		hj := eligible[j].Status == engine.StatusHealthy
-		if hi != hj {
-			return hi
+		a, b := eligible[i], eligible[j]
+		healthyA := a.Status == engine.StatusHealthy
+		healthyB := b.Status == engine.StatusHealthy
+		if healthyA != healthyB {
+			return healthyA
 		}
-		if eligible[i].Latency != eligible[j].Latency {
-			return eligible[i].Latency < eligible[j].Latency
+		if a.MetricsValid != b.MetricsValid {
+			return a.MetricsValid
 		}
-		return eligible[i].ID < eligible[j].ID
+		if a.MetricsValid && b.MetricsValid {
+			if a.SuccessRate != b.SuccessRate {
+				return a.SuccessRate > b.SuccessRate
+			}
+			if a.PacketLoss != b.PacketLoss {
+				return a.PacketLoss < b.PacketLoss
+			}
+			if a.Latency != b.Latency {
+				return a.Latency < b.Latency
+			}
+			if a.Jitter != b.Jitter {
+				return a.Jitter < b.Jitter
+			}
+			if a.ThroughputMbps != b.ThroughputMbps {
+				return a.ThroughputMbps > b.ThroughputMbps
+			}
+		} else if a.Latency != b.Latency {
+			return a.Latency < b.Latency
+		}
+		return a.ID < b.ID
 	})
 	return eligible[0], nil
+}
+
+func validCandidate(c Candidate) bool {
+	if c.ID == "" || c.Latency < 0 {
+		return false
+	}
+	if !c.MetricsValid {
+		return true
+	}
+	return c.Jitter >= 0 &&
+		!math.IsNaN(c.PacketLoss) && !math.IsInf(c.PacketLoss, 0) &&
+		c.PacketLoss >= 0 && c.PacketLoss <= 1 &&
+		!math.IsNaN(c.SuccessRate) && !math.IsInf(c.SuccessRate, 0) &&
+		c.SuccessRate >= 0 && c.SuccessRate <= 1 &&
+		!math.IsNaN(c.ThroughputMbps) && !math.IsInf(c.ThroughputMbps, 0) &&
+		c.ThroughputMbps >= 0
 }
