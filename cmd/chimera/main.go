@@ -19,7 +19,7 @@ import (
 
 func main() {
 	configPath := flag.String("config", "", "path to a Chimera JSON configuration file (validation only)")
-	run := flag.Bool("run", false, "run the native engine (local SOCKS5) using --config and --profile")
+	run := flag.Bool("run", false, "run the selected native or Xray engine with a local SOCKS5 profile using --config and --profile")
 	profilePath := flag.String("profile", "", "path to a native engine profile (JSON), used with --run")
 	diagnose := flag.String("diagnose", "", "run bounded DNS + HTTPS checks for a hostname")
 	aiScan := flag.String("ai-scan", "", "run bounded, explainable network diagnostics for a hostname")
@@ -135,6 +135,10 @@ func main() {
 }
 
 func runNative(cfg config.Config, profilePath string) {
+	if cfg.ActiveEngine == config.EngineXray {
+		runXray(cfg, profilePath)
+		return
+	}
 	if cfg.ActiveEngine != config.EngineNative {
 		fmt.Fprintln(os.Stderr, "--run needs active_engine \"native\"")
 		os.Exit(2)
