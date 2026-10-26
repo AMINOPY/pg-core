@@ -2,27 +2,35 @@
 
 ## Implemented and CI-verified on the work branch
 
-The Go package `mobile` exposes the existing native TLS/WebSocket engine lifecycle, and the pinned gomobile workflow now successfully builds and uploads an Android AAR.
+The Go package `mobile` exposes the native TLS/WebSocket engine lifecycle, and the pinned gomobile workflow successfully builds and uploads an Android AAR.
 
-- `Engine.Start(profileJSON, protector)` refuses to start without a socket-protection callback.
-- Outbound edge sockets pass through Go's `net.Dialer.Control`; the callback obtains the raw file descriptor and calls `SocketProtector.Protect(fd)` before connect proceeds.
+- `Engine.start(profileJSON, protector)` refuses to start without a socket-protection callback.
+- Outbound edge sockets pass through Go's `net.Dialer.Control`; the callback receives the raw descriptor and calls Android `VpnService.protect(fd)` before connect proceeds.
 - If protection fails, the outbound connection fails closed.
-- `Health(timeoutMillis)` requires the native engine's configured health result; a TLS/WebSocket-only handshake is not proof that user traffic traverses the TUN data plane.
-- `Stop(timeoutMillis)` preserves ownership if shutdown has not completed.
+- `health(timeoutMillis)` requires the configured native-engine health result; a TLS/WebSocket handshake alone is not proof that user traffic traverses the TUN data plane.
+- `stop(timeoutMillis)` preserves ownership if shutdown has not completed.
 - Unit tests cover the protection callback and fail-closed behavior.
-- The Android Go mobile bridge workflow builds `mobile-engine.aar`, inspects the generated Java API, and uploads the artifact with ARMv7, ARM64, x86, and x86_64 JNI libraries.
+- The generated Java API was inspected in CI: `Engine.start(String, SocketProtector)`, `addr()`, `health(long)`, `stop(long)`, and `SocketProtector.protect(long)`.
+- The AAR contains JNI libraries for ARMv7, ARM64, x86, and x86_64.
 
-Latest successful bridge build (artifact retained by GitHub Actions for 14 days): https://github.com/AMINOPY/pg-core/actions/runs/40368247460
+Latest successful bridge build at commit `e780dc26344e70c2887d6f6defb704f62e75e6fa`:
+https://github.com/AMINOPY/pg-core/actions/runs/40369604917
 
-## Integration still required before production use
+Generated artifact (expires 2026-11-09):
+https://github.com/AMINOPY/pg-core/actions/runs/40369604917/artifacts/12672236521
 
-The generated AAR is a build artifact; it is **not yet wired into `PgCoreVpnService`**. The service deliberately remains on `UnavailableVpnBackend` until the complete data plane is connected and validated.
+At that commit, Android Kotlin CI, Go CI, the Android Go mobile bridge build, Hev AAR validation, and Dependency Security all report success.
 
-1. Integrate the generated AAR into the consuming Android app/library build reproducibly, including its ABI packaging and licensing/provenance.
-2. Implement and wire the Kotlin adapter for the generated `dev.pgcore.mobile.mobile.Engine` / `SocketProtector` API.
-3. Build/pin an Android tun2socks backend for supported ABIs and connect its local SOCKS endpoint to the mobile engine.
-4. Ensure tun2socks sockets cannot loop through TUN; protect any upstream sockets before connect.
-5. Add end-to-end data-plane tests for TCP, UDP, DNS, IPv4/IPv6, app filtering, cancellation, network loss/recovery, and stop/start cleanup.
-6. Run leak/soak and physical-device tests, including confirmation that traffic does not escape outside the VPN.
+## Not yet completed — must not be represented as production-ready
 
-Do not register a production backend or report VPN connected until those gates pass. Passing repository CI proves that source tests and AAR generation succeed; it does not prove that real device traffic is correctly tunneled or leak-free.
+The generated Go AAR is a CI artifact and is **not yet wired into `PgCoreVpnService`**. The service intentionally remains on `UnavailableVpnBackend`; the Hev backend is not registered automatically. No physical Android device was available to this workflow, so real TCP/UDP/DNS forwarding and leak testing have not been demonstrated.
+
+Required gates before enabling the backend:
+
+1. Reproducibly package the generated Go AAR and pinned Hev AAR into the consuming Android app/library, with ABI and license/provenance checks.
+2. Implement and wire a Kotlin adapter for the generated `dev.pgcore.mobile.mobile.Engine` / `SocketProtector` API.
+3. Connect Android TUN FD → Hev tun2socks → local SOCKS endpoint → Go engine, and ensure every upstream socket is protected before connect.
+4. Prove TCP, UDP, DNS, IPv4/IPv6, app filtering, cancellation, stop/start, network-loss recovery, and resource cleanup with automated end-to-end tests.
+5. Run physical-device leak/soak tests and verify traffic cannot escape outside the VPN when connecting, disconnecting, or when the tunnel fails.
+
+Do not register the backend or show a connected state until those gates pass. Passing repository CI proves source tests and AAR generation, not that real traffic is correctly tunneled or leak-free.
