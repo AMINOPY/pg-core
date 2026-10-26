@@ -98,7 +98,7 @@ func ensureLocalSOCKS(cfg []byte) ([]byte, error) {
 	}
 	hasLocalSOCKS := false
 	inboundsValue, hasInbounds := root["inbounds"]
-	if hasInbounds && inboundsValue != nil {
+	if hasInbounds {
 		if _, ok := inboundsValue.([]any); !ok {
 			return nil, errors.New("Xray inbounds must be an array")
 		}
