@@ -117,6 +117,9 @@ func (c *Coordinator) Start(ctx context.Context, plans []EnginePlan) error {
 		}
 		started = append(started, adapter)
 		report, err := adapter.Health(ctx)
+		if err == nil {
+			err = ctx.Err()
+		}
 		if err != nil || report.Status != StatusHealthy {
 			c.states[plan.ID] = EngineState{ID: plan.ID, Status: StatusDegraded, Error: "health_check_failed"}
 			c.running = c.rollback(started)
