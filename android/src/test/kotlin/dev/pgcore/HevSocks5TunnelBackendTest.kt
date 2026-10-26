@@ -19,7 +19,7 @@ class HevSocks5TunnelBackendTest {
             return startResult
         }
         override fun socksEndpoint() = endpoint
-        override fun healthCheck() = healthResult
+        override fun endToEndHealthCheck() = healthResult
         override fun stop(): EngineResult { stops++; return EngineResult.success() }
     }
 
