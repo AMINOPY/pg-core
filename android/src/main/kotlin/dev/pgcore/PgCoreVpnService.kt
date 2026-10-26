@@ -35,7 +35,7 @@ class PgCoreVpnService : VpnService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP -> { stopVpn(); stopSelf(startId) }
+            ACTION_STOP -> stopVpn { stopSelf(startId) }
             ACTION_START -> startVpn(intent)
             else -> stopSelf(startId)
         }
@@ -95,11 +95,43 @@ class PgCoreVpnService : VpnService() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "VPN start failed; cleaning up", e)
-                try { localBackend?.stop() } catch (stopError: Exception) {
-                    Log.e(TAG, "Backend cleanup failed", stopError)
+                var backendCleanupFailed = false
+                if (localBackend != null) {
+                    try {
+                        val result = localBackend.stop()
+                        if (!result.ok) {
+                            backendCleanupFailed = true
+                            Log.e(TAG, "Backend cleanup failed: ${result.code}: ${result.message}")
+                        }
+                    } catch (stopError: Exception) {
+                        backendCleanupFailed = true
+                        Log.e(TAG, "Backend cleanup failed", stopError)
+                    }
                 }
-                try { localTun?.close() } catch (closeError: IOException) {
+                if (backendCleanupFailed && localBackend != null && localTun != null) {
+                    synchronized(lifecycleLock) {
+                        backend = localBackend
+                        tun = localTun
+                        stopping.set(false)
+                    }
+                    localBackend = null
+                    localTun = null
+                    updateNotification("Startup failed; cleanup incomplete. Tap Disconnect to retry.")
+                    return@submit
+                }
+                try {
+                    localTun?.close()
+                } catch (closeError: IOException) {
                     Log.e(TAG, "TUN cleanup failed", closeError)
+                    if (localTun != null) {
+                        synchronized(lifecycleLock) {
+                            tun = localTun
+                            stopping.set(false)
+                        }
+                        localTun = null
+                        updateNotification("TUN cleanup incomplete. Tap Disconnect to retry.")
+                        return@submit
+                    }
                 }
                 stopForegroundCompat()
                 stopSelf()
@@ -107,27 +139,60 @@ class PgCoreVpnService : VpnService() {
         }
     }
 
-    private fun stopVpn() {
-        var oldBackend: PgCoreVpnBackend? = null
-        var oldTun: ParcelFileDescriptor? = null
+    /**
+     * Stops the backend before closing its borrowed TUN descriptor. Failed
+     * cleanup keeps ownership in this service and leaves Disconnect available
+     * so the host can retry instead of reporting a false clean shutdown.
+     */
+    private fun stopVpn(onComplete: (() -> Unit)? = null) {
         synchronized(lifecycleLock) {
             if (!stopping.compareAndSet(false, true)) return
             generation.incrementAndGet()
             startTask?.cancel(true)
-            oldBackend = backend
-            oldTun = tun
-            backend = null
-            tun = null
         }
         executor.submit {
-            try { oldBackend?.stop() } catch (e: Exception) {
-                Log.e(TAG, "Backend stop failed", e)
-            } finally {
-                try { oldTun?.close() } catch (e: IOException) {
-                    Log.e(TAG, "TUN close failed", e)
-                }
-                stopForegroundCompat()
+            // Read owned resources when this task actually runs. The cancelled
+            // startup task may still need to publish resources for cleanup.
+            val oldBackend: PgCoreVpnBackend?
+            val oldTun: ParcelFileDescriptor?
+            synchronized(lifecycleLock) {
+                oldBackend = backend
+                oldTun = tun
             }
+            var backendStopped = true
+            if (oldBackend != null) {
+                try {
+                    val result = oldBackend.stop()
+                    if (!result.ok) {
+                        backendStopped = false
+                        Log.e(TAG, "Backend stop failed: ${result.code}: ${result.message}")
+                    }
+                } catch (e: Exception) {
+                    backendStopped = false
+                    Log.e(TAG, "Backend stop failed", e)
+                }
+            }
+            if (!backendStopped) {
+                stopping.set(false)
+                updateNotification("Disconnect cleanup failed. Tap Disconnect to retry.")
+                return@submit
+            }
+
+            try {
+                oldTun?.close()
+            } catch (e: IOException) {
+                Log.e(TAG, "TUN close failed", e)
+                stopping.set(false)
+                updateNotification("TUN cleanup failed. Tap Disconnect to retry.")
+                return@submit
+            }
+
+            synchronized(lifecycleLock) {
+                if (backend === oldBackend) backend = null
+                if (tun === oldTun) tun = null
+            }
+            stopForegroundCompat()
+            onComplete?.invoke()
         }
     }
 
