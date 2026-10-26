@@ -595,7 +595,7 @@ func TestParseSOCKSUDPAddressFormsAndRejectsMalformedPackets(t *testing.T) {
 		},
 		{
 			name:     "IPv6",
-			packet:   []byte{0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 53, 'q'},
+			packet:   append([]byte{0, 0, 0, 4}, append(make([]byte, 15), 1, 0, 53, 'q')...),
 			wantHost: "::1",
 			wantPort: 53,
 			wantBody: "q",
