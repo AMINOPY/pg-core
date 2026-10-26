@@ -251,7 +251,7 @@ func (a *Adapter) Start(ctx context.Context, cfg []byte) error {
 	}
 	a.mu.Unlock()
 
-	prepared, err := a.applyFronting(cfg)
+	prepared, err := a.prepareConfig(cfg)
 	if err != nil {
 		return err
 	}
