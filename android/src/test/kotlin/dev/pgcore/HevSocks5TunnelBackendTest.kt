@@ -1,6 +1,5 @@
 package dev.pgcore
 
-import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -8,10 +7,6 @@ import org.junit.Test
 import java.io.File
 
 class HevSocks5TunnelBackendTest {
-    private class FakeContext(private val cache: File) : Context() {
-        override fun getCacheDir(): File = cache
-    }
-
     private class FakeEngine(
         var endpoint: String = "127.0.0.1:1080",
         var startResult: EngineResult = EngineResult.success(),
@@ -52,7 +47,7 @@ class HevSocks5TunnelBackendTest {
         try {
             val engine = FakeEngine()
             val hev = FakeHev()
-            val backend = HevSocks5TunnelBackend(FakeContext(cache), engine, hev)
+            val backend = HevSocks5TunnelBackend(cache, engine, hev)
             val result = backend.start(41, VpnBackendConfig("s", engineProfileJson = """{"server":"test"}""")) { true }
             assertTrue(result.ok)
             assertEquals(1, engine.starts)
