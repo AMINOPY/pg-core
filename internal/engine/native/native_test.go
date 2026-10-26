@@ -321,7 +321,6 @@ func TestSOCKS5RejectsMalformedRequestFields(t *testing.T) {
 	}
 }
 
-
 func TestStopWaitsForActiveSOCKSSessions(t *testing.T) {
 	a := New()
 	profile := []byte(`{"key":"secret","server":"127.0.0.1:443","listen":"127.0.0.1:0"}`)
