@@ -2,6 +2,7 @@ package native
 
 import (
 	"context"
+	"encoding/binary"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -480,7 +481,6 @@ func TestNativeUDPDatagramRoundTrip(t *testing.T) {
 		t.Fatalf("UDP response = %q, want %q", got, "UDP TUNNEL")
 	}
 }
-
 
 func TestSOCKS5UDPAssociateEndToEnd(t *testing.T) {
 	e := newEnv(t)
