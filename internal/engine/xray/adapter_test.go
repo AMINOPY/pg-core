@@ -352,7 +352,6 @@ func TestPrepareConfigComposesFrontingAndLocalSOCKS(t *testing.T) {
 	}
 }
 
-
 func TestLocalSOCKSAddressRequiresLoopbackNoAuth(t *testing.T) {
 	good := []byte(`{"inbounds":[{"listen":"127.0.0.1","port":1080,"protocol":"socks","settings":{"auth":"noauth"}}]}`)
 	addr, err := LocalSOCKSAddress(good)
