@@ -13,6 +13,8 @@ data class VpnServiceOptions(
     val dnsServers: List<String> = emptyList(),
     val allowedApplications: List<String> = emptyList(),
     val disallowedApplications: List<String> = emptyList(),
+    /** Serialized profile for the registered native engine; keep internal to the app. */
+    val engineProfileJson: String = "",
 ) {
     init {
         require(mtu in VpnBackendConfig.MIN_MTU..VpnBackendConfig.MAX_MTU) { "mtu out of range" }
@@ -34,6 +36,7 @@ data class VpnServiceOptions(
         const val EXTRA_DNS_SERVERS = "dev.pgcore.vpn.DNS_SERVERS"
         const val EXTRA_ALLOWED_APPLICATIONS = "dev.pgcore.vpn.ALLOWED_APPLICATIONS"
         const val EXTRA_DISALLOWED_APPLICATIONS = "dev.pgcore.vpn.DISALLOWED_APPLICATIONS"
+        const val EXTRA_ENGINE_PROFILE_JSON = "dev.pgcore.vpn.ENGINE_PROFILE_JSON"
         const val MAX_DNS_SERVERS = 4
         const val MAX_APP_RULES = 256
 
@@ -43,6 +46,7 @@ data class VpnServiceOptions(
             dnsServers = intent?.getStringArrayListExtra(EXTRA_DNS_SERVERS).orEmpty(),
             allowedApplications = intent?.getStringArrayListExtra(EXTRA_ALLOWED_APPLICATIONS).orEmpty(),
             disallowedApplications = intent?.getStringArrayListExtra(EXTRA_DISALLOWED_APPLICATIONS).orEmpty(),
+            engineProfileJson = intent?.getStringExtra(EXTRA_ENGINE_PROFILE_JSON).orEmpty(),
         )
 
         private fun validPackageName(value: String): Boolean {
