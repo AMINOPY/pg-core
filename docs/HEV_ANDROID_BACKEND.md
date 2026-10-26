@@ -36,8 +36,8 @@ tested binding of this repository's `mobile` Go package. That bridge must:
   before connecting;
 - return a loopback SOCKS endpoint only;
 - stop idempotently and retain ownership if shutdown fails;
-- provide a bounded **end-to-end TUN data-plane** health probe, not merely an
-  upstream TLS/WebSocket check.
+- provide `endToEndHealthCheck()` that proves packets traverse the complete TUN
+  data plane, not merely an upstream TLS/WebSocket check.
 
 Before calling `PgCoreVpnController.start`, the host must register the backend
 and pass its engine profile in `VpnServiceOptions.engineProfileJson`:
