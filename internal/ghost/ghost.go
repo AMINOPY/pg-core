@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	defaultSamples	= 5
-	maxSamples	= 20
-	defaultInterval	= 200 * time.Millisecond
+	defaultSamples  = 5
+	maxSamples      = 20
+	defaultInterval = 200 * time.Millisecond
 )
 
 type Finding struct {
