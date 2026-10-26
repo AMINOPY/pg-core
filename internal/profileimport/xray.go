@@ -96,6 +96,7 @@ func ensureLocalSOCKS(cfg []byte) ([]byte, error) {
 	if !ok || len(outbounds) == 0 {
 		return nil, errors.New("Xray profile must contain at least one outbound")
 	}
+	hasLocalSOCKS := false
 	if inbounds, ok := root["inbounds"].([]any); ok {
 		for _, item := range inbounds {
 			in, ok := item.(map[string]any)
@@ -126,8 +127,11 @@ func ensureLocalSOCKS(cfg []byte) ([]byte, error) {
 			if auth != "" && auth != "noauth" {
 				return nil, errors.New("existing local SOCKS inbound must use no-auth for this local-only runner")
 			}
-			return json.Marshal(root)
+			hasLocalSOCKS = true
 		}
+	}
+	if hasLocalSOCKS {
+		return json.Marshal(root)
 	}
 	root["inbounds"] = append(anySlice(root["inbounds"]), map[string]any{
 		"tag": "pg-core-socks-in", "listen": "127.0.0.1", "port": 1080,
