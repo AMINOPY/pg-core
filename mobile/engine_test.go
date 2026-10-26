@@ -25,8 +25,8 @@ func (f fakeRawConn) Write(fn func(uintptr) bool) error {
 }
 
 type fakeProtector struct {
-	fd   int
-	ok   bool
+	fd    int
+	ok    bool
 	calls int
 }
 
