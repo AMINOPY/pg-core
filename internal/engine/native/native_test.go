@@ -569,3 +569,53 @@ func TestSOCKS5UDPAssociateEndToEnd(t *testing.T) {
 		t.Fatalf("UDP payload = %q", payload)
 	}
 }
+
+
+func TestParseSOCKSUDPAddressFormsAndRejectsMalformedPackets(t *testing.T) {
+	tests := []struct {
+		name      string
+		packet    []byte
+		wantHost  string
+		wantPort  int
+		wantBody  string
+		wantError bool
+	}{
+		{
+			name: "IPv4",
+			packet: []byte{0, 0, 0, 1, 127, 0, 0, 1, 0, 53, 'q'},
+			wantHost: "127.0.0.1", wantPort: 53, wantBody: "q",
+		},
+		{
+			name: "domain",
+			packet: []byte{0, 0, 0, 3, 3, 'd', 'n', 's', 0, 53, 'q'},
+			wantHost: "dns", wantPort: 53, wantBody: "q",
+		},
+		{
+			name: "IPv6",
+			packet: []byte{0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 53, 'q'},
+			wantHost: "::1", wantPort: 53, wantBody: "q",
+		},
+		{name: "fragmented", packet: []byte{0, 0, 1, 1, 127, 0, 0, 1, 0, 53, 'q'}, wantError: true},
+		{name: "unknown address type", packet: []byte{0, 0, 0, 9, 1, 2, 3}, wantError: true},
+		{name: "truncated address", packet: []byte{0, 0, 0, 1, 127}, wantError: true},
+		{name: "zero port", packet: []byte{0, 0, 0, 1, 127, 0, 0, 1, 0, 0, 'q'}, wantError: true},
+		{name: "empty payload", packet: []byte{0, 0, 0, 1, 127, 0, 0, 1, 0, 53}, wantError: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			host, port, body, err := parseSOCKSUDP(tt.packet)
+			if tt.wantError {
+				if err == nil {
+					t.Fatal("expected malformed packet to be rejected")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if host != tt.wantHost || port != tt.wantPort || string(body) != tt.wantBody {
+				t.Fatalf("got (%q, %d, %q), want (%q, %d, %q)", host, port, body, tt.wantHost, tt.wantPort, tt.wantBody)
+			}
+		})
+	}
+}
