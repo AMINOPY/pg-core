@@ -439,6 +439,12 @@ func writePrivateConfig(cfg []byte) (dir, configPath string, err error) {
 	return dir, configPath, nil
 }
 
+// LocalSOCKSAddress returns a safe loopback no-auth SOCKS5 listener from an Xray profile.
+// It fails closed for public listeners so the CLI never advertises an exposed unauthenticated proxy.
+func LocalSOCKSAddress(cfg []byte) (string, error) {
+	return proxyAddress(cfg)
+}
+
 func validateHealthTarget(target string) error {
 	return socksprobe.ValidateTarget(target)
 }
