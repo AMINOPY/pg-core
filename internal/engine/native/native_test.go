@@ -427,9 +427,8 @@ func TestSOCKS5ExplicitlyRejectsUDPAssociate(t *testing.T) {
 	}
 
 	// SOCKS5 UDP ASSOCIATE is command 3. It must not be mistaken for CONNECT.
-	if _, err := client.Write([]byte{5, 3, 0, 1, 127, 0, 0, 1, 0, 0}); err != nil {
-		t.Fatal(err)
-	}
+	// Send asynchronously because net.Pipe waits for all bytes to be consumed.
+	go func() { _, _ = client.Write([]byte{5, 3, 0, 1, 127, 0, 0, 1, 0, 0}) }()
 	var reply [10]byte
 	if _, err := io.ReadFull(client, reply[:]); err != nil {
 		t.Fatal(err)
