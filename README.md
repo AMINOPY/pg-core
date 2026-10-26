@@ -95,7 +95,7 @@ See [docs/NETWORK_POLICY.md](docs/NETWORK_POLICY.md) and [docs/ENGINE_FUSION_REC
 
 ## Multilanguage core
 
-The Go/C/Python/Kotlin implementation is staged in [docs/MULTILANGUAGE_CORE.md](docs/MULTILANGUAGE_CORE.md). Go remains the single lifecycle owner. A small C11 ABI primitive validates SNI syntax; it is not a tunnel engine, and Go validation remains authoritative until parity tests are complete. Python is used for test tooling and benchmark-report validation. `android/src/main/kotlin/dev/pgcore/EngineBoundary.kt` defines a UI-neutral Kotlin contract, but is not yet wired to a complete Gradle app, foreground service, JNI library, or Android instrumentation tests.
+The Go/C/Python/Kotlin implementation is staged in [docs/MULTILANGUAGE_CORE.md](docs/MULTILANGUAGE_CORE.md). Go remains the single lifecycle owner. A small C11 ABI primitive validates SNI syntax; it is not a tunnel engine, and Go validation remains authoritative until parity tests are complete. Python is used for test tooling and benchmark-report validation. `android/` is now a buildable Android library module with `PgCoreVpnService` for TUN/foreground lifecycle management and `PgCoreVpnController` for host-app permission/start/stop integration. The default backend deliberately fails closed: a tested JNI/native packet-forwarding backend is still not bundled, and no physical-device or Android instrumentation test has been run. The Kotlin boundary and shared frame codec do not themselves constitute a working VPN data plane.
 
 See [docs/LANGUAGE_STRATEGY.md](docs/LANGUAGE_STRATEGY.md). Additional languages should be introduced only for a clear component-level need, not by duplicating the same core logic.
 
