@@ -12,8 +12,8 @@ import (
 )
 
 // Server is the VPS-side counterpart (use it behind a CDN or TLS terminator).
-// The Go server supports TCP and one-datagram UDP mode; deploy/cloudflare-worker.js
-// currently supports TCP only.
+// The Go server supports TCP and versioned one-datagram UDP mode;
+// deploy/cloudflare-worker.js currently supports TCP only.
 type Server struct {
 	// Path is the secret URL path, for example "/s3cr3t". Anything else gets 404.
 	Path string
@@ -51,6 +51,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var host string
 	var port int
 	if udpMode {
+		var version [1]byte
+		if _, err := io.ReadFull(ws, version[:]); err != nil {
+			return
+		}
+		if version[0] != udpProtocolVersion {
+			_, _ = ws.Write([]byte{2}) // unsupported UDP protocol version
+			return
+		}
 		host, port, err = readTarget(ws)
 	} else {
 		host, port, err = readTarget(io.MultiReader(bytes.NewReader(first[:]), ws))
@@ -67,7 +75,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if udpMode {
 		target, err := dial(ctx, "udp", hostPort(host, port))
 		if err != nil {
-			_, _ = ws.Write([]byte{1})
+			_, _ = ws.Write([]byte{1}) // target dial failed
 			return
 		}
 		defer target.Close()
@@ -92,7 +100,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = target.SetDeadline(time.Now().Add(timeout))
 		response := make([]byte, 65507)
 		got, err := target.Read(response)
-		if err != nil || got == 0 || got > 65535 {
+		if err != nil || got == 0 {
 			return
 		}
 		binary.BigEndian.PutUint16(size[:], uint16(got))
