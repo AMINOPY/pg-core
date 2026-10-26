@@ -112,7 +112,6 @@ func TestSelectRejectsNegativeProbeLatency(t *testing.T) {
 	}
 }
 
-
 func TestSelectCandidatesAcceptsNilContext(t *testing.T) {
 	catalog := Catalog{SNIs: []string{"a.example"}, CDNIPs: []string{"1.1.1.1"}}
 	routes, err := (Scanner{Budget: 1}).SelectCandidates(nil, catalog,
