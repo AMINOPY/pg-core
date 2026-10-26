@@ -68,17 +68,27 @@ data class VpnPathConfig(
     private fun isLoopbackEndpoint(value: String): Boolean {
         if (value.isBlank() || value.any { it.isWhitespace() }) return false
         val uri = runCatching { URI("tcp://$value") }.getOrNull() ?: return false
-        if (uri.rawUserInfo != null || uri.rawPath.isNullOrEmpty().not() ||
+        if (uri.rawUserInfo != null || !uri.rawPath.isNullOrEmpty() ||
             uri.rawQuery != null || uri.rawFragment != null) return false
-        val host = uri.host ?: return false
+        val host = uri.host?.removeSurrounding("[", "]") ?: return false
         val port = uri.port
         if (port !in 1..65535) return false
         if (host.equals("localhost", ignoreCase = true)) return true
-        // Only numeric literals are accepted here: never resolve a supplied
-        // hostname while validating an endpoint used by the VPN data plane.
-        if (host.any { it.isLetter() && it !in 'a'..'f' && it !in 'A'..'F' }) return false
-        val address = runCatching { InetAddress.getByName(host) }.getOrNull() ?: return false
-        return address.isLoopbackAddress
+
+        // Never resolve a configured hostname while validating a local proxy.
+        if (':' in host) {
+            if (host.any { it !in '0'..'9' && it !in 'a'..'f' && it !in 'A'..'F' && it != ':' && it != '.' }) {
+                return false
+            }
+            val address = runCatching { InetAddress.getByName(host) }.getOrNull() ?: return false
+            return address.isLoopbackAddress
+        }
+
+        val octets = host.split('.')
+        if (octets.size != 4 || octets.any { it.isEmpty() || it.any { ch -> !ch.isDigit() } }) return false
+        val numbers = octets.map { it.toIntOrNull() ?: return false }
+        if (numbers.any { it !in 0..255 }) return false
+        return numbers[0] == 127
     }
 }
 
