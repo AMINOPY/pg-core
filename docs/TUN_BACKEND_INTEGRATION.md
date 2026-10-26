@@ -4,7 +4,9 @@ This document is an implementation gate, not a claim that TUN forwarding is alre
 
 ## Current hard boundary
 
-The native engine now supports SOCKS5 TCP CONNECT and a loopback SOCKS5 UDP ASSOCIATE path. UDP uses a separate bounded WebSocket tunnel per datagram through the Go `Dialer` and VPS-side `Server`; local UDP echo and SOCKS5 UDP-association regression tests cover this path, including IPv4/domain/IPv6 packet parsing and malformed/fragmented packet rejection. Server protocol negotiation and UDP response reads have bounded deadlines. This is an initial implementation, not a high-performance multiplexed UDP transport. `deploy/cloudflare-worker.js` remains TCP-only, so UDP mode requires the Go VPS-side server. Android TUN still has no packet-forwarding backend/JNI integration, so these SOCKS features do **not** mean the Android full-tunnel VPN is complete.
+The native engine supports SOCKS5 TCP CONNECT and a loopback SOCKS5 UDP ASSOCIATE path. UDP currently uses one bounded WebSocket tunnel per datagram through the Go Dialer and VPS-side Server. Local UDP echo and SOCKS5 UDP-association regression tests cover the path, including IPv4/domain/IPv6 packet parsing, malformed/fragmented packet rejection, and a no-response timeout. The UDP handshake now carries an explicit protocol version and rejects unknown versions. Server negotiation and UDP response reads have bounded deadlines.
+
+This remains an initial transport, not a high-performance multiplexed UDP data plane. UDP mode requires the Go VPS-side server; `deploy/cloudflare-worker.js` remains TCP-only. Android TUN still has no packet-forwarding backend/JNI integration, so these SOCKS features do **not** mean the Android full-tunnel VPN is complete.
 
 The Android service must keep its fail-closed default until a real backend is registered. Do not show “connected” based only on a live service, an established TUN descriptor, or a successful TLS/WebSocket handshake.
 
@@ -16,8 +18,8 @@ Before adopting it, make an explicit toolchain decision, pin a reviewed version,
 
 ## Required implementation sequence
 
-1. **Define a versioned transport envelope.** Add message types, stream/session IDs, bounded payload lengths, deadlines, cancellation, and backpressure. Reject unknown versions/types and malformed lengths. Preserve TLS certificate verification.
-2. **Harden remote datagram handling.** The Go client/server and local SOCKS5 UDP ASSOCIATE now pass a one-datagram-per-WebSocket path. Add protocol versioning, authentication for datagram mode, per-peer rate limits, and a persistent association or multiplexing strategy. The Worker implementation remains TCP-only unless its platform supports UDP forwarding. Verify DNS through the same controlled data plane or an explicitly configured, validated resolver path.
+1. **Complete the versioned transport envelope.** UDP negotiation now includes a protocol version and rejects unsupported versions. Still needed: explicit message types, stream/session IDs, bounded framing, cancellation, backpressure, and compatibility policy. Preserve TLS certificate verification.
+2. **Harden remote datagram handling.** Add datagram-mode authentication, per-peer rate limits, and a persistent association or multiplexing strategy. The current per-datagram WebSocket is not suitable for high-volume general-purpose UDP. The Worker implementation remains TCP-only unless its platform supports UDP forwarding. Verify DNS through the same controlled data plane or an explicitly configured, validated resolver path.
 3. **Integrate the user-space IP stack.** Read packets from the Android TUN FD, forward IPv4/IPv6 TCP/UDP through the engine, protect upstream sockets with `VpnService.protect` before connect, and ensure the engine never routes its own upstream connections back into the TUN.
 4. **Make lifecycle ownership explicit.** Start returns an error instead of exiting the process; stop is idempotent, cancels blocked I/O, waits for workers, and does not close the service-owned TUN FD. A failed stop must retain ownership and surface a retryable error.
 5. **Fail closed during recovery.** On network loss, stop accepting new data-plane work, invalidate stale upstream sockets, and re-establish the upstream path on network availability. Never report healthy until a bounded end-to-end probe succeeds.
