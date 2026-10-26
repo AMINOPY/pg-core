@@ -36,6 +36,7 @@ jobs:
       - name: Format check
         shell: bash
         run: |
+          gofmt -d internal/profileimport/xray.go internal/profileimport/xray_test.go
           files="$(gofmt -l .)"
           if [[ -n "$files" ]]; then
             echo "These Go files need gofmt:"
