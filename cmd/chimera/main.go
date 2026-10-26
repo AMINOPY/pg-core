@@ -20,9 +20,9 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "", "path to a Chimera JSON configuration file (validation only)")
+	configPath := flag.String("config", "", "path to a Chimera JSON configuration file (validation and --run)")
 	run := flag.Bool("run", false, "run the selected native or Xray engine (local SOCKS5) using --config and --profile")
-	profilePath := flag.String("profile", "", "path to a native engine profile (JSON), used with --run")
+	profilePath := flag.String("profile", "", "path to a native or Xray engine profile (JSON), used with --run")
 	diagnose := flag.String("diagnose", "", "run bounded DNS + HTTPS checks for a hostname")
 	aiScan := flag.String("ai-scan", "", "run bounded, explainable network diagnostics for a hostname")
 	samples := flag.Int("samples", 5, "number of diagnostic samples (1-20)")
@@ -212,8 +212,9 @@ func runXray(cfg config.Config, profilePath string) {
 	}
 	report, err := adapter.Health(ctx)
 	if err != nil {
+		_ = adapter.Stop(context.Background())
 		fmt.Fprintf(os.Stderr, "Xray health check: %v\n", err)
-		os.Exit(1)
+		return
 	}
 	fmt.Printf("Xray health: %s %s\n", report.Status, report.ErrorCode)
 	if report.Status == "degraded" {
