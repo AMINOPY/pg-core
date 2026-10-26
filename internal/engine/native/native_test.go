@@ -25,7 +25,7 @@ type env struct {
 }
 
 // newEnv starts a TLS tunnel server (cert valid for example.com) and a TCP echo server.
-func newEnv(t *testing.T) *env {
+func newEnv(t testing.TB) *env {
 	t.Helper()
 	srv := httptest.NewTLSServer(&Server{Path: "/secret"})
 	t.Cleanup(srv.Close)
@@ -354,4 +354,43 @@ func TestStopWaitsForActiveSOCKSSessions(t *testing.T) {
 	if a.Addr() != "" {
 		t.Fatal("engine still reports a listener after Stop")
 	}
+}
+
+
+// BenchmarkNativeTunnelRoundTrip measures payload throughput over the complete
+// native TLS/WebSocket tunnel to a local TCP echo target. It is a local
+// regression baseline, not a claim about Internet or mobile-network speed.
+func BenchmarkNativeTunnelRoundTrip(b *testing.B) {
+	e := newEnv(b)
+	host, portText, err := net.SplitHostPort(e.echoAddr)
+	if err != nil {
+		b.Fatal(err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		b.Fatal(err)
+	}
+	conn, err := e.dialer("127.0.0.1").DialTarget(context.Background(), host, port)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer conn.Close()
+
+	payload := make([]byte, 64<<10)
+	for i := range payload {
+		payload[i] = byte(i)
+	}
+	reply := make([]byte, len(payload))
+	b.SetBytes(int64(len(payload)))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.Write(payload); err != nil {
+			b.Fatal(err)
+		}
+		if _, err := io.ReadFull(conn, reply); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.StopTimer()
 }
