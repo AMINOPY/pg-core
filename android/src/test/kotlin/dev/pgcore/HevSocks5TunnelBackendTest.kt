@@ -67,7 +67,7 @@ class HevSocks5TunnelBackendTest {
         val cache = createTempDir(prefix = "pgcore-hev-test")
         try {
             val hev = FakeHev()
-            val backend = HevSocks5TunnelBackend(FakeContext(cache), FakeEngine(), hev)
+            val backend = HevSocks5TunnelBackend(cache, FakeEngine(), hev)
             val result = backend.start(41, VpnBackendConfig("s")) { true }
             assertFalse(result.ok)
             assertEquals("missing_engine_profile", result.code)
@@ -83,7 +83,7 @@ class HevSocks5TunnelBackendTest {
         try {
             val engine = FakeEngine(endpoint = "example.com:1080")
             val hev = FakeHev()
-            val backend = HevSocks5TunnelBackend(FakeContext(cache), engine, hev)
+            val backend = HevSocks5TunnelBackend(cache, engine, hev)
             val result = backend.start(41, VpnBackendConfig("s", engineProfileJson = """{"server":"test"}""")) { true }
             assertFalse(result.ok)
             assertEquals("hev_backend_start_failed", result.code)
@@ -104,7 +104,7 @@ class HevSocks5TunnelBackendTest {
                 override fun stop() = false
                 override fun isRunning() = true
             }
-            val backend = HevSocks5TunnelBackend(FakeContext(cache), engine, hev)
+            val backend = HevSocks5TunnelBackend(cache, engine, hev)
             assertTrue(backend.start(41, VpnBackendConfig("s", engineProfileJson = """{"server":"test"}""")) { true }.ok)
             assertFalse(backend.stop().ok)
             assertEquals(0, engine.stops)
