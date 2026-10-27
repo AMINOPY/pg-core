@@ -11,7 +11,7 @@ import (
 )
 
 func TestPrepareAutoCDNProfileSelectsMeasuredPairAndPreservesProfile(t *testing.T) {
-	profile := []byte(\`{"outbounds":[{"tag":"proxy","protocol":"vless","settings":{"vnext":[{"address":"origin.example.com","port":443,"users":[{"id":"keep-me"}]}]},"streamSettings":{"network":"ws","security":"tls","tlsSettings":{"serverName":"origin.example.com"},"wsSettings":{"path":"/tunnel","headers":{"Host":"origin.example.com"}}}}]}\`)
+	profile := []byte(`{"outbounds":[{"tag":"proxy","protocol":"vless","settings":{"vnext":[{"address":"origin.example.com","port":443,"users":[{"id":"keep-me"}]}]},"streamSettings":{"network":"ws","security":"tls","tlsSettings":{"serverName":"origin.example.com"},"wsSettings":{"path":"/tunnel","headers":{"Host":"origin.example.com"}}}}]}`)
 	catalog := autocdn.Catalog{
 		SNIs:   []string{"slow.example.com", "fast.example.com"},
 		CDNIPs: []string{"1.1.1.1"},
@@ -62,7 +62,7 @@ func TestPrepareAutoCDNProfileRequiresExistingXrayProfile(t *testing.T) {
 }
 
 func TestPrepareAutoCDNProfileRejectsUnusableCatalog(t *testing.T) {
-	_, _, err := PrepareAutoCDNProfile(context.Background(), []byte(\`{"outbounds":[]}\`),
+	_, _, err := PrepareAutoCDNProfile(context.Background(), []byte(`{"outbounds":[]}`),
 		autocdn.Catalog{}, autocdn.Scanner{}, nil)
 	if err == nil {
 		t.Fatal("expected invalid catalog error")
