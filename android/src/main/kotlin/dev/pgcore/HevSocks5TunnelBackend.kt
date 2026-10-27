@@ -80,6 +80,7 @@ class HevSocks5TunnelBackend(
             val engineResult = engine.start(config.engineProfileJson, protectSocket)
             if (!engineResult.ok) return engineResult
             engineStarted = true
+            engine.attachTunnelContext(tunFd, config)
 
             val endpoint = engine.socksEndpoint()
             val socks = parseLoopbackEndpoint(endpoint)
@@ -189,6 +190,8 @@ class HevSocks5TunnelBackend(
  */
 interface PgCoreSocksEngine {
     fun start(profileJson: String, protectSocket: (socketFd: Int) -> Boolean): EngineResult
+    /** Supplies the borrowed TUN descriptor and probe configuration after engine startup. */
+    fun attachTunnelContext(tunFd: Int, config: VpnBackendConfig) {}
     fun socksEndpoint(): String
     fun endToEndHealthCheck(): EngineResult
     fun stop(): EngineResult
