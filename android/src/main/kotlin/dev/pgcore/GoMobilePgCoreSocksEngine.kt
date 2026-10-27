@@ -101,7 +101,7 @@ class GoMobilePgCoreSocksEngine(
 
     /** Called by the backend after native engine start and before its health probe. */
     @Synchronized
-    fun attachTunnelContext(fd: Int, config: VpnBackendConfig) {
+    override fun attachTunnelContext(fd: Int, config: VpnBackendConfig) {
         require(fd >= 0) { "TUN fd must be non-negative" }
         tunFd = fd
         activeConfig = config
