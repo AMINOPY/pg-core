@@ -19,6 +19,21 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
+/** Observable lifecycle state for the host app's EngineBackend adapter. */
+object PgCoreVpnRuntimeStatus {
+    enum class State { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
+
+    @Volatile var state: State = State.STOPPED
+        private set
+    @Volatile var failureCode: String? = null
+        private set
+
+    internal fun update(next: State, failure: String? = null) {
+        failureCode = failure
+        state = next
+    }
+}
+
 /**
  * Owns Android VPN lifecycle. The actual packet data plane is supplied by
  * PgCoreVpnBackend; without one, startup fails closed.
@@ -44,6 +59,7 @@ class PgCoreVpnService : VpnService() {
 
     private fun startVpn(intent: Intent?) {
         if (tun != null || startTask?.isDone == false) return
+        PgCoreVpnRuntimeStatus.update(PgCoreVpnRuntimeStatus.State.STARTING)
         stopping.set(false)
         val startGeneration = generation.incrementAndGet()
         createNotificationChannel()
@@ -86,6 +102,7 @@ class PgCoreVpnService : VpnService() {
                     }
                     tun = localTun
                     backend = localBackend
+                    PgCoreVpnRuntimeStatus.update(PgCoreVpnRuntimeStatus.State.RUNNING)
                     localTun = null
                     localBackend = null
                 }
@@ -96,6 +113,7 @@ class PgCoreVpnService : VpnService() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "VPN start failed; cleaning up", e)
+                PgCoreVpnRuntimeStatus.update(PgCoreVpnRuntimeStatus.State.FAILED, "START_FAILED")
                 var backendCleanupFailed = false
                 if (localBackend != null) {
                     try {
@@ -148,6 +166,7 @@ class PgCoreVpnService : VpnService() {
     private fun stopVpn(onComplete: (() -> Unit)? = null) {
         synchronized(lifecycleLock) {
             if (!stopping.compareAndSet(false, true)) return
+            PgCoreVpnRuntimeStatus.update(PgCoreVpnRuntimeStatus.State.STOPPING)
             generation.incrementAndGet()
             startTask?.cancel(true)
         }
@@ -175,6 +194,7 @@ class PgCoreVpnService : VpnService() {
             }
             if (!backendStopped) {
                 stopping.set(false)
+                PgCoreVpnRuntimeStatus.update(PgCoreVpnRuntimeStatus.State.FAILED, "BACKEND_STOP_FAILED")
                 updateNotification("Disconnect cleanup failed. Tap Disconnect to retry.")
                 return@submit
             }
@@ -192,6 +212,7 @@ class PgCoreVpnService : VpnService() {
                 if (backend === oldBackend) backend = null
                 if (tun === oldTun) tun = null
             }
+            PgCoreVpnRuntimeStatus.update(PgCoreVpnRuntimeStatus.State.STOPPED)
             stopForegroundCompat()
             onComplete?.invoke()
         }
