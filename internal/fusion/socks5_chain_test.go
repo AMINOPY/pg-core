@@ -65,16 +65,24 @@ func TestSOCKS5ChainDialerInvokesFirstHopSocketProtection(t *testing.T) {
 	d := SOCKS5ChainDialer{
 		Hops: []string{proxy},
 		Control: func(network, address string, raw syscall.RawConn) error {
-			if network != "tcp" { t.Errorf("control network = %q, want tcp", network) }
+			if network != "tcp" {
+				t.Errorf("control network = %q, want tcp", network)
+			}
 			if err := raw.Control(func(fd uintptr) {
-				if fd == 0 { t.Error("socket fd must be non-zero") }
+				if fd == 0 {
+					t.Error("socket fd must be non-zero")
+				}
 				protected.Add(1)
-			}); err != nil { return err }
+			}); err != nil {
+				return err
+			}
 			return nil
 		},
 	}
 	conn, err := d.DialContext(context.Background(), "tcp", "example.com:443")
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	_ = conn.Close()
 	if protected.Load() != 1 {
 		t.Fatalf("protected sockets = %d, want exactly one first-hop socket", protected.Load())
