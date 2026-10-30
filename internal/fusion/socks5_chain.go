@@ -57,7 +57,9 @@ func (d SOCKS5ChainDialer) DialContext(ctx context.Context, network, address str
 		previousControl := clone.Control
 		clone.Control = func(network, address string, raw syscall.RawConn) error {
 			if previousControl != nil {
-				if err := previousControl(network, address, raw); err != nil { return err }
+				if err := previousControl(network, address, raw); err != nil {
+					return err
+				}
 			}
 			return d.Control(network, address, raw)
 		}
