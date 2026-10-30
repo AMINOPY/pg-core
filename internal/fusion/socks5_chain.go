@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
+	"io"
 	"time"
 )
 
@@ -99,7 +101,7 @@ func validateSOCKS5ProxyAddress(address string) error {
 	if err != nil || host == "" {
 		return fmt.Errorf("%w: expected host:port", ErrInvalidSOCKS5Proxy)
 	}
-	port, err := net.LookupPort("tcp", portText)
+	port, err := strconv.Atoi(portText)
 	if err != nil || port < 1 || port > 65535 {
 		return fmt.Errorf("%w: invalid port", ErrInvalidSOCKS5Proxy)
 	}
