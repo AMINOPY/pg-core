@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -103,6 +104,9 @@ func ProbeSOCKS5Path(ctx context.Context, route Route, target string) (time.Dura
 type SOCKS5ChainPath struct {
 	Path
 	Hops []string
+	// Control protects the first-hop socket before connect (VpnService.protect on Android).
+	// A nil callback is suitable only outside Android VPN routing.
+	Control func(network, address string, raw syscall.RawConn) error
 }
 
 // RoutesFromSOCKS5Chains creates route dialers for multi-hop SOCKS5 paths.
@@ -129,7 +133,7 @@ func RoutesFromSOCKS5Chains(paths []SOCKS5ChainPath) ([]Route, error) {
 		}
 		routes = append(routes, Route{
 			Path: path.Path,
-			Dialer: SOCKS5ChainDialer{Hops: hops},
+			Dialer: SOCKS5ChainDialer{Hops: hops, Control: path.Control},
 		})
 	}
 	if _, _, err := normalizeRoutes(routes); err != nil {
