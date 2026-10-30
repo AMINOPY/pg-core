@@ -97,7 +97,6 @@ func ProbeSOCKS5Path(ctx context.Context, route Route, target string) (time.Dura
 	return time.Since(started), nil
 }
 
-
 // SOCKS5ChainPath binds a measured route to an ordered chain of existing
 // SOCKS5 listeners. The first hop is dialed directly; later hops are reached
 // through the preceding SOCKS5 CONNECT tunnel.
@@ -132,7 +131,7 @@ func RoutesFromSOCKS5Chains(paths []SOCKS5ChainPath) ([]Route, error) {
 			}
 		}
 		routes = append(routes, Route{
-			Path: path.Path,
+			Path:   path.Path,
 			Dialer: SOCKS5ChainDialer{Hops: hops, Control: path.Control},
 		})
 	}
