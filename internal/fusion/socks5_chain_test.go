@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"sync/atomic"
+	"syscall"
 )
 
 func TestRoutesFromSOCKS5ChainsBuildsOrderedDialer(t *testing.T) {
@@ -52,5 +54,29 @@ func TestSOCKS5ChainDialerRejectsMissingHopsAndUDP(t *testing.T) {
 	d.Hops = []string{"127.0.0.1:1080"}
 	if _, err := d.DialContext(context.Background(), "udp", "example.com:53"); !errors.Is(err, ErrUnsupportedNetwork) {
 		t.Fatalf("UDP error = %v, want ErrUnsupportedNetwork", err)
+	}
+}
+
+func TestSOCKS5ChainDialerInvokesFirstHopSocketProtection(t *testing.T) {
+	proxy, closeProxy := startTestSOCKS5Proxy(t, 0, 0, []byte("ok"), nil)
+	defer closeProxy()
+
+	var protected atomic.Int32
+	d := SOCKS5ChainDialer{
+		Hops: []string{proxy},
+		Control: func(network, address string, raw syscall.RawConn) error {
+			if network != "tcp" { t.Errorf("control network = %q, want tcp", network) }
+			if err := raw.Control(func(fd uintptr) {
+				if fd == 0 { t.Error("socket fd must be non-zero") }
+				protected.Add(1)
+			}); err != nil { return err }
+			return nil
+		},
+	}
+	conn, err := d.DialContext(context.Background(), "tcp", "example.com:443")
+	if err != nil { t.Fatal(err) }
+	_ = conn.Close()
+	if protected.Load() != 1 {
+		t.Fatalf("protected sockets = %d, want exactly one first-hop socket", protected.Load())
 	}
 }
