@@ -1,24 +1,32 @@
 # Android mobile bridge status
 
-## Implemented in this branch
+## Implemented on the work branch
 
-The Go package `mobile` exposes the existing native TLS/WebSocket engine lifecycle to a future gomobile/JNI host:
+- Go package `mobile` exposes the native TLS/WebSocket engine lifecycle. GitHub Actions builds `mobile-engine.aar` for ARMv7, ARM64, x86 and x86_64.
+- `GoMobilePgCoreSocksEngine` is a concrete Kotlin reflection adapter for the generated gomobile API. It passes Android's `VpnService.protect(fd)` callback through the generated `SocketProtector` interface.
+- `HevSocks5TunnelBackend` starts the Go engine before Hev's TUN-to-SOCKS data plane, keeps ownership of the borrowed TUN descriptor in `PgCoreVpnService`, and rolls back on startup/health failure.
+- `PgCoreHevMobileIntegration.install(...)` provides explicit opt-in registry wiring. The safe default remains `UnavailableVpnBackend`.
+- A `VpnTrafficProbe` is mandatory for successful health checks. It must prove actual traffic traverses the VPN; the Go engine's TLS/WebSocket health check alone is not accepted as end-to-end proof.
+- The Go bridge enforces a non-null socket protector and aborts upstream connection setup if `VpnService.protect(fd)` fails.
+- Hev AAR 2.19.3 is checksum-pinned and its JNI class/method signatures are checked by CI.
 
-- `Engine.Start(profileJSON, protector)` refuses to start without a socket-protection callback.
-- Every outbound edge socket passes through Go's `net.Dialer.Control`; the callback obtains the raw file descriptor and calls `SocketProtector.Protect(fd)` before connect proceeds.
-- If protection fails, the dial fails closed.
-- `Health(timeoutMillis)` only accepts the engine's real data-plane health result; a TLS/WebSocket-only probe is not enough.
-- `Stop(timeoutMillis)` preserves ownership if shutdown has not completed.
-- Unit tests cover the protection callback and fail-closed behavior.
+Latest branch commit: `e7835d4fe0b5f5377d4c4c0d6fa9c7e8555ec1ca`.
 
-## Not yet complete
+Workflow results for the latest commit can be inspected here:
+- Android Kotlin CI: https://github.com/AMINOPY/pg-core/actions/runs/40444768293
+- Go CI: https://github.com/AMINOPY/pg-core/actions/runs/40444768281
+- Android Go mobile bridge (AAR build): https://github.com/AMINOPY/pg-core/actions/runs/40444768237
+- Hev Android artifact validation: https://github.com/AMINOPY/pg-core/actions/runs/40444768144
+- Dependency Security: https://github.com/AMINOPY/pg-core/actions/runs/40444768138
 
-This package is **not yet a compiled Android AAR and is not wired to `PgCoreVpnService`**. The service still defaults to `UnavailableVpnBackend`. The following integration remains mandatory:
+## Release blockers — not yet a verified usable VPN
 
-1. Bind `mobile` into an Android AAR using a pinned Go/mobile toolchain and expose the generated `SocketProtector` interface to Kotlin.
-2. Build/pin an Android tun2socks backend for supported ABIs and connect its local SOCKS endpoint to the mobile engine.
-3. Ensure the tun2socks implementation's own sockets cannot loop through TUN; if it creates any non-loopback upstream sockets, protect those before connect too.
-4. Connect the Kotlin backend to the generated bridge, with bounded start/stop, cancellation and worker joining.
-5. Run automated TCP/UDP/DNS/IPv4/IPv6 tests, network-loss recovery, leak/soak tests, and physical-device tests.
+This repository contains an Android **library**, not a consuming/installable Android application. CI builds and checks artifacts, but it does not install the app on a physical phone or prove traffic is leak-free. Do not label this production-ready until all gates below are evidenced.
 
-Do not register a production backend or report VPN connected until those gates pass. Repository CI can validate source-level tests but cannot substitute for a real Android device/network leak test.
+1. **Host app packaging:** the consuming app must package both the generated Go AAR and the checksum-pinned Hev AAR, validate native ABIs, and include license notices. This repository does not currently supply a finished consuming app/APK.
+2. **Real traffic probe:** the host must implement `VpnTrafficProbe` to issue bounded TCP, UDP and DNS tests through the device VPN and verify the results independently. It must fail closed on any missing/failed protocol test.
+3. **Leak testing:** verify upstream sockets are protected before connect; test DNS routing, IPv4/IPv6, app filtering and external-IP behavior while connected and after disconnect.
+4. **Lifecycle/recovery:** test cancellation, stop/start, permission revocation, network loss/recovery, failed cleanup, and resource/descriptor leaks.
+5. **Physical device:** run repeated connect/disconnect and a sustained traffic soak on real Android hardware; retain device model, Android version, ABI, test logs and results.
+
+No physical-device test has been performed by these workflows. The backend must remain opt-in and must not report CONNECTED until the host's actual TCP/UDP/DNS-through-TUN probe passes. CI success is necessary but is not evidence of real-phone traffic forwarding or zero leaks.

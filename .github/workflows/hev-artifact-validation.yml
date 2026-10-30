@@ -1,0 +1,36 @@
+name: Hev Android artifact validation
+
+on:
+  pull_request:
+    paths:
+      - "android/**"
+      - "docs/HEV_ANDROID_BACKEND.md"
+      - ".github/workflows/hev-artifact-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-pinned-hev-aar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download pinned upstream AAR
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            "https://github.com/heiher/hev-socks5-tunnel/releases/download/2.19.3/hev-socks5-tunnel.aar" \
+            --output hev-socks5-tunnel.aar
+      - name: Verify upstream SHA-256
+        run: |
+          set -euo pipefail
+          echo "ab6c581e6157680cfe5687ee7bbdcf95405c006c2db3701879ec44b9e5f83836  hev-socks5-tunnel.aar" | sha256sum --check -
+      - name: Verify JNI class and API methods
+        run: |
+          set -euo pipefail
+          unzip -p hev-socks5-tunnel.aar classes.jar > hev-classes.jar
+          jar tf hev-classes.jar | grep -Fx "hev/htproxy/TProxyService.class"
+          javap -classpath hev-classes.jar hev.htproxy.TProxyService > hev-api.txt
+          grep -F "TProxyStartService(java.lang.String, int)" hev-api.txt
+          grep -F "TProxyStopService()" hev-api.txt
+          grep -F "TProxyIsRunning()" hev-api.txt

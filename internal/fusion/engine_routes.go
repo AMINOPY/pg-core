@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -94,4 +95,51 @@ func ProbeSOCKS5Path(ctx context.Context, route Route, target string) (time.Dura
 		return time.Since(started), fmt.Errorf("close route probe connection: %w", err)
 	}
 	return time.Since(started), nil
+}
+
+// SOCKS5ChainPath binds a measured route to an ordered chain of existing
+// SOCKS5 listeners. The first hop is dialed directly; later hops are reached
+// through the preceding SOCKS5 CONNECT tunnel.
+type SOCKS5ChainPath struct {
+	Path
+	Hops []string
+	// Control protects the first-hop socket before connect (VpnService.protect on Android).
+	// A nil callback is suitable only outside Android VPN routing.
+	Control func(network, address string, raw syscall.RawConn) error
+}
+
+// RoutesFromSOCKS5Chains creates route dialers for multi-hop SOCKS5 paths.
+// Each hop must already be running and support no-auth TCP CONNECT. The caller
+// retains ownership of all proxy engines and listeners.
+func RoutesFromSOCKS5Chains(paths []SOCKS5ChainPath) ([]Route, error) {
+	if len(paths) == 0 {
+		return nil, ErrInvalidPaths
+	}
+	routes := make([]Route, 0, len(paths))
+	for _, path := range paths {
+		if strings.TrimSpace(path.ID) == "" {
+			return nil, fmt.Errorf("%w: path ID is required", ErrInvalidPaths)
+		}
+		if len(path.Hops) == 0 {
+			return nil, fmt.Errorf("%w: path %q requires at least one SOCKS5 hop", ErrInvalidPaths, path.ID)
+		}
+		hops := make([]string, len(path.Hops))
+		for i, hop := range path.Hops {
+			hops[i] = strings.TrimSpace(hop)
+			if err := validateSOCKS5ProxyAddress(hops[i]); err != nil {
+				return nil, fmt.Errorf("%w: path %q hop %d: %v", ErrInvalidPaths, path.ID, i+1, err)
+			}
+		}
+		routes = append(routes, Route{
+			Path:   path.Path,
+			Dialer: SOCKS5ChainDialer{Hops: hops, Control: path.Control},
+		})
+	}
+	if _, _, err := normalizeRoutes(routes); err != nil {
+		return nil, err
+	}
+	if _, err := NewAllocator(pathsToSnapshots(routes)); err != nil {
+		return nil, err
+	}
+	return routes, nil
 }

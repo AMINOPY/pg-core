@@ -44,6 +44,7 @@ object PgCoreVpnController {
                 VpnServiceOptions.EXTRA_DISALLOWED_APPLICATIONS,
                 ArrayList(options.disallowedApplications),
             )
+            .putExtra(VpnServiceOptions.EXTRA_ENGINE_PROFILE_JSON, options.engineProfileJson)
 
         val component = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent)
