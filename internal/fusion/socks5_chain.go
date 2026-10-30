@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
-	"io"
 	"strings"
 	"syscall"
 	"time"
@@ -17,8 +17,8 @@ import (
 // by issuing CONNECT through the preceding hop. The final CONNECT targets the
 // requested destination. All hops use RFC 1928 no-auth CONNECT.
 type SOCKS5ChainDialer struct {
-	Hops    []string
-	Dialer  *net.Dialer
+	Hops   []string
+	Dialer *net.Dialer
 	// Control runs on the first-hop socket before connect completes. Android
 	// callers must use it to invoke VpnService.protect(fd), failing closed.
 	Control func(network, address string, raw syscall.RawConn) error
