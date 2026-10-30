@@ -3,9 +3,9 @@ package fusion
 import (
 	"context"
 	"errors"
-	"testing"
 	"sync/atomic"
 	"syscall"
+	"testing"
 )
 
 func TestRoutesFromSOCKS5ChainsBuildsOrderedDialer(t *testing.T) {
