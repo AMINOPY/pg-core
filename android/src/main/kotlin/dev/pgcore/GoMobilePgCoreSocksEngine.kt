@@ -25,8 +25,8 @@ class GoMobilePgCoreSocksEngine(
     private val trafficProbe: VpnTrafficProbe,
     private val classLoader: ClassLoader = Thread.currentThread().contextClassLoader
         ?: GoMobilePgCoreSocksEngine::class.java.classLoader!!,
-    private val engineClassName: String = "dev.pgcore.mobile.mobile.Engine",
-    private val protectorClassName: String = "dev.pgcore.mobile.mobile.SocketProtector",
+    private val engineClassName: String = "io.nekohasekai.mobile.Engine",
+    private val protectorClassName: String = "io.nekohasekai.mobile.SocketProtector",
     private val probeTimeoutMillis: Long = 8_000,
 ) : PgCoreSocksEngine {
     private var nativeEngine: Any? = null
