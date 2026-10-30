@@ -128,6 +128,7 @@ class PgCoreVpnService : VpnService() {
                     }
                 }
                 if (backendCleanupFailed && localBackend != null && localTun != null) {
+                    PgCoreVpnRuntimeStatus.update(PgCoreVpnRuntimeStatus.State.FAILED, "START_CLEANUP_FAILED")
                     synchronized(lifecycleLock) {
                         backend = localBackend
                         tun = localTun
@@ -143,6 +144,7 @@ class PgCoreVpnService : VpnService() {
                 } catch (closeError: IOException) {
                     Log.e(TAG, "TUN cleanup failed", closeError)
                     if (localTun != null) {
+                        PgCoreVpnRuntimeStatus.update(PgCoreVpnRuntimeStatus.State.FAILED, "TUN_CLEANUP_FAILED")
                         synchronized(lifecycleLock) {
                             tun = localTun
                             stopping.set(false)
