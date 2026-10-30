@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"io"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -16,8 +17,11 @@ import (
 // by issuing CONNECT through the preceding hop. The final CONNECT targets the
 // requested destination. All hops use RFC 1928 no-auth CONNECT.
 type SOCKS5ChainDialer struct {
-	Hops   []string
-	Dialer *net.Dialer
+	Hops    []string
+	Dialer  *net.Dialer
+	// Control runs on the first-hop socket before connect completes. Android
+	// callers must use it to invoke VpnService.protect(fd), failing closed.
+	Control func(network, address string, raw syscall.RawConn) error
 }
 
 // DialContext implements ContextDialer for TCP flows through a SOCKS5 chain.
@@ -46,6 +50,18 @@ func (d SOCKS5ChainDialer) DialContext(ctx context.Context, network, address str
 	dialer := d.Dialer
 	if dialer == nil {
 		dialer = &net.Dialer{}
+	}
+	if d.Control != nil {
+		// Do not mutate a caller-owned Dialer: it may be shared by other routes.
+		clone := *dialer
+		previousControl := clone.Control
+		clone.Control = func(network, address string, raw syscall.RawConn) error {
+			if previousControl != nil {
+				if err := previousControl(network, address, raw); err != nil { return err }
+			}
+			return d.Control(network, address, raw)
+		}
+		dialer = &clone
 	}
 	conn, err := dialer.DialContext(ctx, "tcp", d.Hops[0])
 	if err != nil {
